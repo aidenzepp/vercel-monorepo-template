@@ -55,10 +55,10 @@ const fail = <E extends Error>(error: E): Fail<E> =>
   ({ error, ok: false }) as const;
 
 /**
- * Coerce an unknown caught value into a Fail<Error>.
+ * Coerce an unknown rejection cause into a Fail<Error>.
  */
-const onReject = (error: unknown): Fail =>
-  fail(error instanceof Error ? error : new Error(String(error)));
+const onReject = (cause: unknown): Fail =>
+  fail(cause instanceof Error ? cause : new Error(String(cause)));
 
 /**
  * Execute an async thunk and capture the outcome as a Result.

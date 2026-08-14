@@ -8,18 +8,10 @@ Template monorepo for personal workspaces. Apps are empty until you mint one.
 - Use `result.trycatch` from `@workspace/utils/result` around one atomic operation.
 - Lint rule: `workspace/no-built-in-try-catch` (off only in `packages/utils/src/result.ts`).
 
-## Environment
-
-- Do not read `process.env` in ordinary code.
-- Add shared keys through the Zod env helper in `packages/utils/src/env.ts` (`createEnv` + `EnvSchema` + direct `process.env.KEY` snapshot).
-- Import `{ env }` from `@workspace/utils/env`.
-- Apps that need product-specific keys (including database URLs) should define them locally with `createEnv` from `@workspace/utils/env`, or extend the shared schema when the key is truly workspace-wide.
-- Lint rule: `workspace/no-process-env` (off in the env module; also off app-local drizzle-kit configs when you add them).
-
 ## Logging
 
 - Use `logger` from `@workspace/utils/logger`.
-- Controlled by `LOG_LEVEL` and `LOG_PRETTY` in the env contract.
+- Logs are pretty only when `NODE_ENV=development`; other environments receive JSON lines.
 
 ## Database
 
@@ -42,7 +34,7 @@ Put new runtimes under `apps/`. No required framework. Do not pull Hono, MCP, or
 ## Imports
 
 - Avoid barrel files (`index.ts` that re-export everything).
-- Import from package subpaths: `@workspace/utils/result`, `@workspace/utils/env`, `@workspace/utils/logger`, etc.
+- Import from package subpaths: `@workspace/utils/result`, `@workspace/utils/logger`, etc.
 
 ## Skills policy
 

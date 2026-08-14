@@ -9,7 +9,7 @@ This is a starting point for new personal workspaces. It is not tied to Hono, MC
 - Bun workspaces: `apps/*`, `packages/*`
 - Turborepo scripts for build, lint, format, typecheck
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
-- `packages/utils`: Result, Option, Zero, Zod env helper, Pino logger
+- `packages/utils`: Result, Option, Zero, Pino logger
 - Agent skill: conventional-commits
 
 No database/ORM is bundled. Add one inside an app when that app needs it.
@@ -18,7 +18,6 @@ No database/ORM is bundled. Add one inside an app when that app needs it.
 
 ```bash
 bun install
-cp .env.example .env
 ```
 
 Useful root scripts:
@@ -51,7 +50,6 @@ Import shared foundation code from workspace package subpaths:
 
 ```ts
 import { result } from "@workspace/utils/result";
-import { env } from "@workspace/utils/env";
 import { logger } from "@workspace/utils/logger";
 ```
 
@@ -61,8 +59,7 @@ import { logger } from "@workspace/utils/logger";
 
 - `result.trycatch` for atomic fallible work (prefer this over built-in try/catch)
 - `option` / `zero` helpers
-- `createEnv` + exported `env` (Zod). Add shared keys in `packages/utils/src/env.ts`; app-specific keys belong in the owning package
-- `logger` (Pino; pretty output from `LOG_PRETTY`)
+- `logger` (Pino; pretty output in development and JSON lines elsewhere)
 
 ### `@workspace/typescript-config`
 
@@ -73,9 +70,8 @@ Shared tsconfig bases (`base`, `nextjs`, `react-library`).
 Custom oxlint plugin: `tools/oxlint-plugin-workspace`
 
 - `workspace/no-built-in-try-catch`
-- `workspace/no-process-env`
 
-Read env only through `@workspace/utils/env` (or your app's thin env module that uses `createEnv`). Allowlisted in the template: `packages/utils/src/env.ts` and `packages/utils/src/result.ts` for try/catch. App-local drizzle-kit configs should also allowlist `process.env` when you add them.
+Built-in try/catch is allowlisted only in `packages/utils/src/result.ts`.
 
 ## Agent notes
 
