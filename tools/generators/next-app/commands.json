@@ -1,0 +1,138 @@
+[
+  {
+    "label": "Create Next.js app",
+    "description": "Use the configured ShadCN preset and place the new workspace under the repository's apps directory",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": [
+      "bunx",
+      "--bun",
+      "shadcn@latest",
+      "init",
+      "--cwd",
+      "$REPOSITORY_APPS_PATH",
+      "--name",
+      "$APP_NAME",
+      "--preset",
+      "b1Ymqvgiw",
+      "--template",
+      "next",
+      "--no-monorepo",
+      "--rtl",
+      "--pointer",
+      "--yes"
+    ]
+  },
+  {
+    "label": "Add ShadCN components",
+    "description": "Install every registry component locally so agents can use components without another setup step",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": [
+      "bunx",
+      "--bun",
+      "shadcn@latest",
+      "add",
+      "--all",
+      "--cwd",
+      "$ABSOLUTE_APP_PATH",
+      "--yes"
+    ]
+  },
+  {
+    "label": "Delete standalone files",
+    "description": "Discard nested Git metadata, lockfiles, and empty configuration files that do not belong inside the workspace",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": [
+      "rm",
+      "-rf",
+      "$ABSOLUTE_APP_PATH/.git",
+      "$ABSOLUTE_APP_PATH/bun.lock",
+      "$ABSOLUTE_APP_PATH/eslint.config.js",
+      "$ABSOLUTE_APP_PATH/eslint.config.mjs",
+      "$ABSOLUTE_APP_PATH/eslint.config.ts",
+      "$ABSOLUTE_APP_PATH/.prettierignore",
+      "$ABSOLUTE_APP_PATH/.prettierrc",
+      "$ABSOLUTE_APP_PATH/.prettierrc.json",
+      "$ABSOLUTE_APP_PATH/.prettierrc.js",
+      "$ABSOLUTE_APP_PATH/.prettierrc.mjs",
+      "$ABSOLUTE_APP_PATH/next.config.js",
+      "$ABSOLUTE_APP_PATH/next.config.mjs",
+      "$ABSOLUTE_APP_PATH/next.config.ts"
+    ]
+  },
+  {
+    "label": "Remove ESLint and Prettier",
+    "description": "Keep Oxlint, Oxfmt, and Ultracite as the repository's only linting and formatting toolchain",
+    "cwd": "$ABSOLUTE_APP_PATH",
+    "argv": [
+      "bun",
+      "pm",
+      "pkg",
+      "delete",
+      "devDependencies.eslint",
+      "devDependencies.eslint-config-next",
+      "devDependencies.prettier",
+      "devDependencies.prettier-plugin-tailwindcss"
+    ]
+  },
+  {
+    "label": "Configure workspace package",
+    "description": "Apply the workspace package name, root tooling scripts, latest Next.js release, and TypeScript 7 dependency",
+    "cwd": "$ABSOLUTE_APP_PATH",
+    "argv": [
+      "bun",
+      "pm",
+      "pkg",
+      "set",
+      "name=@workspace/$APP_NAME",
+      "scripts.format=bun --cwd ../.. oxfmt --config oxfmt.config.ts --write $RELATIVE_APP_PATH",
+      "scripts.lint=bun --cwd ../.. oxlint --config oxlint.config.ts $RELATIVE_APP_PATH",
+      "scripts.typecheck=tsc --noEmit",
+      "dependencies.next=latest",
+      "devDependencies.typescript=^7.0.2"
+    ]
+  },
+  {
+    "label": "Fix package metadata",
+    "description": "Normalize package.json after changing its name, scripts, and development dependencies",
+    "cwd": "$ABSOLUTE_APP_PATH",
+    "argv": ["bun", "pm", "pkg", "fix"]
+  },
+  {
+    "label": "Install workspace dependencies",
+    "description": "Update the root Bun installation and lockfile from the generated package manifest",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": ["bun", "install"]
+  },
+  {
+    "label": "Fix generated lint violations",
+    "description": "Apply safe Oxlint fixes and suggestions to code emitted by the ShadCN CLI",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": [
+      "bunx",
+      "oxlint",
+      "--config",
+      "oxlint.config.ts",
+      "--fix",
+      "--fix-suggestions",
+      "$RELATIVE_APP_PATH"
+    ]
+  },
+  {
+    "label": "Format generated app",
+    "description": "Apply the repository's Ultracite and Oxfmt rules to the generated source",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": ["bunx", "ultracite", "fix", "$RELATIVE_APP_PATH", "--type-aware"]
+  },
+  {
+    "label": "Generate Next.js types",
+    "description": "Create framework and route declarations before TypeScript checks the generated app",
+    "cwd": "$ABSOLUTE_APP_PATH",
+    "argv": ["bun", "run", "next", "typegen"]
+  },
+  {
+    "label": "Check generated types",
+    "description": "Run TypeScript 7 without emitting files before returning the app to its caller",
+    "cwd": "$REPOSITORY_ROOT_PATH",
+    "argv": ["bun", "run", "--cwd", "$ABSOLUTE_APP_PATH", "typecheck"]
+  }
+]

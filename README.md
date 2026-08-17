@@ -9,8 +9,10 @@ This is a starting point for new personal workspaces. It is not tied to Hono, MC
 - Bun workspaces: `apps/*`, `packages/*`
 - Turborepo scripts for build, lint, format, typecheck
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
+- TypeScript 7's native compiler
 - `packages/utils`: Result, Option, Zero, Pino logger
-- Agent skill: conventional-commits
+- Next.js app generator with the complete ShadCN component set
+- Agent skills: generate-next-app, conventional-commits
 
 No database/ORM is bundled. Add one inside an app when that app needs it.
 
@@ -30,9 +32,30 @@ bun run check
 bun run fix
 ```
 
-## Mint an app into `apps/`
+## Mint a Next.js app into `apps/`
 
-`apps/` starts empty on purpose. Add whatever runtime you need (Next.js, a CLI, a worker, a small API). There is no required server framework.
+`apps/` starts empty on purpose. Generate the default Next.js application shape with a strict lowercase kebab-case name:
+
+```bash
+bun run create:next customer-dashboard
+```
+
+The generator always uses the current `shadcn@latest` CLI with preset `b1Ymqvgiw`, Next.js, Base UI, RTL support, and pointer cursors. It upgrades the preset's Next.js dependency to the current release for TypeScript 7 support, stops if `apps/<name>` already exists, and never forces an overwrite.
+
+Each generated app includes:
+
+- package name `@workspace/<name>` and workspace scripts;
+- TypeScript 7;
+- every current ShadCN component;
+- the `@/` import alias created by ShadCN.
+
+The generator removes ShadCN's nested Git repository, app lockfile, empty Next.js configuration, ESLint, and Prettier configuration so the root Bun lockfile and Ultracite remain authoritative. Ultracite's Oxfmt preset already enables Tailwind class sorting.
+
+After removing an app directory, run `bun install`; Bun automatically prunes the deleted workspace and its orphaned dependencies from the root lockfile.
+
+## Other app types
+
+Next.js is the default generator, not a restriction. A CLI, worker, or other runtime can still be added manually under `apps/` when the product calls for it.
 
 Example shape:
 
@@ -44,7 +67,7 @@ apps/
     tsconfig.json
 ```
 
-Then wire package scripts so Turbo can run `dev`, `build`, `lint`, `typecheck`, and `format` for that app.
+Wire package scripts so Turbo can run `dev`, `build`, `lint`, `typecheck`, and `format` for a manually created app.
 
 Import shared foundation code from workspace package subpaths:
 

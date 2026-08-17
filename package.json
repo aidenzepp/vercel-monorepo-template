@@ -9,10 +9,11 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
+    "create:next": "bun tools/generators/next-app/index.ts",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck",
+    "typecheck": "tsc --noEmit && turbo typecheck",
     "check": "ultracite check --type-aware",
     "fix": "ultracite fix --type-aware"
   },
@@ -23,7 +24,7 @@
     "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^0.24.0",
     "turbo": "^2.9.18",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "ultracite": "^7.10.4"
   },
   "engines": {

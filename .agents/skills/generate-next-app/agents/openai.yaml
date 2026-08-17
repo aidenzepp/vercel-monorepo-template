@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Next App"
+  short_description: "Create the repository's standard full-stack Next.js application"
+  default_prompt: "Use $generate-next-app to decide whether this work benefits from both server functionality and a browser interface. When it does and no suitable app exists, create one with the repository generator before building product-specific functionality."
