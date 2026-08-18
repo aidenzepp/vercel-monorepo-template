@@ -7,8 +7,7 @@ const ultracitePlugins = core.plugins ?? [];
 
 const ignorePatterns = [
   ...ultraciteIgnorePatterns,
-  // ShadCN registry files are vendored source and retain upstream behavior/style.
-  "apps/*/components/ui/**/*.{ts,tsx}",
+  // ShadCN's generated hook is vendored source and retains upstream behavior/style.
   "apps/*/hooks/use-mobile.ts",
 ];
 
@@ -27,7 +26,10 @@ export default defineConfig({
   },
   overrides: [
     {
-      files: ["apps/*/components/theme-provider.tsx"],
+      files: [
+        "apps/*/components/theme-provider.tsx",
+        "apps/*/components/ui/**/*.{ts,tsx}",
+      ],
       rules: {
         "func-style": "off",
         "no-use-before-define": "off",
