@@ -24,6 +24,9 @@ dist
 # turbo
 .turbo
 
+# agent-generated planning artifacts
+docs/superpowers/
+
 # misc
 .DS_Store
 *.pem
