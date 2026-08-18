@@ -21,7 +21,7 @@
     "@types/bun": "latest",
     "@workspace/typescript-config": "workspace:*",
     "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
+    "oxlint": "^1.79.0",
     "oxlint-tsgolint": "^0.24.0",
     "turbo": "^2.9.18",
     "typescript": "^7.0.2",
