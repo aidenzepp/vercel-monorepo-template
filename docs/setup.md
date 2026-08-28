@@ -106,13 +106,18 @@ The exact `vercel env pull` flags and output are pending live verification. This
 
 ## Drizzle checks and product migrations
 
-Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations, so do not run `db:check` in the pristine template: Drizzle Kit can create empty journal scaffolding and validates migration snapshots only after they exist. Once a real product schema is ready, run `db:generate`, review and commit that baseline migration, then run `db:check`; only then use `db:migrate` against a confirmed non-production target.
+Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations, so do not run `db:check` in the pristine template: Drizzle Kit can create empty journal scaffolding and validates migration snapshots only after they exist. Once a real product schema is ready, generate the baseline, review it, validate it, commit the schema and migration, then apply it only to an approved non-production target.
 
 ```bash
-# After a product migration has been generated and committed:
+# 1. Generate the product baseline migration.
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:generate
+# 2. Review the generated baseline migration.
+# 3. Validate its migration snapshots.
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:check
 ```
+
+4. Commit the reviewed schema and migration.
+5. Run `db:migrate` only against an approved non-production target.
 
 `build:vercel` runs only `next build --webpack`. A product may add `db:migrate` before its build only after it has generated, reviewed, and applied a product migration in an approved non-production target; do not enable that deployment path until the preview migration path has been observed and approved.
 
