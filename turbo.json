@@ -24,6 +24,9 @@
     "format": {
       "dependsOn": ["^format"]
     },
+    "test": {
+      "dependsOn": ["^test"]
+    },
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },

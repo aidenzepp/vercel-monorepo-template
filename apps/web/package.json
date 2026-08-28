@@ -13,6 +13,7 @@
     "db:migrate": "bun --env-file=../../.env.local drizzle-kit migrate",
     "db:studio": "bun --env-file=../../.env.local drizzle-kit studio",
     "start": "next start",
+    "test": "bun test",
     "format": "bun --cwd ../.. oxfmt --config oxfmt.config.ts --write apps/web",
     "lint": "bun --cwd ../.. oxlint --config oxlint.config.ts apps/web",
     "typecheck": "tsc --noEmit"
