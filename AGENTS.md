@@ -51,4 +51,4 @@ See Skills policy below for what stays out of the template.
 
 Ship only foundation skills that apply broadly across the checked-in workspace. Right now that is `conventional-commits`.
 
-Optional stack skills (drizzle-first, error-messages, bonsai, etc.) live in the personal skills library and get copied into a minted app when that app needs them. Do not vendor uncertain stack choices into this template.
+Optional stack skills (drizzle-first, error-messages, bonsai, etc.) live in the personal skills library and get copied into a product workspace when that workspace needs them. Do not vendor uncertain stack choices into this template.
