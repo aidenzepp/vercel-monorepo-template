@@ -104,16 +104,15 @@ Confirm the canonical production origin, provider callback requirements, and tar
 
 The exact `vercel env pull` flags and output are pending live verification. This command intentionally uses the `web` project link while writing at the repository root. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
 
-## Drizzle checks and migrations
+## Drizzle checks and product migrations
 
-Run these from the repository root after the root `.env.local` contains the verified unpooled URL. `db:check` is a configuration/schema check. `db:generate` writes migration files. `db:migrate` mutates the selected database and must run against a confirmed non-production target first.
+Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations: when a product has its real schema, generate and review its first migration before using `db:migrate`. `db:check` is a configuration/schema check; `db:generate` writes product migration files; `db:migrate` mutates the selected database and must run against a confirmed non-production target first.
 
 ```bash
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:check
-PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:migrate
 ```
 
-`build:vercel` is the intended deployment command: if Vercel is configured to invoke it, it runs `db:migrate` before `next build --webpack`. Task 8 must configure and prove that Vercel invokes this command before automatic migrations are relied on. Do not enable that production path until the preview migration path has been observed and approved.
+`build:vercel` runs only `next build --webpack`. A product may add `db:migrate` before its build only after it has generated, reviewed, and applied a product migration in an approved non-production target; do not enable that deployment path until the preview migration path has been observed and approved.
 
 ## Preview deployment and auth health probe
 
@@ -135,6 +134,8 @@ The expected status/body for this handler is deliberately not asserted yet. Task
 
 Provider support is a product decision and belongs only in `web`. Before adding a provider or schema-affecting Better Auth plugin, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
 
+The foundation's production auth server and browser client include Better Auth Admin and Last Login Method. Admin's fields are generated into the `auth` schema and require the regeneration workflow below. Last Login Method is cookie-backed by default, so it adds no database field. Test Utils are conditionally enabled only when `NODE_ENV=test`; production auth and the browser client exclude them. Next.js Proxy and hosted audit infrastructure remain product choices, to be added only after a product defines its protected routes and audit requirements.
+
 1. Add the provider or plugin to the web auth configuration and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
 2. Update `db/schema/auth-config.ts` when the provider/plugin changes Better Auth’s generated schema contract.
 3. Regenerate and review the schema, then generate a migration:
@@ -145,7 +146,7 @@ Provider support is a product decision and belongs only in `web`. Before adding 
    PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:check
    ```
 
-4. Commit the reviewed schema and migration. Apply it to an approved non-production target and prove the provider callback before any production mutation.
+4. Commit the reviewed schema and product migration. Apply it to an approved non-production target and prove the provider callback before any production mutation.
 
 ## Optional Resend
 
@@ -157,7 +158,7 @@ Provider support is a product decision and belongs only in `web`. Before adding 
 
 1. Confirm the exact Vercel team, `web` project, production branch, and Neon primary branch.
 2. Re-run local checks and the `web` build with the intended environment.
-3. Confirm the committed migration first succeeded in a non-production environment.
+3. Confirm the product migration first succeeded in a non-production environment.
 4. Prove a Preview deployment received isolated Neon URLs and the observed auth health response.
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.

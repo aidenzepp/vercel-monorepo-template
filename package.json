@@ -12,7 +12,6 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "test": "turbo test",
     "typecheck": "tsc --noEmit && turbo typecheck",
     "check": "ultracite check --type-aware",
     "fix": "ultracite fix --type-aware"

@@ -4,8 +4,10 @@
 
 - environment validation in `env.ts`, using upstream `vercel()` and `neonVercel()` presets with no custom Neon prefix;
 - Neon connection URLs, with the pooled URL used at runtime and the unpooled URL used by Drizzle Kit;
-- Drizzle schema, generated migrations, and migration commands under `db/`;
+- Drizzle schema and product-owned migration commands under `db/`;
 - provider-neutral Better Auth configuration, client, and `app/api/auth/[...all]/route.ts`.
+
+The production auth server and client include Admin and Last Login Method. Test Utils are conditionally enabled only when `NODE_ENV=test`; they are excluded from production auth and the browser client. Next.js Proxy and hosted audit infrastructure remain product choices.
 
 Do not move these concerns into `packages/ui` or `apps/mkt`. `packages/ui` is presentation-only; `mkt` stays public and database-free.
 

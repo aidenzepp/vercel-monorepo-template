@@ -61,7 +61,7 @@ Both root layouts:
 
 `mkt` remains a marketing-only application with no database or authentication dependencies.
 
-`web` owns the database, Drizzle schema and migrations, Better Auth configuration, auth client, and Better Auth API route. Both applications use `next build --webpack` for production until a current Next.js/Turbopack build is proven in this environment.
+`web` owns the database, Drizzle schema and product migrations, Better Auth configuration, auth client, and Better Auth API route. Both applications use `next build --webpack` for production until a current Next.js/Turbopack build is proven in this environment.
 
 ## T3 Env
 
@@ -98,7 +98,7 @@ Configure Better Auth in `web` without enabling a login provider by default. Inc
 
 - Drizzle adapter;
 - generated core Better Auth tables in the Postgres `auth` schema;
-- a committed Drizzle migration;
+- product-owned Drizzle migration commands, with no published baseline migration;
 - relation joins;
 - OAuth token encryption;
 - OAuth Proxy support;
@@ -122,7 +122,7 @@ Resend is not installed or configured by default. `docs/setup.md` includes an op
 4. leave the variable prefix empty, enable the pooled and unpooled URLs, and enable Preview branching;
 5. pull Development variables into the root `.env.local`;
 6. set the stable Better Auth production URL and generate Better Auth and OAuth Proxy secrets safely;
-7. run the committed Drizzle migration;
+7. generate and run a product migration after the product schema is configured;
 8. deploy and inspect a Preview environment and its Neon branch;
 9. configure a login provider when the product needs one;
 10. optionally configure Resend.
@@ -143,7 +143,7 @@ Cloud verification runs only after the local foundation passes:
 
 - both app directories link to the intended Vercel projects;
 - Neon variables are present in all selected environments;
-- the committed migration applies to the intended non-production target first;
+- the product migration applies to the intended non-production target first;
 - the auth API route responds on a deployed Preview;
 - a Preview deployment receives an isolated Neon branch;
 - production migration or deployment occurs only after the preview path is proven.

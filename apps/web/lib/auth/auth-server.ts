@@ -3,7 +3,12 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth/minimal";
 import type { BetterAuthOptions } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import { oAuthProxy } from "better-auth/plugins";
+import {
+  admin,
+  lastLoginMethod,
+  oAuthProxy,
+  testUtils,
+} from "better-auth/plugins";
 import type { Auth } from "better-auth/types";
 
 import { db } from "@/db/client";
@@ -34,6 +39,9 @@ const authConfig: BetterAuthOptions = {
       productionURL: env.BETTER_AUTH_URL,
       secret: env.OAUTH_PROXY_SECRET,
     }),
+    admin(),
+    lastLoginMethod(),
+    ...(env.NODE_ENV === "test" ? [testUtils()] : []),
     nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET,
