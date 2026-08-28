@@ -39,7 +39,7 @@ export const session = authSchema.table(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [index("session_userId_idx").on(table.userId)]
 );
 
 export const account = authSchema.table(
@@ -67,10 +67,10 @@ export const account = authSchema.table(
   (table) => [
     uniqueIndex("account_issuer_accountId_uidx").on(
       table.issuer,
-      table.accountId,
+      table.accountId
     ),
     index("account_userId_idx").on(table.userId),
-  ],
+  ]
 );
 
 export const verification = authSchema.table(
@@ -86,7 +86,7 @@ export const verification = authSchema.table(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
 export const userRelations = relations(user, ({ many }) => ({

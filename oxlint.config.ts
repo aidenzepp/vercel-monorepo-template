@@ -49,6 +49,13 @@ export default defineConfig({
         "workspace/no-built-in-try-catch": "off",
       },
     },
+    {
+      files: ["apps/web/db/schema/auth.ts"],
+      rules: {
+        "no-inline-comments": "off",
+        "sort-keys": "off",
+      },
+    },
   ],
   plugins: [...ultracitePlugins, "react"],
   rules: {

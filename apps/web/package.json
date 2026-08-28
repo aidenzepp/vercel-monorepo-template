@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "build:vercel": "bun run db:migrate && bun run build",
-    "auth:schema": "auth generate --adapter drizzle --dialect postgresql --config ./db/schema/auth-config.ts --output ./db/schema/auth.ts --yes",
+    "auth:schema": "auth generate --config ./db/schema/auth-config.ts --output ./db/schema/auth.ts --yes && bun --cwd ../.. oxfmt --config oxfmt.config.ts --write apps/web/db/schema/auth.ts",
     "db:check": "bun --env-file=../../.env.local drizzle-kit check",
     "db:generate": "bun --env-file=../../.env.local drizzle-kit generate",
     "db:migrate": "bun --env-file=../../.env.local drizzle-kit migrate",
