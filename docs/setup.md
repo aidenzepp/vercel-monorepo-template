@@ -106,9 +106,11 @@ The exact `vercel env pull` flags and output are pending live verification. This
 
 ## Drizzle checks and product migrations
 
-Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations: when a product has its real schema, generate and review its first migration before using `db:migrate`. `db:check` is a configuration/schema check; `db:generate` writes product migration files; `db:migrate` mutates the selected database and must run against a confirmed non-production target first.
+Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations, so do not run `db:check` in the pristine template: Drizzle Kit can create empty journal scaffolding and validates migration snapshots only after they exist. Once a real product schema is ready, run `db:generate`, review and commit that baseline migration, then run `db:check`; only then use `db:migrate` against a confirmed non-production target.
 
 ```bash
+# After a product migration has been generated and committed:
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:generate
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:check
 ```
 

@@ -1,7 +1,6 @@
 import "server-only";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth/minimal";
-import type { BetterAuthOptions } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import {
   admin,
@@ -9,13 +8,12 @@ import {
   oAuthProxy,
   testUtils,
 } from "better-auth/plugins";
-import type { Auth } from "better-auth/types";
 
 import { db } from "@/db/client";
 import * as schema from "@/db/schema/auth";
 import { env } from "@/env";
 
-const authConfig: BetterAuthOptions = {
+const auth = betterAuth({
   account: { encryptOAuthTokens: true },
   advanced: {
     database: { joins: true },
@@ -45,8 +43,6 @@ const authConfig: BetterAuthOptions = {
     nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET,
-};
-
-const auth: Auth = betterAuth(authConfig);
+});
 
 export { auth };
