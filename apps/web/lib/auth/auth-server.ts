@@ -7,7 +7,7 @@ import { oAuthProxy } from "better-auth/plugins";
 import type { Auth } from "better-auth/types";
 
 import { db } from "@/db/client";
-import { authSchema } from "@/db/schema/auth";
+import * as schema from "@/db/schema/auth";
 import { env } from "@/env";
 
 const authConfig: BetterAuthOptions = {
@@ -20,8 +20,9 @@ const authConfig: BetterAuthOptions = {
   },
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: authSchema,
+    schema,
     schemaName: "auth",
+    usePlural: false,
   }),
   plugins: [
     oAuthProxy({
