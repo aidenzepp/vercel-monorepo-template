@@ -9,6 +9,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "OAUTH_PROXY_SECRET"
+      ],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "lint": {
@@ -22,6 +29,13 @@
     },
     "dev": {
       "cache": false,
+      "env": [
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "OAUTH_PROXY_SECRET"
+      ],
       "persistent": true
     }
   }
