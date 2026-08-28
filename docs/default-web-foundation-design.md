@@ -19,9 +19,6 @@ apps/
   mkt/                  # Public marketing site
   web/                  # Authenticated full-stack product application
 packages/
-  t3-env/
-    presets/
-      neon              # Prefix-aware Neon-for-Vercel preset
   ui/
     src/
       components/       # Complete shared Shadcn component set
@@ -66,55 +63,34 @@ Both root layouts:
 
 `web` owns the database, Drizzle schema and migrations, Better Auth configuration, auth client, and Better Auth API route. Its production build uses `next build --webpack` unless a verified current Next.js build proves the workaround is no longer necessary.
 
-## Prefix-Aware T3 Env Package
+## T3 Env
 
-Keep T3 Env's upstream `vercel()` preset for Vercel system variables. Add a reusable Neon preset at `@workspace/t3-env/presets/neon` rather than copying the upstream preset into `apps/web`.
-
-The preset accepts a literal environment-variable prefix and mirrors Vercel's prefix behavior:
-
-- prepend the prefix to each Neon secret name;
-- do not duplicate a prefix when the original name already starts with it;
-- expose the actual injected variable names to the consuming T3 Env schema.
-
-For example:
-
-```text
-prefix DATABASE_
-DATABASE_URL           -> DATABASE_URL
-PGDATABASE             -> DATABASE_PGDATABASE
-
-prefix STORAGE_
-DATABASE_URL           -> STORAGE_DATABASE_URL
-DATABASE_URL_UNPOOLED  -> STORAGE_DATABASE_URL_UNPOOLED
-PGDATABASE             -> STORAGE_PGDATABASE
-```
-
-The template uses `STORAGE_`. The preset includes Neon’s pooled URL as required and its unpooled and granular connection variables as optional, matching the provider contract while preserving their prefixed names. Focused preset tests prove empty, `DATABASE_`, and `STORAGE_` behavior, including the exact unpooled name.
+Keep T3 Env's upstream presets for Vercel system variables and Neon’s Vercel integration. Connect Neon without a custom environment-variable prefix so the provider contract matches `neonVercel()` directly.
 
 `apps/web` extends:
 
 ```text
 vercel()
-neonVercel({ prefix: "STORAGE_" })
+neonVercel()
 ```
 
-It adds the application-owned `BETTER_AUTH_SECRET`, `OAUTH_PROXY_SECRET`, and `NODE_ENV` variables. Turbo declares every environment variable needed by web build and development tasks.
+The resulting database contract uses `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and Neon’s standard optional `PG*` and `POSTGRES_*` variables. Web adds the application-owned `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `OAUTH_PROXY_SECRET`, and `NODE_ENV` variables. Turbo declares every environment variable needed by web build and development tasks.
 
 ## Neon, Drizzle, and Environments
 
-Connect the web Vercel project to one Neon resource for Vercel Development, Preview, and Production. Use the `STORAGE_` prefix. Production uses the resource's primary branch. Enable Neon branch-per-deployment behavior for Vercel Preview deployments so each preview receives an isolated database branch and corresponding injected URLs.
+Connect the web Vercel project to one Neon resource for Vercel Development, Preview, and Production without a custom variable prefix. Production uses the resource's primary branch. Enable Neon branch-per-deployment behavior for Vercel Preview deployments so each preview receives an isolated database branch and corresponding injected URLs.
 
 The runtime connection uses the pooled URL. Drizzle migration operations use the unpooled URL and fail clearly when it has not been enabled or pulled. Drizzle scripts load the repository-root `.env.local` from `apps/web` so there is one local environment file.
 
 The live setup stage must inspect the actual Vercel variable list and confirm:
 
 - Development, Preview, and Production receive the intended variables;
-- `STORAGE_DATABASE_URL` is the pooled connection;
-- `STORAGE_DATABASE_URL_UNPOOLED` is the direct connection;
+- `DATABASE_URL` is the pooled connection;
+- `DATABASE_URL_UNPOOLED` is the direct connection;
 - a real preview deployment receives a Neon preview branch;
 - the preview branch does not point at the production connection.
 
-If the provider's live contract differs, change the preset and documentation to the observed contract before retaining that stage.
+If the provider's live contract differs, change the web environment wiring and documentation to the observed contract before retaining that stage.
 
 ## Better Auth Foundation
 
@@ -143,9 +119,9 @@ Resend is not installed or configured by default. `docs/setup.md` includes an op
 1. install and local checks;
 2. link `apps/web` and `apps/mkt` to separate Vercel projects;
 3. create or connect Neon to `web` for all three Vercel environments;
-4. select `STORAGE_`, enable the pooled and unpooled URLs, and enable Preview branching;
+4. leave the variable prefix empty, enable the pooled and unpooled URLs, and enable Preview branching;
 5. pull Development variables into the root `.env.local`;
-6. generate Better Auth and OAuth Proxy secrets safely;
+6. set the stable Better Auth production URL and generate Better Auth and OAuth Proxy secrets safely;
 7. run the committed Drizzle migration;
 8. deploy and inspect a Preview environment and its Neon branch;
 9. configure a login provider when the product needs one;
@@ -159,7 +135,6 @@ Repository-only verification runs before cloud setup:
 
 - format and lint;
 - root and workspace typechecks;
-- focused prefix-aware Neon preset tests;
 - production builds for both applications;
 - compile-time verification of the Better Auth route and Drizzle configuration;
 - confirmation that the generator command, files, skill, and documentation references are absent.
@@ -179,11 +154,11 @@ There are no dedicated async-boundary tests. Green lint or typechecking alone do
 
 The work is complete when:
 
-- `web`, `mkt`, `ui`, and `t3-env` are checked in and green;
+- `web`, `mkt`, and `ui` are checked in and green;
 - both apps share the exact Shadcn preset and UI source;
 - both layouts contain the shared theme provider, Analytics, and Speed Insights;
 - web contains the provider-neutral Better Auth and Drizzle foundation;
-- the prefix-aware Neon preset matches the variables observed from Vercel;
+- the upstream `neonVercel()` preset matches the unprefixed variables observed from Vercel;
 - Development, Preview, and Production connectivity is documented and Preview branching is proven;
 - `docs/setup.md` and both app READMEs describe the verified workflow;
 - the obsolete generator and its skill are gone;
