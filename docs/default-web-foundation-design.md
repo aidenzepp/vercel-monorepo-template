@@ -61,7 +61,7 @@ Both root layouts:
 
 `mkt` remains a marketing-only application with no database or authentication dependencies.
 
-`web` owns the database, Drizzle schema and migrations, Better Auth configuration, auth client, and Better Auth API route. Its production build uses `next build --webpack` unless a verified current Next.js build proves the workaround is no longer necessary.
+`web` owns the database, Drizzle schema and migrations, Better Auth configuration, auth client, and Better Auth API route. Both applications use `next build --webpack` for production until a current Next.js/Turbopack build is proven in this environment.
 
 ## T3 Env
 
