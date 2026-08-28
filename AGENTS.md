@@ -7,7 +7,7 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 - `apps/web` is the authenticated product. It owns its environment contract, Neon connection, Drizzle schema and migrations, Better Auth configuration, and auth API route.
 - `apps/mkt` is the public marketing site. Do not add authentication or database dependencies there for convenience; keep product state behind `web`.
 - `packages/ui` owns shared Shadcn components, styles, hooks, and Next.js providers. Import its public surfaces through direct subpaths such as `@workspace/ui/components/button` and `@workspace/ui/next/theme-provider`; do not introduce a barrel.
-- Both application layouts mount the shared theme provider plus Vercel Analytics and Speed Insights. No dedicated async-boundary test suite exists; its consumers are proved by normal type and build checks.
+- Both application layouts mount the shared theme provider plus Vercel Analytics and Speed Insights. No dedicated async-boundary test or application consumer exists; its current evidence is limited to `packages/ui` typechecking.
 
 `docs/setup.md` is the setup and cloud-configuration runbook. It deliberately distinguishes locally verified commands from provisional Vercel and Neon steps.
 
@@ -24,7 +24,9 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 
 ## Database
 
-No database layer is bundled. If an app needs a DB, add the ORM/driver inside that app (or a product-specific package) and copy any relevant skills (for example drizzle-first) from the personal skills library at mint time.
+- `apps/web` alone owns Neon, Drizzle, its schema, and migrations. `apps/mkt` and `packages/ui` must not add database dependencies or environment variables.
+- The web runtime uses the pooled `DATABASE_URL`; Drizzle Kit uses `DATABASE_URL_UNPOOLED` from the repository-root `.env.local`. Keep Neon variables unprefixed so the upstream `neonVercel()` contract stays valid.
+- `db:generate` writes migration files and `db:migrate` mutates the selected database. Run migrations against a confirmed non-production target first; automatic Vercel migration behavior remains provisional until the live integration pass proves it.
 
 ## Lint / format
 

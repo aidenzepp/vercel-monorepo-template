@@ -25,15 +25,15 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web build
 ```
 
-The two layouts must continue to consume the shared theme provider, Analytics, and Speed Insights. There is no dedicated async-boundary test suite; successful application typechecking and builds are its repository-level proof.
+The two layouts must continue to consume the shared theme provider, Analytics, and Speed Insights. There is no dedicated async-boundary test or application consumer yet. Its current evidence is limited to `packages/ui` typechecking; do not treat application typechecks or builds as boundary proof.
 
 ## Separate Vercel links for web and mkt
 
 **Provisional cloud mutation / manual confirmation required.** Link each app directory to a different, already-confirmed Vercel project. The commands below may create local link metadata and can prompt to create or select a project; do not use unattended confirmation flags. Task 8 must verify the installed CLI’s exact prompts and resulting metadata.
 
 ```bash
-cd apps/web && vercel link
-cd apps/mkt && vercel link
+(cd apps/web && vercel link)
+(cd apps/mkt && vercel link)
 ```
 
 Confirm the selected team and project name in each prompt before continuing. `web` and `mkt` must never share a Vercel project or root directory.
@@ -76,16 +76,6 @@ Do not swap the two URLs, expose either value to the browser, or manually substi
 
 Task 8 must prove the resulting branch and URLs with a real preview before this contract is marked verified. Until then, do not claim that a preview is isolated merely because the integration screen was saved.
 
-## Root .env.local pull
-
-**Provisional external command that writes local secrets.** After linking `web`, pull Development variables into the repository-root `.env.local`; do not create an app-local environment file.
-
-```bash
-vercel env pull .env.local --environment=development
-```
-
-The exact `vercel env pull` flags and output are pending live verification. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
-
 ## BETTER_AUTH_URL, BETTER_AUTH_SECRET, OAUTH_PROXY_SECRET
 
 **Cloud mutation / secret-management pause.** Add these application-owned server variables to `web`, never `mkt`:
@@ -102,6 +92,16 @@ openssl rand -base64 48
 
 Confirm the canonical production origin, provider callback requirements, and target environments before saving secrets. No sign-in provider is enabled by default.
 
+## Root .env.local pull
+
+**Provisional external command that writes local secrets.** After linking `web` and configuring all required `web` variables above, pull Development values into the repository-root `.env.local`; do not create an app-local environment file.
+
+```bash
+(cd apps/web && vercel env pull ../../.env.local --environment=development)
+```
+
+The exact `vercel env pull` flags and output are pending live verification. This command intentionally uses the `web` project link while writing at the repository root. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
+
 ## Drizzle checks and migrations
 
 Run these from the repository root after the root `.env.local` contains the verified unpooled URL. `db:check` is a configuration/schema check. `db:generate` writes migration files. `db:migrate` mutates the selected database and must run against a confirmed non-production target first.
@@ -111,14 +111,14 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:migrate
 ```
 
-The deployed `web` build uses `build:vercel`, which runs `db:migrate` before `next build --webpack`. Do not enable that production build path until the preview migration path has been observed and approved.
+`build:vercel` is the intended deployment command: if Vercel is configured to invoke it, it runs `db:migrate` before `next build --webpack`. Task 8 must configure and prove that Vercel invokes this command before automatic migrations are relied on. Do not enable that production path until the preview migration path has been observed and approved.
 
 ## Preview deployment and auth health probe
 
 **Provisional cloud mutation.** Create a `web` preview deployment only after verifying the Vercel project, branch, and Neon Preview configuration. The unconfirmed CLI form is:
 
 ```bash
-cd apps/web && vercel
+(cd apps/web && vercel)
 ```
 
 **Read-only remote probe after deployment.** Record the preview URL, inspect its injected connection details through approved provider surfaces, and probe the auth handler without credentials:
