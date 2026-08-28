@@ -31,7 +31,7 @@ The existing `packages/utils` and `packages/typescript-config` remain. Imports u
 
 ## Generator Removal
 
-Remove the Next.js generator, its root script, and the `generate-next-app` repository skill. Update the root README and `AGENTS.md` so they describe the checked-in `web` and `mkt` applications rather than an empty `apps/` directory.
+Remove the obsolete Next.js scaffolding command, its root script, and its repository skill. Update the root README and `AGENTS.md` so they describe the checked-in `web` and `mkt` applications rather than an empty `apps/` directory.
 
 The reusable onboarding surface is `docs/setup.md`, not a generator or a setup skill.
 

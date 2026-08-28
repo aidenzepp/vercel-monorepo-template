@@ -1,8 +1,8 @@
 # vercel-monorepo-template
 
-Personal Bun + Turborepo monorepo template with apps removed and a small shared foundation (`packages/utils`, Ultracite lint/format, agent skills).
+Personal Bun + Turborepo monorepo foundation with two Next.js applications and shared packages.
 
-This is a starting point for new personal workspaces. It is not tied to Hono, MCP, Plaid, or any one product stack.
+It establishes shared presentation infrastructure while keeping product state in the authenticated application. It is not tied to Hono, MCP, Plaid, or any provider-specific authentication flow.
 
 ## What you get
 
@@ -11,70 +11,42 @@ This is a starting point for new personal workspaces. It is not tied to Hono, MC
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
 - TypeScript 7's native compiler
 - `packages/utils`: Result, Option, Zero, Pino logger
-- Next.js app generator with the complete ShadCN component set
-- Agent skills: generate-next-app, conventional-commits
+- `packages/ui`: the complete shared Shadcn component set, styles, hooks, and Next.js providers
+- `apps/web`: authenticated full-stack product foundation
+- `apps/mkt`: public marketing foundation
+- Agent skill: conventional-commits
 
-No database/ORM is bundled. Add one inside an app when that app needs it.
+`web` owns Neon, Drizzle, Better Auth, and the auth route. `mkt` intentionally has no authentication or database dependency.
 
 ## Setup
 
 ```bash
-bun install
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install
 ```
 
 Useful root scripts:
 
 ```bash
-bun run typecheck
-bun run lint
-bun run format
-bun run check
-bun run fix
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run typecheck
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run lint
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run format
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run check
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run fix
 ```
 
-## Mint a Next.js app into `apps/`
+For the full local-to-cloud workflow, including the intentionally provisional Vercel and Neon stages, read [docs/setup.md](docs/setup.md). Each app also documents its ownership boundary: [web](apps/web/README.md) and [mkt](apps/mkt/README.md).
 
-`apps/` starts empty on purpose. Generate the default Next.js application shape with a strict lowercase kebab-case name:
+## Package boundaries
 
-```bash
-bun run create:next customer-dashboard
-```
-
-The generator always uses the current `shadcn@latest` CLI with preset `b1Ymqvgiw`, Next.js, Base UI, RTL support, and pointer cursors. It upgrades the preset's Next.js dependency to the current release for TypeScript 7 support, stops if `apps/<name>` already exists, and never forces an overwrite.
-
-Each generated app includes:
-
-- package name `@workspace/<name>` and workspace scripts;
-- TypeScript 7;
-- every current ShadCN component;
-- the `@/` import alias created by ShadCN.
-
-The generator removes ShadCN's nested Git repository, app lockfile, empty Next.js configuration, ESLint, and Prettier configuration so the root Bun lockfile and Ultracite remain authoritative. Ultracite's Oxfmt preset already enables Tailwind class sorting.
-
-After removing an app directory, run `bun install`; Bun automatically prunes the deleted workspace and its orphaned dependencies from the root lockfile.
-
-## Other app types
-
-Next.js is the default generator, not a restriction. A CLI, worker, or other runtime can still be added manually under `apps/` when the product calls for it.
-
-Example shape:
-
-```text
-apps/
-  my-app/
-    package.json
-    src/
-    tsconfig.json
-```
-
-Wire package scripts so Turbo can run `dev`, `build`, `lint`, `typecheck`, and `format` for a manually created app.
-
-Import shared foundation code from workspace package subpaths:
+Import shared foundation code from direct workspace package subpaths:
 
 ```ts
 import { result } from "@workspace/utils/result";
 import { logger } from "@workspace/utils/logger";
+import { Button } from "@workspace/ui/components/button";
 ```
+
+`packages/ui` is shared presentation infrastructure. Keep application-specific data, routes, environment variables, and providers in the owning application.
 
 ## Packages
 
