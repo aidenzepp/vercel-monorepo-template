@@ -64,6 +64,10 @@ test("configures a provider-neutral auth runtime", () => {
   expect("socialProviders" in auth.options).toBe(false);
   expect(auth.options.account).toEqual({ encryptOAuthTokens: true });
   expect(auth.options.advanced).toMatchObject({ database: { joins: true } });
+  expect(auth.options.advanced?.ipAddress?.ipAddressHeaders).toEqual([
+    "x-vercel-forwarded-for",
+    "x-forwarded-for",
+  ]);
   expect(auth.options.plugins?.map((plugin) => plugin.id)).toEqual([
     "oauth-proxy",
     "next-cookies",

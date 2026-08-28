@@ -12,7 +12,12 @@ import { env } from "@/env";
 
 const authConfig: BetterAuthOptions = {
   account: { encryptOAuthTokens: true },
-  advanced: { database: { joins: true } },
+  advanced: {
+    database: { joins: true },
+    ipAddress: {
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
+    },
+  },
   baseURL: {
     allowedHosts: ["localhost:*", "127.0.0.1:*", "*.vercel.app"],
     fallback: env.BETTER_AUTH_URL,
