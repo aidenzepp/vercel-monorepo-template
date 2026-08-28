@@ -7,8 +7,10 @@ const ultracitePlugins = core.plugins ?? [];
 
 const ignorePatterns = [
   ...ultraciteIgnorePatterns,
+  // The ShadCN registry currently emits package components directly under src/components.
+  "packages/ui/src/components/**/*.{ts,tsx}",
   // ShadCN's generated hook is vendored source and retains upstream behavior/style.
-  "apps/*/hooks/use-mobile.ts",
+  "packages/ui/src/hooks/use-mobile*",
 ];
 
 const workspaceOxlintPlugin = "./tools/oxlint-plugin-workspace/index.mjs";
@@ -27,8 +29,8 @@ export default defineConfig({
   overrides: [
     {
       files: [
-        "apps/*/components/theme-provider.tsx",
-        "apps/*/components/ui/**/*.{ts,tsx}",
+        "packages/ui/src/components/ui/**/*.{ts,tsx}",
+        "packages/ui/src/hooks/use-mobile*",
       ],
       rules: {
         "func-style": "off",
@@ -36,7 +38,7 @@ export default defineConfig({
       },
     },
     {
-      files: ["apps/*/lib/utils.ts"],
+      files: ["packages/ui/src/lib/utils.ts"],
       rules: {
         "func-style": "off",
       },
