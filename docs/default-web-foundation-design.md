@@ -102,11 +102,12 @@ Configure Better Auth in `web` without enabling a login provider by default. Inc
 - relation joins;
 - OAuth token encryption;
 - OAuth Proxy support;
+- Test Utils server context helpers, with no public routes;
 - Next.js cookie integration;
 - server and client modules;
 - the Better Auth catch-all API route.
 
-Do not enable Google, Apple, TimeBack, or other providers in the template. `docs/setup.md` explains how to add a provider and regenerate the schema when a provider or plugin changes the Better Auth contract.
+Do not enable Google, Apple, TimeBack, or other providers in the template. Next.js Proxy, `dash()`, `dashClient()`, and hosted audit infrastructure remain product choices. `docs/setup.md` explains how to add a provider and regenerate the schema when a provider or plugin changes the Better Auth contract.
 
 ## Optional Resend Integration
 

@@ -41,7 +41,7 @@ const authConfig: BetterAuthOptions = {
     }),
     admin(),
     lastLoginMethod(),
-    ...(env.NODE_ENV === "test" ? [testUtils()] : []),
+    testUtils(),
     nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET,

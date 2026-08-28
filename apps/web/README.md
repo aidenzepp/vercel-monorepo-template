@@ -7,7 +7,7 @@
 - Drizzle schema and product-owned migration commands under `db/`;
 - provider-neutral Better Auth configuration, client, and `app/api/auth/[...all]/route.ts`.
 
-The production auth server and client include Admin and Last Login Method. Test Utils are conditionally enabled only when `NODE_ENV=test`; they are excluded from production auth and the browser client. Next.js Proxy and hosted audit infrastructure remain product choices.
+The production auth server and client include Admin and Last Login Method. The server config also includes Test Utils: it exposes privileged server context helpers but adds no public routes; the browser client does not include it. Next.js Proxy, `dash()`, `dashClient()`, and hosted audit infrastructure remain product choices.
 
 Do not move these concerns into `packages/ui` or `apps/mkt`. `packages/ui` is presentation-only; `mkt` stays public and database-free.
 

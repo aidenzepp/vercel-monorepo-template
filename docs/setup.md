@@ -134,7 +134,7 @@ The expected status/body for this handler is deliberately not asserted yet. Task
 
 Provider support is a product decision and belongs only in `web`. Before adding a provider or schema-affecting Better Auth plugin, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
 
-The foundation's production auth server and browser client include Better Auth Admin and Last Login Method. Admin's fields are generated into the `auth` schema and require the regeneration workflow below. Last Login Method is cookie-backed by default, so it adds no database field. Test Utils are conditionally enabled only when `NODE_ENV=test`; production auth and the browser client exclude them. Next.js Proxy and hosted audit infrastructure remain product choices, to be added only after a product defines its protected routes and audit requirements.
+The foundation's production auth server and browser client include Better Auth Admin and Last Login Method. Admin's fields are generated into the `auth` schema and require the regeneration workflow below. Last Login Method is cookie-backed by default, so it adds no database field. The server config also includes Test Utils: it exposes privileged server context helpers but adds no public routes; the browser client does not include it. Next.js Proxy, `dash()`, `dashClient()`, and hosted audit infrastructure remain product choices, to be added only after a product defines its protected routes and audit requirements.
 
 1. Add the provider or plugin to the web auth configuration and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
 2. Update `db/schema/auth-config.ts` when the provider/plugin changes Better Auth’s generated schema contract.
