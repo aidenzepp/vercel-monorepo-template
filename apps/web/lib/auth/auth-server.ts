@@ -1,5 +1,6 @@
 import "server-only";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { dash, sentinel } from "@better-auth/infra";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import {
@@ -18,6 +19,22 @@ const vercelAllowedHosts = [
   env.VERCEL_BRANCH_URL,
   env.VERCEL_PROJECT_PRODUCTION_URL,
 ].filter((host): host is string => host !== undefined);
+
+const sentinelPlugin = sentinel({ apiKey: env.BETTER_AUTH_API_KEY });
+const initializeSentinel = sentinelPlugin.init.bind(sentinelPlugin);
+
+sentinelPlugin.init = (context) =>
+  initializeSentinel({
+    ...context,
+    // Sentinel reads the URL during initialization, before Better Auth resolves
+    // a dynamic base URL from each request.
+    baseURL:
+      context.baseURL ||
+      new URL(
+        context.options.basePath ?? "/api/auth",
+        env.BETTER_AUTH_URL
+      ).toString(),
+  });
 
 const auth = betterAuth({
   account: { encryptOAuthTokens: true },
@@ -46,6 +63,11 @@ const auth = betterAuth({
     admin(),
     lastLoginMethod(),
     testUtils(),
+    dash({
+      activityTracking: { enabled: true },
+      apiKey: env.BETTER_AUTH_API_KEY,
+    }),
+    sentinelPlugin,
     nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET,

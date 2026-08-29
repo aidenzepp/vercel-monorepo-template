@@ -1,4 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { dash } from "@better-auth/infra";
 import { betterAuth } from "better-auth/minimal";
 import { admin } from "better-auth/plugins";
 import type { Auth } from "better-auth/types";
@@ -9,7 +10,7 @@ const authConfig = {
     provider: "pg",
     schemaName: "auth",
   }),
-  plugins: [admin()],
+  plugins: [admin(), dash({ activityTracking: { enabled: true } })],
 };
 
 const auth: Auth<typeof authConfig> = betterAuth(authConfig);

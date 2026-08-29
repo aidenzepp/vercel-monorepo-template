@@ -25,6 +25,7 @@ export const user = authSchema.table("user", {
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
+  lastActiveAt: timestamp("last_active_at"),
 });
 
 export const session = authSchema.table(

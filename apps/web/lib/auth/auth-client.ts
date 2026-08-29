@@ -1,10 +1,16 @@
 "use client";
 
+import { dashClient, sentinelClient } from "@better-auth/infra/client";
 import { adminClient, lastLoginMethodClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 const authClient = createAuthClient({
-  plugins: [adminClient(), lastLoginMethodClient()],
+  plugins: [
+    adminClient(),
+    lastLoginMethodClient(),
+    dashClient(),
+    sentinelClient({ autoSolveChallenge: true }),
+  ],
 });
 
 export { authClient };

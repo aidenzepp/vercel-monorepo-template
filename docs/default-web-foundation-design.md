@@ -74,7 +74,7 @@ vercel()
 neonVercel()
 ```
 
-The resulting database contract uses `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and Neon’s standard optional `PG*` and `POSTGRES_*` variables. Web adds the application-owned `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `OAUTH_PROXY_SECRET`, and `NODE_ENV` variables. Turbo declares every environment variable needed by web build and development tasks.
+The resulting database contract uses `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and Neon’s standard optional `PG*` and `POSTGRES_*` variables. Web adds the application-owned `BETTER_AUTH_URL`, `BETTER_AUTH_API_KEY`, `BETTER_AUTH_SECRET`, `OAUTH_PROXY_SECRET`, and `NODE_ENV` variables. Turbo declares every environment variable needed by web build and development tasks.
 
 ## Neon, Drizzle, and Environments
 
@@ -102,12 +102,14 @@ Configure Better Auth in `web` without enabling a login provider by default. Inc
 - relation joins;
 - OAuth token encryption;
 - OAuth Proxy support;
+- Better Auth Infrastructure Dash with activity tracking and a generated `lastActiveAt` user field;
+- Better Auth Infrastructure Sentinel with browser fingerprinting and automatic challenge solving, but no product-specific enforcement policy;
 - Test Utils server context helpers, with no public routes;
 - Next.js cookie integration;
 - server and client modules;
 - the Better Auth catch-all API route.
 
-Do not enable Google, Apple, TimeBack, or other providers in the template. Next.js Proxy, `dash()`, `dashClient()`, and hosted audit infrastructure remain product choices. `docs/setup.md` explains how to add a provider and regenerate the schema when a provider or plugin changes the Better Auth contract.
+Do not enable Google, Apple, TimeBack, or other providers in the template. Next.js Proxy remains a product choice. `docs/setup.md` explains how to provision Better Auth Infrastructure, add a provider, and regenerate the schema when a provider or plugin changes the Better Auth contract.
 
 ## Optional Resend Integration
 

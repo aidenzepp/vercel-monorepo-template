@@ -21,6 +21,7 @@ Before local verification, create the ignored repository-root `.env.local` with 
 DATABASE_URL=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 DATABASE_URL_UNPOOLED=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_API_KEY=local-verification-api-key
 BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
 ```
@@ -108,11 +109,12 @@ Enable **Require Active Resource Before Deploy**, then enable Neon branch-per-de
 
 The saved configuration has been verified in the live resource editor. A real preview must still prove the resulting branch and URLs before claiming runtime isolation.
 
-## BETTER_AUTH_URL, BETTER_AUTH_SECRET, OAUTH_PROXY_SECRET
+## Better Auth application and Infrastructure variables
 
 **Cloud mutation / secret-management pause.** Add these application-owned server variables to `web`, never `mkt`:
 
 - `BETTER_AUTH_URL`: the stable canonical production origin. It remains stable across Development, Preview, and Production because OAuth Proxy needs the production callback origin; Better Auth separately allowlists local and Vercel preview hosts.
+- `BETTER_AUTH_API_KEY`: a Better Auth Infrastructure API key used by Dash and Sentinel. Create it in the Better Auth Infrastructure dashboard and scope it to the intended project; Sentinel requires a Pro plan or above.
 - `BETTER_AUTH_SECRET`: at least 32 characters; generate an independent value for each environment.
 - `OAUTH_PROXY_SECRET`: at least 32 characters; use one identical shared value in every Development, Preview, and Production environment that participates in OAuth Proxy.
 
@@ -122,7 +124,7 @@ Generate secrets in an approved secret-management workflow. This local command e
 openssl rand -base64 48
 ```
 
-Confirm the canonical production origin, provider callback requirements, and target environments before saving secrets. No sign-in provider is enabled by default.
+Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, data-sharing implications, and target environments before saving secrets. No sign-in provider is enabled by default.
 
 ## Root .env.local pull
 
@@ -171,10 +173,10 @@ The expected status/body for this handler is deliberately not asserted yet. Task
 
 Provider support is a product decision and belongs only in `web`. Before adding a provider or schema-affecting Better Auth plugin, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
 
-The foundation's production auth server and browser client include Better Auth Admin and Last Login Method. Admin's fields are generated into the `auth` schema and require the regeneration workflow below. Last Login Method is cookie-backed by default, so it adds no database field. The server config also includes Test Utils: it exposes privileged server context helpers but adds no public routes; the browser client does not include it. Next.js Proxy, `dash()`, `dashClient()`, and hosted audit infrastructure remain product choices, to be added only after a product defines its protected routes and audit requirements.
+The foundation's production auth server and browser client include Better Auth Admin, Last Login Method, Dash, and Sentinel. Dash activity tracking is enabled with its default five-minute update interval, so `lastActiveAt` is generated into the `auth.user` schema before a product creates its baseline migration. Dash provides the hosted audit and activity surface; its browser client exposes the matching query APIs. Sentinel's browser client supplies visitor identification and automatically solves proof-of-work challenges, while the server intentionally leaves product-specific log, challenge, and block policies unset. The small Sentinel initialization adapter preserves Better Auth's request-resolved base URLs for local and Vercel Preview hosts while giving Sentinel the canonical fallback it currently requires during startup. Last Login Method remains cookie-backed and adds no database field. Test Utils exposes privileged server context helpers but no public routes; the browser client does not include it. Next.js Proxy remains a product choice until a product defines protected routes.
 
 1. Add the provider or plugin to the web auth configuration and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
-2. Update `db/schema/auth-config.ts` when the provider/plugin changes Better Auth’s generated schema contract.
+2. Update `db/schema/auth-config.ts` when the provider/plugin changes Better Auth’s generated schema contract. Dash activity tracking is already represented there so `lastActiveAt` remains in every regenerated schema.
 3. Regenerate and review the schema, then generate a migration:
 
    ```bash
