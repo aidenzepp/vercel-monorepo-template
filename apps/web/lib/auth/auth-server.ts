@@ -14,7 +14,7 @@ import { db } from "@/db/client";
 import * as schema from "@/db/schema/auth";
 import { env } from "@/env";
 
-const vercelAllowedHosts = [
+const VERCEL_ALLOWED_HOSTS = [
   env.VERCEL_URL,
   env.VERCEL_BRANCH_URL,
   env.VERCEL_PROJECT_PRODUCTION_URL,
@@ -45,7 +45,7 @@ const auth = betterAuth({
     },
   },
   baseURL: {
-    allowedHosts: ["localhost:*", "127.0.0.1:*", ...vercelAllowedHosts],
+    allowedHosts: ["localhost:*", "127.0.0.1:*", ...VERCEL_ALLOWED_HOSTS],
     fallback: env.BETTER_AUTH_URL,
     protocol: "auto",
   },

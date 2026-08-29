@@ -7,7 +7,7 @@
 - Drizzle schema and product-owned migration commands under `db/`;
 - provider-neutral Better Auth configuration, client, and `app/api/auth/[...all]/route.ts`.
 
-The production auth server and client include Admin, Last Login Method, Better Auth Infrastructure Dash, and Sentinel. Dash activity tracking generates `lastActiveAt` in the user schema. The Sentinel client supplies browser identification and automatic proof-of-work challenge solving, while product-specific enforcement policies remain unset. The server also includes Test Utils: it exposes privileged server context helpers but adds no public routes, and the browser client does not include it. Next.js Proxy remains a product choice.
+The auth server includes Admin, Last Login Method, Better Auth Infrastructure Dash, and Sentinel. Dash activity tracking generates `lastActiveAt` in the user schema. The browser client includes Admin, Last Login Method, and Sentinel; Sentinel supplies browser identification and automatic proof-of-work challenge solving, while product-specific enforcement policies remain unset. The server also includes Test Utils: it exposes privileged server context helpers but adds no public routes, and the browser client does not include it. Next.js Proxy remains a product choice.
 
 Do not move these concerns into `packages/ui` or `apps/mkt`. `packages/ui` is presentation-only; `mkt` stays public and database-free.
 
