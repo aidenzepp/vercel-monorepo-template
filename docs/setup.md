@@ -1,6 +1,6 @@
 # Default web foundation setup
 
-This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, and Better Auth; `mkt` is public marketing and remains free of auth and database dependencies. The repository steps below are current local contracts. Vercel, Neon, OAuth, and Resend instructions are intentionally provisional until the live integration pass records their observed CLI and dashboard behavior.
+This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, and Better Auth; `mkt` is public marketing and remains free of auth and database dependencies. The repository steps below are current local contracts. Cloud sections distinguish configuration verified through the live Vercel/Neon setup from behavior that still requires a real deployment.
 
 ## Prerequisites and Bun install
 
@@ -54,13 +54,31 @@ Confirm the selected team and project name in each prompt before continuing. `we
 
 ## Neon on web only
 
-**Provisional cloud mutation / billing and consent pause.** Connect one Neon resource to the `web` Vercel project only. Do not install or connect Neon for `mkt`.
+**Cloud mutation / billing and consent pause.** Connect one Neon resource to the `web` Vercel project only. Do not install or connect Neon for `mkt`.
 
-Use the Vercel/Neon integration flow only after confirming its billing, data-sharing, team, and project screens. The intended configuration is one resource selected for Development, Preview, and Production; production uses its primary branch. Task 8 must confirm the live navigation and any exact CLI equivalent before this section becomes a verified procedure.
+Name app-specific cloud resources `<project>-apps-<app>`, matching the repository's `apps/` nomenclature. Examples include `sharefits-apps-web`, `amino-apps-web`, and `vercel-monorepo-template-apps-web`.
+
+Use the Vercel/Neon integration flow only after confirming its billing, data-sharing, team, and project screens. The verified CLI shape is:
+
+```bash
+(cd apps/web && vercel integration add neon \
+  --name <project>-apps-web \
+  --plan free_v3 \
+  --metadata region=iad1 \
+  --metadata auth=false \
+  --environment development \
+  --environment preview \
+  --environment production \
+  --no-env-pull)
+```
+
+Choose the region intentionally rather than copying `iad1` when another deployment region is required. Keep Neon Auth disabled: this template owns authentication through Better Auth, and enabling Neon Auth provisions a separate auth system and extra environment variables. Neon Auth cannot be disabled on an existing resource through the current Vercel resource editor, so verify this choice before provisioning.
+
+The current Vercel CLI also installs Neon agent skills into the app as a provisioning side effect. Remove `apps/web/.agents/` and `apps/web/skills-lock.json` unless the minted product explicitly chooses to keep those optional skills; they are not template foundations.
 
 ## Development + Preview + Production selection
 
-**Provisional cloud mutation.** In the `web` project’s Neon integration, select all three Vercel environments:
+In the `web` project’s Neon integration, select all three Vercel environments:
 
 - Development supplies local development values;
 - Preview supplies deployment-specific values;
@@ -70,7 +88,7 @@ Use the Vercel/Neon integration flow only after confirming its billing, data-sha
 
 ## Empty Neon variable prefix
 
-**Provisional cloud mutation.** Leave the Neon integration variable prefix empty. The web environment contract extends upstream `neonVercel()` directly, so renaming variables or applying a custom prefix breaks the application-owned contract.
+Leave the Neon integration variable prefix empty. The web environment contract extends upstream `neonVercel()` directly, so renaming variables or applying a custom prefix breaks the application-owned contract.
 
 ## Pooled/unpooled variable audit
 
@@ -86,9 +104,9 @@ Do not swap the two URLs, expose either value to the browser, or manually substi
 
 ## Required Preview branching configuration
 
-**Provisional cloud mutation.** Enable Neon branch-per-deployment behavior for `web` Preview deployments. A preview must receive an isolated branch and injected URLs rather than the production connection. This is required, not an optimization.
+Enable **Require Active Resource Before Deploy**, then enable Neon branch-per-deployment behavior for `web` Preview deployments. Leave Production branch creation off. A preview must receive an isolated branch and injected URLs rather than the production connection. This is required, not an optimization.
 
-Task 8 must prove the resulting branch and URLs with a real preview before this contract is marked verified. Until then, do not claim that a preview is isolated merely because the integration screen was saved.
+The saved configuration has been verified in the live resource editor. A real preview must still prove the resulting branch and URLs before claiming runtime isolation.
 
 ## BETTER_AUTH_URL, BETTER_AUTH_SECRET, OAUTH_PROXY_SECRET
 
