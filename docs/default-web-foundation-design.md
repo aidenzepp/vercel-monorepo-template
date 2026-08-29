@@ -46,7 +46,7 @@ Store framework-neutral components under `packages/ui/src/components`. Store the
 @workspace/ui/next/error-boundary
 ```
 
-No separate async-boundary test suite is required. Its proof is successful typechecking and use by the applications.
+No separate async-boundary test suite is required. No application consumer exists yet; its proof is limited to `packages/ui` typechecking.
 
 ## Applications
 
@@ -111,7 +111,7 @@ Do not enable Google, Apple, TimeBack, or other providers in the template. Next.
 
 ## Optional Resend Integration
 
-Resend is not installed or configured by default. `docs/setup.md` includes an optional section covering Vercel Marketplace provisioning, environment variables, domains, and verification. Adding Resend to a minted product remains a deliberate product decision.
+Resend is not installed or configured by default. `docs/setup.md` includes an optional section covering Vercel Marketplace provisioning, environment variables, domains, and verification. Adding Resend to a product workspace remains a deliberate product decision.
 
 ## Setup Documentation
 

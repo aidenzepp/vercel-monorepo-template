@@ -13,6 +13,12 @@ import { db } from "@/db/client";
 import * as schema from "@/db/schema/auth";
 import { env } from "@/env";
 
+const vercelAllowedHosts = [
+  env.VERCEL_URL,
+  env.VERCEL_BRANCH_URL,
+  env.VERCEL_PROJECT_PRODUCTION_URL,
+].filter((host): host is string => host !== undefined);
+
 const auth = betterAuth({
   account: { encryptOAuthTokens: true },
   advanced: {
@@ -22,7 +28,7 @@ const auth = betterAuth({
     },
   },
   baseURL: {
-    allowedHosts: ["localhost:*", "127.0.0.1:*", "*.vercel.app"],
+    allowedHosts: ["localhost:*", "127.0.0.1:*", ...vercelAllowedHosts],
     fallback: env.BETTER_AUTH_URL,
     protocol: "auto",
   },

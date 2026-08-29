@@ -13,6 +13,18 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install
 
 Run commands from the repository root unless a command explicitly changes directory. Do not add a second lockfile inside either app.
 
+## Disposable local `.env.local`
+
+Before local verification, create the ignored repository-root `.env.local` with disposable values. These URLs are syntactically valid but intentionally point to an unavailable local address, so they cannot reach a real database. Replace these values only after the cloud setup provides the confirmed `web` project values; never commit this file.
+
+```dotenv
+DATABASE_URL=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
+OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
+```
+
 ## Local verification
 
 These are local checks. `format` and `fix` can write files; the remaining commands should not change repository source. `web` builds require its environment variables, so complete the root `.env.local` step before its build.
@@ -22,7 +34,7 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run check
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run lint
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run typecheck
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/mkt build
-PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web build
+NODE_ENV=production PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun --env-file=../../.env.local run --cwd apps/web build
 ```
 
 Both application build scripts currently use `next build --webpack`. Keep that workaround until a current Next.js/Turbopack production build is proven in this environment.
@@ -83,8 +95,8 @@ Task 8 must prove the resulting branch and URLs with a real preview before this 
 **Cloud mutation / secret-management pause.** Add these application-owned server variables to `web`, never `mkt`:
 
 - `BETTER_AUTH_URL`: the stable canonical production origin. It remains stable across Development, Preview, and Production because OAuth Proxy needs the production callback origin; Better Auth separately allowlists local and Vercel preview hosts.
-- `BETTER_AUTH_SECRET`: at least 32 characters; used to secure Better Auth.
-- `OAUTH_PROXY_SECRET`: at least 32 characters; used by Better Auth’s OAuth Proxy plugin.
+- `BETTER_AUTH_SECRET`: at least 32 characters; generate an independent value for each environment.
+- `OAUTH_PROXY_SECRET`: at least 32 characters; use one identical shared value in every Development, Preview, and Production environment that participates in OAuth Proxy.
 
 Generate secrets in an approved secret-management workflow. This local command emits a candidate secret but does not store it; do not paste its output into source control or a transcript:
 

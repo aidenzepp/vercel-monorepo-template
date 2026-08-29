@@ -14,7 +14,10 @@
         "BETTER_AUTH_URL",
         "DATABASE_URL",
         "DATABASE_URL_UNPOOLED",
-        "OAUTH_PROXY_SECRET"
+        "OAUTH_PROXY_SECRET",
+        "VERCEL_BRANCH_URL",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "VERCEL_URL"
       ],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
@@ -34,7 +37,10 @@
         "BETTER_AUTH_URL",
         "DATABASE_URL",
         "DATABASE_URL_UNPOOLED",
-        "OAUTH_PROXY_SECRET"
+        "OAUTH_PROXY_SECRET",
+        "VERCEL_BRANCH_URL",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "VERCEL_URL"
       ],
       "persistent": true
     }

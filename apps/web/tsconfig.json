@@ -5,8 +5,7 @@
       "@/*": ["./*"],
       "@workspace/ui/*": ["../../packages/ui/src/*"]
     },
-    "plugins": [{ "name": "next" }],
-    "types": ["bun"]
+    "plugins": [{ "name": "next" }]
   },
   "include": [
     "next-env.d.ts",
