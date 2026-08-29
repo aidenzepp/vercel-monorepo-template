@@ -21,8 +21,10 @@ It establishes shared presentation infrastructure while keeping product state in
 ## Setup
 
 ```bash
-PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install --frozen-lockfile
 ```
+
+New dependency resolutions must also pass the six-hour release-age gate in `bunfig.toml`; versions already pinned in `bun.lock` are unaffected.
 
 Useful root scripts:
 
@@ -34,7 +36,7 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run check
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run fix
 ```
 
-For the full local-to-cloud workflow, including the intentionally provisional Vercel and Neon stages, read [docs/setup.md](docs/setup.md). Each app also documents its ownership boundary: [web](apps/web/README.md) and [mkt](apps/mkt/README.md).
+For the full local-to-cloud workflow, including verified Vercel/Neon provisioning commands and the still-required product Preview gate, read [docs/setup.md](docs/setup.md). Each app also documents its ownership boundary: [web](apps/web/README.md) and [mkt](apps/mkt/README.md).
 
 ## Package boundaries
 

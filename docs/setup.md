@@ -8,10 +8,10 @@ Use Bun 1.3.14 or the version pinned by the root `packageManager` field. This is
 
 ```bash
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun --version
-PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun install --frozen-lockfile
 ```
 
-Run commands from the repository root unless a command explicitly changes directory. Do not add a second lockfile inside either app.
+Run commands from the repository root unless a command explicitly changes directory. Do not add a second lockfile inside either app. `bunfig.toml` applies a six-hour minimum release age to newly resolved package versions; the committed lockfile remains authoritative for normal installs.
 
 ## Disposable local `.env.local`
 
@@ -44,7 +44,7 @@ The two layouts must continue to consume the shared theme provider, Analytics, a
 
 ## Separate Vercel links for web and mkt
 
-**Provisional cloud mutation / manual confirmation required.** Link each app directory to a different, already-confirmed Vercel project. The commands below may create local link metadata and can prompt to create or select a project; do not use unattended confirmation flags. Task 8 must verify the installed CLI’s exact prompts and resulting metadata.
+**Cloud mutation / manual confirmation required.** Link each app directory to a different, already-confirmed Vercel project. These commands create ignored app-local `.vercel/project.json` metadata and can prompt to create or select a project; do not use unattended confirmation flags.
 
 ```bash
 (cd apps/web && vercel link)
@@ -107,7 +107,7 @@ Do not swap the two URLs, expose either value to the browser, or manually substi
 
 Enable **Require Active Resource Before Deploy**, then enable Neon branch-per-deployment behavior for `web` Preview deployments. Leave Production branch creation off. A preview must receive an isolated branch and injected URLs rather than the production connection. This is required, not an optimization.
 
-The saved configuration has been verified in the live resource editor. A real preview must still prove the resulting branch and URLs before claiming runtime isolation.
+Disposable validation confirmed that the resource editor saves this configuration. A minted product must still prove the resulting branch and URLs in a real Preview before claiming runtime isolation.
 
 ## Better Auth application and Infrastructure variables
 
@@ -128,13 +128,13 @@ Confirm the canonical production origin, Better Auth Infrastructure project, pro
 
 ## Root .env.local pull
 
-**Provisional external command that writes local secrets.** After linking `web` and configuring all required `web` variables above, pull Development values into the repository-root `.env.local`; do not create an app-local environment file.
+**External command that writes local secrets.** After linking `web` and configuring all required `web` variables above, pull Development values into the repository-root `.env.local`; do not create an app-local environment file.
 
 ```bash
 (cd apps/web && vercel env pull ../../.env.local --environment=development)
 ```
 
-The exact `vercel env pull` flags and output are pending live verification. This command intentionally uses the `web` project link while writing at the repository root. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
+This command intentionally uses the `web` project link while writing at the repository root. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
 
 ## Drizzle checks and product migrations
 
@@ -155,7 +155,7 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/
 
 ## Preview deployment and auth health probe
 
-**Provisional cloud mutation.** Create a `web` preview deployment only after verifying the Vercel project, branch, and Neon Preview configuration. The unconfirmed CLI form is:
+**Cloud mutation / unverified deployment step.** Create a `web` Preview only after verifying the Vercel project, branch, and Neon Preview configuration:
 
 ```bash
 (cd apps/web && vercel)
@@ -167,7 +167,7 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/
 curl --include "$PREVIEW_URL/api/auth/ok"
 ```
 
-The expected status/body for this handler is deliberately not asserted yet. Task 8 must capture the observed response and prove that the deployment used an isolated Neon preview branch rather than the production URL.
+The local handler returns `200 {"ok":true}`. Capture the remote response and prove that the deployment used an isolated Neon Preview branch rather than the production URL.
 
 ## Provider addition and auth schema regeneration
 
@@ -202,4 +202,4 @@ The foundation's production auth server and browser client include Better Auth A
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
-Task 8 is responsible for replacing the provisional cloud command details with live, evidence-backed behavior. Until that work is complete, this guide is a safe configuration target rather than evidence that any cloud resource is linked, deployed, or healthy.
+Disposable validation confirmed the project-link shape, Neon creation command, unprefixed variable contract, three-environment connection, and saved Preview-branching configuration. It did not apply a product migration or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.

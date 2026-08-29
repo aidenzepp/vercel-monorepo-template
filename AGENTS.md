@@ -10,7 +10,7 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 - `packages/ui` owns shared Shadcn components, styles, hooks, and Next.js providers. Import its public surfaces through direct subpaths such as `@workspace/ui/components/button` and `@workspace/ui/next/theme-provider`; do not introduce a barrel.
 - Both application layouts mount the shared theme provider plus Vercel Analytics and Speed Insights. No dedicated async-boundary test or application consumer exists; its current evidence is limited to `packages/ui` typechecking.
 
-`docs/setup.md` is the setup and cloud-configuration runbook. It deliberately distinguishes locally verified commands from provisional Vercel and Neon steps.
+`docs/setup.md` is the setup and cloud-configuration runbook. It distinguishes locally verified commands and disposable-resource findings from the product Preview and production gates that remain intentionally unproven.
 
 ## Error handling
 
@@ -27,7 +27,7 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 
 - `apps/web` alone owns Neon, Drizzle, its schema, and migrations. `apps/mkt` and `packages/ui` must not add database dependencies or environment variables.
 - The web runtime uses the pooled `DATABASE_URL`; Drizzle Kit uses `DATABASE_URL_UNPOOLED` from the repository-root `.env.local`. Keep Neon variables unprefixed so the upstream `neonVercel()` contract stays valid.
-- `db:generate` writes migration files and `db:migrate` mutates the selected database. Run migrations against a confirmed non-production target first; automatic Vercel migration behavior remains provisional until the live integration pass proves it.
+- `db:generate` writes migration files and `db:migrate` mutates the selected database. Run migrations against a confirmed non-production target first; do not add automatic Vercel migrations until a product proves that path in Preview.
 
 ## Lint / format
 

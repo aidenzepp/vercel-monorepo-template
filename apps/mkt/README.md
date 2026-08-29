@@ -8,6 +8,6 @@ Keep this boundary strict:
 - its layout mounts the shared theme provider, Vercel Analytics, and Speed Insights;
 - it must not acquire Better Auth, Neon, Drizzle, migrations, auth routes, or database environment variables for convenience.
 
-Vercel treats `mkt` as a separate project from `web`, so its deployment and environment configuration stay independent. Follow the provisional linking guidance in [../../docs/setup.md](../../docs/setup.md); the later live integration pass must confirm the exact Vercel behavior before it is treated as verified.
+Vercel treats `mkt` as a separate project from `web`, so its deployment and environment configuration stay independent. Follow the verified linking shape in [../../docs/setup.md](../../docs/setup.md), and confirm the exact team and project before every minted product is linked.
 
 Its production build currently uses `next build --webpack`. Keep that workaround until a current Next.js/Turbopack production build is proven in this environment.
