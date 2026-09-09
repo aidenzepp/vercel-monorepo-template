@@ -32,21 +32,19 @@ RESEND_FROM_EMAIL=onboarding@example.com
 
 ## Guided service setup
 
-The setup command compiles the opinionated cloud steps into one reviewable plan. It previews by default and makes no cloud changes:
+The setup command immediately applies the opinionated cloud steps. It prints the plan for visibility, but it has no preview mode or confirmation flag; running it can create resources and provider charges:
 
 ```bash
 bun run setup:services
-```
-
-After confirming the Vercel team, project targets, region, and provider billing prompts, apply the same plan interactively:
-
-```bash
-bun run setup:services --apply
 # Choose another region when needed:
-bun run setup:services --apply --region=sfo1
+bun run setup:services --region=fra1
 ```
 
-The command links `web`, provisions Neon with Neon Auth disabled, creates a private Blob store, installs Resend, pulls Development variables to the root `.env.local`, and finally links `mkt` to its own project. It intentionally leaves every provider confirmation visible and stops on the first failure without deleting resources already created. The sections below are the manual equivalent and the audit checklist for the resulting configuration.
+The accepted regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`, matching the current Neon integration options. The same region is used for Neon and Blob.
+
+The command links `web`, provisions Neon with Neon Auth disabled, creates and connects a private Blob store, installs and connects Resend, and finally links `mkt` to its own project. Neon is intentionally provisioned with `--no-connect` so its required Preview branching options remain available in Vercel's **Connect Project** form. The command then tells you how to connect Neon and pull Development variables; it does not pause or pull environment variables prematurely.
+
+Every provider confirmation remains visible. The command stops on the first failure without deleting resources already created. The sections below are the manual equivalent and the audit checklist for the resulting configuration.
 
 ## Local verification
 
@@ -93,13 +91,12 @@ Use the Vercel/Neon integration flow only after confirming its billing, data-sha
   --plan free_v3 \
   --metadata region=iad1 \
   --metadata auth=false \
-  --environment development \
-  --environment preview \
-  --environment production \
-  --no-env-pull)
+  --no-connect)
 ```
 
-Choose the region intentionally rather than copying `iad1` when another deployment region is required. Keep Neon Auth disabled: this template owns authentication through Better Auth, and enabling Neon Auth provisions a separate auth system and extra environment variables. Neon Auth cannot be disabled on an existing resource through the current Vercel resource editor, so verify this choice before provisioning.
+Choose the region intentionally rather than copying `iad1` when another deployment region is required. `--no-connect` also skips the automatic environment pull. After provisioning, connect Neon to `web` from the resource's **Projects** tab using the environment and branching settings below.
+
+Keep Neon Auth disabled: this template owns authentication through Better Auth, and enabling Neon Auth provisions a separate auth system and extra environment variables. Neon Auth cannot be disabled on an existing resource through the current Vercel resource editor, so verify this choice before provisioning.
 
 The current Vercel CLI also installs Neon agent skills into the app as a provisioning side effect. Remove `apps/web/.agents/` and `apps/web/skills-lock.json` unless the minted product explicitly chooses to keep those optional skills; they are not template foundations.
 
