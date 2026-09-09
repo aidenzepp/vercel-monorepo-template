@@ -5,5 +5,5 @@ const ultraciteIgnorePatterns = ultracite.ignorePatterns ?? [];
 
 export default defineConfig({
   ...ultracite,
-  ignorePatterns: [...ultraciteIgnorePatterns],
+  ignorePatterns: [...ultraciteIgnorePatterns, ".agents/skills/**"],
 });
