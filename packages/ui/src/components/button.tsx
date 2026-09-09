@@ -3,20 +3,20 @@ import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const buttonVariants = cva(
-  "group/button focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 inline-flex shrink-0 items-center justify-center rounded-2xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-3 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-3 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 inline-flex shrink-0 items-center justify-center rounded-2xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-(--button-focus-color)/40 focus-visible:ring-3 focus-visible:ring-(--button-focus-color)/20 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-3 dark:focus-visible:ring-(--button-focus-color)/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       color: {
         default:
-          "[--button-color-foreground:var(--primary)] [--button-color:var(--primary)] [--button-solid-foreground:var(--primary-foreground)] dark:[--button-color-foreground:color-mix(in_oklch,var(--primary),white_45%)]",
+          "[--button-color-foreground:var(--primary)] [--button-color:var(--primary)] [--button-focus-color:var(--primary)] [--button-solid-foreground:var(--primary-foreground)] dark:[--button-color-foreground:color-mix(in_oklch,var(--primary),white_45%)]",
         neutral:
-          "[--button-color-foreground:var(--secondary-foreground)] [--button-color:var(--foreground)] [--button-solid-foreground:var(--background)]",
+          "[--button-color-foreground:var(--secondary-foreground)] [--button-color:var(--foreground)] [--button-focus-color:var(--ring)] [--button-solid-foreground:var(--background)]",
         destructive:
-          "focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 [--button-color-foreground:var(--destructive-foreground)] [--button-color:var(--destructive)] [--button-solid-foreground:var(--background)] dark:[--button-solid-foreground:var(--foreground)]",
+          "[--button-color-foreground:var(--destructive-foreground)] [--button-color:var(--destructive)] [--button-focus-color:var(--destructive)] [--button-solid-foreground:var(--background)] dark:[--button-solid-foreground:var(--foreground)]",
         success:
-          "focus-visible:border-success/40 focus-visible:ring-success/20 dark:focus-visible:ring-success/40 [--button-color-foreground:var(--success-foreground)] [--button-color:var(--success)] [--button-solid-foreground:var(--foreground)] dark:[--button-solid-foreground:var(--background)]",
+          "[--button-color-foreground:var(--success-foreground)] [--button-color:var(--success)] [--button-focus-color:var(--success)] [--button-solid-foreground:var(--foreground)] dark:[--button-solid-foreground:var(--background)]",
         warning:
-          "focus-visible:border-warning/40 focus-visible:ring-warning/20 dark:focus-visible:ring-warning/40 [--button-color-foreground:var(--warning-foreground)] [--button-color:var(--warning)] [--button-solid-foreground:var(--foreground)] dark:[--button-solid-foreground:var(--background)]",
+          "[--button-color-foreground:var(--warning-foreground)] [--button-color:var(--warning)] [--button-focus-color:var(--warning)] [--button-solid-foreground:var(--foreground)] dark:[--button-solid-foreground:var(--background)]",
       },
       variant: {
         primary:
