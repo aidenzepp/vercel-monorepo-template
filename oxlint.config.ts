@@ -54,6 +54,7 @@ export default defineConfig({
       rules: {
         "no-inline-comments": "off",
         "sort-keys": "off",
+        "unicorn/numeric-separators-style": "off",
       },
     },
   ],

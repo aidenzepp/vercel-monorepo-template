@@ -1,5 +1,5 @@
-import { option } from "./option.js";
-import type { Option } from "./option.js";
+import { option } from "./option";
+import type { Option } from "./option";
 
 /**
  * A factory that returns the zero value for T.

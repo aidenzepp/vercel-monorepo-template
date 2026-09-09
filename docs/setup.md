@@ -1,6 +1,6 @@
 # Default web foundation setup
 
-This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, and Better Auth; `mkt` is public marketing and remains free of auth and database dependencies. The repository steps below are current local contracts. Cloud sections distinguish configuration verified through the live Vercel/Neon setup from behavior that still requires a real deployment.
+This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, Better Auth, private Blob storage, and Resend; `mkt` is public marketing and remains free of those dependencies. The repository steps below are current local contracts. Cloud sections distinguish configuration verified through the live Vercel/Neon setup from behavior that still requires a real deployment.
 
 ## Prerequisites and Bun install
 
@@ -18,13 +18,35 @@ Run commands from the repository root unless a command explicitly changes direct
 Before local verification, create the ignored repository-root `.env.local` with disposable values. These URLs are syntactically valid but intentionally point to an unavailable local address, so they cannot reach a real database. Replace these values only after the cloud setup provides the confirmed `web` project values; never commit this file.
 
 ```dotenv
+APP_NAME=App
 DATABASE_URL=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 DATABASE_URL_UNPOOLED=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_API_KEY=local-verification-api-key
 BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
+BLOB_READ_WRITE_TOKEN=local-verification-blob-token
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
+RESEND_API_KEY=re_local_verification_key
+RESEND_FROM_EMAIL=onboarding@example.com
 ```
+
+## Guided service setup
+
+The setup command compiles the opinionated cloud steps into one reviewable plan. It previews by default and makes no cloud changes:
+
+```bash
+bun run setup:services
+```
+
+After confirming the Vercel team, project targets, region, and provider billing prompts, apply the same plan interactively:
+
+```bash
+bun run setup:services --apply
+# Choose another region when needed:
+bun run setup:services --apply --region=sfo1
+```
+
+The command links `web`, provisions Neon with Neon Auth disabled, creates a private Blob store, installs Resend, pulls Development variables to the root `.env.local`, and finally links `mkt` to its own project. It intentionally leaves every provider confirmation visible and stops on the first failure without deleting resources already created. The sections below are the manual equivalent and the audit checklist for the resulting configuration.
 
 ## Local verification
 
@@ -41,6 +63,10 @@ NODE_ENV=production PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin
 Both application build scripts currently use `next build --webpack`. Keep that workaround until a current Next.js/Turbopack production build is proven in this environment.
 
 The two layouts must continue to consume the shared theme provider, Analytics, and Speed Insights. There is no dedicated async-boundary test or application consumer yet. Its current evidence is limited to `packages/ui` typechecking; do not treat application typechecks or builds as boundary proof.
+
+## Why this template does not use Vercel Services
+
+Vercel Services deploy multiple runtimes atomically in one project and expose them on one deployment domain under route prefixes. This template instead contains two peer Next.js applications intended for separate domains and independent deployment/rollback lifecycles. Keeping `web` and `mkt` as separate Vercel projects is therefore the opinionated default; add a Services `vercel.json` only when a minted product explicitly wants one shared domain and atomic releases.
 
 ## Separate Vercel links for web and mkt
 
@@ -124,7 +150,7 @@ Generate secrets in an approved secret-management workflow. This local command e
 openssl rand -base64 48
 ```
 
-Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, data-sharing implications, and target environments before saving secrets. No sign-in provider is enabled by default.
+Also set `APP_NAME` and `RESEND_FROM_EMAIL` for every web environment. Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, sending domain, data-sharing implications, and target environments before saving secrets.
 
 ## Root .env.local pull
 
@@ -136,20 +162,17 @@ Confirm the canonical production origin, Better Auth Infrastructure project, pro
 
 This command intentionally uses the `web` project link while writing at the repository root. Keep `.env.local` private and uncommitted. Inspect the pulled keys without printing their values before running `web` scripts.
 
-## Drizzle checks and product migrations
+## Drizzle baseline and product migrations
 
-Run these from the repository root after the root `.env.local` contains the verified unpooled URL. This template publishes no migrations, so do not run `db:check` in the pristine template: Drizzle Kit can create empty journal scaffolding and validates migration snapshots only after they exist. Once a real product schema is ready, generate the baseline, review it, validate it, commit the schema and migration, then apply it only to an approved non-production target.
+The template ships a reviewed baseline migration for its complete Better Auth schema and indexes. Run these commands from the repository root after `.env.local` contains the verified unpooled Development URL:
 
 ```bash
-# 1. Generate the product baseline migration.
-PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:generate
-# 2. Review the generated baseline migration.
-# 3. Validate its migration snapshots.
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:check
+# Apply only after confirming the URL points to an approved non-production branch.
+PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run --cwd apps/web db:migrate
 ```
 
-4. Commit the reviewed schema and migration.
-5. Run `db:migrate` only against an approved non-production target.
+When a product changes the schema, regenerate Better Auth's schema first, generate a new Drizzle migration, review the SQL and snapshot, run `db:check`, and apply it to an approved non-production branch before production.
 
 `build:vercel` runs only `next build --webpack`. A product may add `db:migrate` before its build only after it has generated, reviewed, and applied a product migration in an approved non-production target; do not enable that deployment path until the preview migration path has been observed and approved.
 
@@ -169,14 +192,20 @@ curl --include "$PREVIEW_URL/api/auth/ok"
 
 The local handler returns `200 {"ok":true}`. Capture the remote response and prove that the deployment used an isolated Neon Preview branch rather than the production URL.
 
-## Provider addition and auth schema regeneration
+## Better Auth defaults and schema regeneration
 
-Provider support is a product decision and belongs only in `web`. Before adding a provider or schema-affecting Better Auth plugin, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
+The web foundation enables email/password sign-in plus Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI by default. Admin, Last Login Method, OAuth Proxy, Test Utils, Infrastructure Dash, and Next Cookies remain enabled as well. The browser client installs every corresponding client plugin.
 
-The foundation's auth server includes Better Auth Admin, Last Login Method, and Dash. Dash activity tracking is enabled with its default five-minute update interval, so `lastActiveAt` is generated into the `auth.user` schema before a product creates its baseline migration. Dash provides the hosted audit and activity surface; no Dash browser APIs are installed by default. The browser client includes Admin and Last Login Method. Last Login Method remains cookie-backed and adds no database field. Test Utils exposes privileged server context helpers but no public routes; the browser client does not include it. Next.js Proxy remains a product choice until a product defines protected routes.
+Email verification is required for credential sign-in, password reset revokes existing sessions, and passwords must be 12–256 characters. Resend delivers verification, reset, organization invitation, and email 2FA messages. Two-factor secrets and OTPs use encrypted storage; passwordless accounts may enroll. Username normalization and validation match ShareFits: lowercase, trimmed, 1–30 characters, ASCII letters/numbers/periods/underscores, with no leading, trailing, or consecutive periods.
 
-1. Add the provider or plugin to the web auth configuration and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
-2. Update `db/schema/auth-config.ts` when the provider/plugin changes Better Auth’s generated schema contract. Dash activity tracking is already represented there so `lastActiveAt` remains in every regenerated schema.
+The Vercel runtime registers Better Auth background work with `waitUntil`, keeps a five-minute compact session cookie cache, and stores rate limits in Postgres rather than ephemeral server memory. The generated schema includes the documented lookup indexes for sessions, accounts, verification identifiers, API keys, organization membership/invitations, passkeys, and two-factor records. OpenAPI's interactive reference is available at `/api/auth/reference`.
+
+Dash activity tracking is enabled with its default five-minute update interval, so `lastActiveAt` remains in the generated `auth.user` schema. Test Utils exposes privileged server context helpers but no browser plugin. Next.js Proxy remains a product choice until a product defines protected routes.
+
+Provider support remains a product decision. Before adding one, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
+
+1. Add a provider or shared schema-affecting plugin to the web auth foundation and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
+2. Ensure the shared plugin factory remains consumed by both runtime auth and `db/schema/auth-config.ts`. Do not duplicate the plugin list.
 3. Regenerate and review the schema, then generate a migration:
 
    ```bash
@@ -187,9 +216,11 @@ The foundation's auth server includes Better Auth Admin, Last Login Method, and 
 
 4. Commit the reviewed schema and product migration. Apply it to an approved non-production target and prove the provider callback before any production mutation.
 
-## Optional Resend
+## Blob and Resend on web only
 
-**Optional cloud mutation / billing, domain, and consent pause.** Resend is intentionally not installed or configured by this foundation. If a product needs email, provision it through the Vercel Marketplace or the chosen provider only after reviewing billing, sender domain ownership, and verification requirements. Add the dependency, server-only variables, domain configuration, and tests inside `web`; do not make it a shared or marketing dependency by default.
+The guided setup creates a private Blob store and installs the Resend marketplace integration in the linked `web` project. Vercel injects `BLOB_READ_WRITE_TOKEN` and `RESEND_API_KEY`; set `RESEND_FROM_EMAIL` separately to a verified sender owned by the minted product. Neither variable belongs in `mkt`.
+
+Application code uses `lib/storage/blob.ts` for private uploads/deletes and `lib/email/send-email.ts` for server-only delivery. The wrappers pin the storage access mode, inject credentials from the validated environment, and return the workspace Result shape for Blob failures. Do not call the provider SDK directly unless a product needs behavior the wrapper cannot represent.
 
 ## Production gate
 
