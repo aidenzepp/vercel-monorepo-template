@@ -63,6 +63,7 @@ function DialogContent({
             data-slot="dialog-close"
             render={
               <Button
+                color="neutral"
                 variant="ghost"
                 className="bg-secondary absolute top-4 right-4"
                 size="icon-sm"
@@ -107,7 +108,9 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>
+        <DialogPrimitive.Close
+          render={<Button color="neutral" variant="outline" />}
+        >
           Close
         </DialogPrimitive.Close>
       )}

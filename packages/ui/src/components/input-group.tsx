@@ -83,6 +83,7 @@ const inputGroupButtonVariants = cva(
 
 function InputGroupButton({
   className,
+  color = "neutral",
   type = "button",
   variant = "ghost",
   size = "xs",
@@ -93,6 +94,7 @@ function InputGroupButton({
   }) {
   return (
     <Button
+      color={color}
       type={type}
       data-size={size}
       variant={variant}

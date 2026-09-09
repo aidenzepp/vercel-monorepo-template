@@ -210,18 +210,20 @@ function QuestionnaireActions({
 function QuestionnairePrevious({
   children,
   className,
+  color = "neutral",
   size = "default",
   variant = "outline",
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Previous> &
-  Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  Pick<React.ComponentProps<typeof Button>, "color" | "size" | "variant">) {
   return (
     <QuestionnairePrimitive.Previous
       data-slot="questionnaire-previous"
+      data-color={color}
       data-size={size}
       data-variant={variant}
       className={cn(
-        buttonVariants({ size, variant }),
+        buttonVariants({ color, size, variant }),
         "col-start-1 row-start-1 min-h-11 justify-self-start sm:min-h-0",
         className
       )}
@@ -235,18 +237,20 @@ function QuestionnairePrevious({
 function QuestionnaireSkip({
   children,
   className,
+  color = "neutral",
   size = "default",
   variant = "outline",
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Skip> &
-  Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  Pick<React.ComponentProps<typeof Button>, "color" | "size" | "variant">) {
   return (
     <QuestionnairePrimitive.Skip
       data-slot="questionnaire-skip"
+      data-color={color}
       data-size={size}
       data-variant={variant}
       className={cn(
-        buttonVariants({ size, variant }),
+        buttonVariants({ color, size, variant }),
         "col-start-2 row-start-1 min-h-11 justify-self-end sm:min-h-0",
         className
       )}
@@ -260,18 +264,20 @@ function QuestionnaireSkip({
 function QuestionnaireNext({
   children,
   className,
+  color = "default",
   size = "default",
-  variant = "default",
+  variant = "primary",
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Next> &
-  Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  Pick<React.ComponentProps<typeof Button>, "color" | "size" | "variant">) {
   return (
     <QuestionnairePrimitive.Next
       data-slot="questionnaire-next"
+      data-color={color}
       data-size={size}
       data-variant={variant}
       className={cn(
-        buttonVariants({ size, variant }),
+        buttonVariants({ color, size, variant }),
         "col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0",
         className
       )}
@@ -285,18 +291,20 @@ function QuestionnaireNext({
 function QuestionnaireSubmit({
   children,
   className,
+  color = "default",
   size = "default",
-  variant = "default",
+  variant = "primary",
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Submit> &
-  Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  Pick<React.ComponentProps<typeof Button>, "color" | "size" | "variant">) {
   return (
     <QuestionnairePrimitive.Submit
       data-slot="questionnaire-submit"
+      data-color={color}
       data-size={size}
       data-variant={variant}
       className={cn(
-        buttonVariants({ size, variant }),
+        buttonVariants({ color, size, variant }),
         "col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0",
         className
       )}
