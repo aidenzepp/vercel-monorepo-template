@@ -32,7 +32,9 @@ RESEND_FROM_EMAIL=onboarding@example.com
 
 ## Guided service setup
 
-The setup command immediately applies the opinionated cloud steps. It prints the plan for visibility, but it has no preview mode or confirmation flag; running it can create resources and provider charges:
+Before setup, replace the root `package.json` name with the minted product's slug. The script rejects the unchanged `vercel-monorepo-template` placeholder so it cannot create permanently misnamed resources.
+
+Run setup directly in an interactive terminal. It immediately applies the opinionated cloud steps and can create resources and provider charges; non-interactive execution is rejected before any Vercel command runs:
 
 ```bash
 bun run setup:services
@@ -40,11 +42,26 @@ bun run setup:services
 bun run setup:services --region=fra1
 ```
 
-The accepted regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`, matching the current Neon integration options. The same region is used for Neon and Blob.
+The accepted regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`, matching the current Neon integration options. The same region is used for Neon and Blob. Missing, repeated, unknown, and unsupported options fail before setup reaches Vercel.
 
-The command links `web`, provisions Neon with Neon Auth disabled, creates and connects a private Blob store, installs and connects Resend, and finally links `mkt` to its own project. Neon is intentionally provisioned with `--no-connect` so its required Preview branching options remain available in Vercel's **Connect Project** form. The command then tells you how to connect Neon and pull Development variables; it does not pause or pull environment variables prematurely.
+The command first links both apps, validates their `.vercel/project.json` files, and refuses to continue if `web` and `mkt` target the same Vercel project. Only then does it provision Neon with Neon Auth disabled, create and connect a private Blob store, and install and connect Resend through the `web` project. Blob and Resend are explicitly connected to Development, Preview, and Production.
 
-Every provider confirmation remains visible. The command stops on the first failure without deleting resources already created. The sections below are the manual equivalent and the audit checklist for the resulting configuration.
+Resource names share one cross-app convention: `neon-<package-name>-apps`, `blob-<package-name>-apps`, and `resend-<package-name>-apps`. Neon is intentionally provisioned with `--no-connect` so its required Preview branching options remain available in Vercel's **Connect Project** form. The command then tells you how to connect Neon and pull Development variables; it does not pause or pull environment variables prematurely.
+
+Vercel retains any interactive billing and provider-consent prompts. The command stops on the first failure without deleting resources already created. The sections below are the manual equivalent, recovery path, and audit checklist for the resulting configuration.
+
+## Recovering from an interrupted setup
+
+If either project-link step fails, no provider resource command has run. Correct the failed link and run setup again.
+
+If Neon, Blob, or Resend fails, do not immediately rerun the complete setup. The failed command may have changed remote state before returning an error, while earlier service steps are known to have completed. Record the completed steps printed by the script, then inspect the named resources:
+
+```bash
+vercel integration list --all
+vercel blob list-stores
+```
+
+If a named resource exists, do not recreate it; connect or finish configuring it from Vercel's Storage dashboard. If it does not exist, run only the failed creation command printed by the script, then finish the remaining provider operations individually. Rerun the full setup only after confirming that none of its three named resources exists.
 
 ## Local verification
 
@@ -81,13 +98,13 @@ Confirm the selected team and project name in each prompt before continuing. `we
 
 **Cloud mutation / billing and consent pause.** Connect one Neon resource to the `web` Vercel project only. Do not install or connect Neon for `mkt`.
 
-Name app-specific cloud resources `<project>-apps-<app>`, matching the repository's `apps/` nomenclature. Examples include `sharefits-apps-web`, `amino-apps-web`, and `vercel-monorepo-template-apps-web`.
+Name shared cloud resources `<provider>-<package-name>-apps`, matching the repository's `apps/` nomenclature. For ShareFits these are `neon-sharefits-apps`, `blob-sharefits-apps`, and `resend-sharefits-apps`.
 
 Use the Vercel/Neon integration flow only after confirming its billing, data-sharing, team, and project screens. The verified CLI shape is:
 
 ```bash
 (cd apps/web && vercel integration add neon \
-  --name <project>-apps-web \
+  --name neon-<package-name>-apps \
   --plan free_v3 \
   --metadata region=iad1 \
   --metadata auth=false \
@@ -216,6 +233,26 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 ## Blob and Resend on web only
 
 The guided setup creates a private Blob store and installs the Resend marketplace integration in the linked `web` project. Vercel injects `BLOB_READ_WRITE_TOKEN` and `RESEND_API_KEY`; set `RESEND_FROM_EMAIL` separately to a verified sender owned by the minted product. Neither variable belongs in `mkt`.
+
+The equivalent individual creation commands are:
+
+```bash
+(cd apps/web && vercel blob create-store blob-<package-name>-apps \
+  --access private \
+  --region iad1 \
+  --environment development \
+  --environment preview \
+  --environment production)
+
+(cd apps/web && vercel integration add resend \
+  --name resend-<package-name>-apps \
+  --environment development \
+  --environment preview \
+  --environment production \
+  --no-env-pull)
+```
+
+These commands create resources. Use them during recovery only after the resource listings confirm that the corresponding name does not already exist.
 
 Application code uses `lib/storage/blob.ts` for private uploads/deletes and `lib/email/send-email.ts` for server-only delivery. The wrappers pin the storage access mode, inject credentials from the validated environment, and return the workspace Result shape for Blob failures. Do not call the provider SDK directly unless a product needs behavior the wrapper cannot represent.
 
