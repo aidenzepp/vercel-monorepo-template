@@ -29,8 +29,24 @@ const regionSchema = z.enum(neonRegions, {
     `SETUP_REGION_UNSUPPORTED: Unsupported region "${String(issue.input)}". Choose one of: ${neonRegions.join(", ")}.`,
 });
 
+const resendDomainSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(
+    z.hostname({
+      error:
+        "SETUP_RESEND_DOMAIN_INVALID: Enter a domain you own, such as example.com.",
+    })
+  )
+  .refine((domain) => domain.includes("."), {
+    error:
+      "SETUP_RESEND_DOMAIN_INVALID: Enter a domain you own, such as example.com.",
+  });
+
 const optionsSchema = z.object({
   region: regionSchema.default("iad1"),
+  resendDomain: resendDomainSchema.optional(),
 });
 
 const projectLinkSchema = z.object({
@@ -47,6 +63,8 @@ type SetupStep = Readonly<{
   directory: string;
   label: string;
 }>;
+
+type ServiceStep = SetupStep & Readonly<{ resourceName: string }>;
 
 type PlanFailure = Readonly<{
   completed: readonly string[];
@@ -84,6 +102,7 @@ const parseOptions = (arguments_: string[]): ParsedOptions => {
     args: arguments_,
     options: {
       region: { type: "string" },
+      "resend-domain": { type: "string" },
     },
     strict: false,
     tokens: true,
@@ -91,7 +110,7 @@ const parseOptions = (arguments_: string[]): ParsedOptions => {
 
   const optionTokens = tokens.filter((token) => token.kind === "option");
   const unknownOptions = optionTokens.filter(
-    (token) => token.name !== "region"
+    (token) => token.name !== "region" && token.name !== "resend-domain"
   );
 
   if (unknownOptions.length > 0) {
@@ -100,14 +119,14 @@ const parseOptions = (arguments_: string[]): ParsedOptions => {
       .join(", ");
 
     return {
-      error: `SETUP_OPTION_UNKNOWN: Unrecognized option${unknownOptions.length === 1 ? "" : "s"}: ${names}. Use: bun run setup:services [--region=<region>]`,
+      error: `SETUP_OPTION_UNKNOWN: Unrecognized option${unknownOptions.length === 1 ? "" : "s"}: ${names}. Use: bun run setup:services [--resend-domain=<domain>] [--region=<region>]`,
       ok: false,
     };
   }
 
   if (positionals.length > 0) {
     return {
-      error: `SETUP_ARGUMENT_UNEXPECTED: Unexpected argument${positionals.length === 1 ? "" : "s"}: ${positionals.join(", ")}. Use: bun run setup:services [--region=<region>]`,
+      error: `SETUP_ARGUMENT_UNEXPECTED: Unexpected argument${positionals.length === 1 ? "" : "s"}: ${positionals.join(", ")}. Use: bun run setup:services [--resend-domain=<domain>] [--region=<region>]`,
       ok: false,
     };
   }
@@ -138,7 +157,39 @@ const parseOptions = (arguments_: string[]): ParsedOptions => {
     };
   }
 
-  const parsed = optionsSchema.safeParse({ region: regionToken?.value });
+  const resendDomainTokens = optionTokens.filter(
+    (token) => token.name === "resend-domain"
+  );
+
+  if (resendDomainTokens.length > 1) {
+    const values = resendDomainTokens
+      .map((token) => token.value ?? token.rawName)
+      .join(", ");
+
+    return {
+      error: `SETUP_RESEND_DOMAIN_DUPLICATE: Pass --resend-domain only once. Received: ${values}.`,
+      ok: false,
+    };
+  }
+
+  const resendDomainToken = resendDomainTokens.at(0);
+
+  if (
+    resendDomainToken &&
+    (resendDomainToken.value === undefined ||
+      resendDomainToken.value.startsWith("-"))
+  ) {
+    return {
+      error:
+        "SETUP_RESEND_DOMAIN_MISSING: --resend-domain requires a value. Use: bun run setup:services --resend-domain=example.com",
+      ok: false,
+    };
+  }
+
+  const parsed = optionsSchema.safeParse({
+    region: regionToken?.value,
+    resendDomain: resendDomainToken?.value,
+  });
 
   if (parsed.success) {
     return { ok: true, value: parsed.data };
@@ -181,54 +232,79 @@ const createLinkPlan = (): SetupStep[] => [
 
 const createServicePlan = (
   names: ResourceNames,
-  region: SetupOptions["region"]
-): SetupStep[] => [
-  {
-    arguments: [
-      "integration",
-      "add",
-      "neon",
-      "--name",
-      names.neon,
-      "--plan",
-      "free_v3",
-      "--metadata",
-      `region=${region}`,
-      "--metadata",
-      "auth=false",
-      "--no-connect",
-    ],
-    directory: webDirectory,
-    label: "Provision Neon for the apps",
-  },
-  {
-    arguments: [
-      "blob",
-      "create-store",
-      names.blob,
-      "--access",
-      "private",
-      "--region",
-      region,
-      ...environmentArguments,
-    ],
-    directory: webDirectory,
-    label: "Provision and connect a private Blob store",
-  },
-  {
+  options: SetupOptions,
+  scope: ProjectLink["orgId"]
+): ServiceStep[] => {
+  const plan: ServiceStep[] = [
+    {
+      arguments: [
+        "integration",
+        "add",
+        "neon",
+        "--name",
+        names.neon,
+        "--plan",
+        "free_v3",
+        "--metadata",
+        `region=${options.region}`,
+        "--metadata",
+        "auth=false",
+        "--no-connect",
+        "--scope",
+        scope,
+      ],
+      directory: webDirectory,
+      label: "Provision Neon for the apps",
+      resourceName: names.neon,
+    },
+    {
+      arguments: [
+        "blob",
+        "create-store",
+        names.blob,
+        "--access",
+        "private",
+        "--region",
+        options.region,
+        ...environmentArguments,
+        "--scope",
+        scope,
+      ],
+      directory: webDirectory,
+      label: "Provision and connect a private Blob store",
+      resourceName: names.blob,
+    },
+  ];
+
+  if (options.resendDomain === undefined) {
+    return plan;
+  }
+
+  plan.push({
     arguments: [
       "integration",
       "add",
       "resend",
       "--name",
       names.resend,
+      "--plan",
+      "free",
+      "--metadata",
+      `domain=${options.resendDomain}`,
+      "--metadata",
+      "region=us-east-1",
       ...environmentArguments,
       "--no-env-pull",
+      "--scope",
+      scope,
     ],
     directory: webDirectory,
     label: "Provision and connect Resend",
-  },
-];
+    resourceName: names.resend,
+  });
+
+  return plan;
+};
 
 const printPlan = (heading: string, plan: readonly SetupStep[]): void => {
   console.log(heading);
@@ -385,7 +461,7 @@ const printLinkFailure = (failure: PlanFailure): void => {
 
 const printServiceFailure = (
   failure: PlanFailure,
-  names: ResourceNames
+  resourceNames: readonly string[]
 ): void => {
   console.error(
     `SETUP_SERVICE_FAILED: ${failure.failed.label} failed. ${failure.error}`
@@ -394,21 +470,26 @@ const printServiceFailure = (
     `Completed service steps: ${failure.completed.join(", ") || "none"}. The failed command may also have changed remote state.`
   );
   console.error(
-    `Do not rerun setup yet. Inspect "${names.neon}", "${names.blob}", and "${names.resend}" in Vercel, then finish only the missing service using the recovery steps in docs/setup.md.`
+    `Do not rerun setup yet. Inspect ${resourceNames.map((name) => `"${name}"`).join(", ")} in Vercel, then finish only the missing service using the recovery steps in docs/setup.md.`
   );
 };
 
 const printNextSteps = (
   names: ResourceNames,
-  webProject: ProjectLink
+  webProject: ProjectLink,
+  resendProvisioned: boolean
 ): void => {
+  const resendStatus = resendProvisioned
+    ? names.resend
+    : "deferred — rerun only the documented Resend command after acquiring a sending domain";
+
   console.log(`
 Service provisioning completed for ${webProject.projectName}. Neon is not connected yet.
 
-Provisioned resources:
+Service status:
   • Neon: ${names.neon}
   • Blob: ${names.blob}
-  • Resend: ${names.resend}
+  • Resend: ${resendStatus}
 
 Connect Neon to the web project:
   Vercel Dashboard → Storage → ${names.neon} → Connect Project
@@ -497,7 +578,11 @@ const main = async (arguments_: string[]): Promise<number> => {
 
   printProjectLinks(projects.value);
 
-  const servicePlan = createServicePlan(names, options.value.region);
+  const servicePlan = createServicePlan(
+    names,
+    options.value,
+    projects.value.web.orgId
+  );
   printPlan(
     `Provisioning the apps' resources in ${options.value.region}.`,
     servicePlan
@@ -506,11 +591,18 @@ const main = async (arguments_: string[]): Promise<number> => {
   const serviceResult = await runPlan(vercel, servicePlan);
 
   if (!serviceResult.ok) {
-    printServiceFailure(serviceResult, names);
+    printServiceFailure(
+      serviceResult,
+      servicePlan.map((step) => step.resourceName)
+    );
     return serviceResult.exitCode;
   }
 
-  printNextSteps(names, projects.value.web);
+  printNextSteps(
+    names,
+    projects.value.web,
+    options.value.resendDomain !== undefined
+  );
   return 0;
 };
 

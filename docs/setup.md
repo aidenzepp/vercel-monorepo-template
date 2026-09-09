@@ -38,30 +38,38 @@ Run setup directly in an interactive terminal. It immediately applies the opinio
 
 ```bash
 bun run setup:services
-# Choose another region when needed:
+# Provision Resend when the product owns a sending domain:
+bun run setup:services --resend-domain=mail.example.com
+# Choose another Neon and Blob region when needed:
 bun run setup:services --region=fra1
 ```
 
-The accepted regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`, matching the current Neon integration options. The same region is used for Neon and Blob. Missing, repeated, unknown, and unsupported options fail before setup reaches Vercel.
+Without `--resend-domain`, setup completes Neon and Blob and reports Resend as deferred. When the option is present, replace `mail.example.com` with a sending domain you own; Resend uses its free plan and `us-east-1` region. The accepted Neon and Blob regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`. Missing, repeated, unknown, and unsupported options fail before setup reaches Vercel.
 
-The command first links both apps, validates their `.vercel/project.json` files, and refuses to continue if `web` and `mkt` target the same Vercel project. Only then does it provision Neon with Neon Auth disabled, create and connect a private Blob store, and install and connect Resend through the `web` project. Blob and Resend are explicitly connected to Development, Preview, and Production.
+The command first links both apps, validates their `.vercel/project.json` files, and refuses to continue if `web` and `mkt` target the same Vercel project. Only then does it provision Neon with Neon Auth disabled, create and connect a private Blob store, and, when a sending domain was supplied, install and connect Resend through the `web` project. Every provider command receives the verified `web` organization ID as its explicit Vercel scope, so a different global CLI scope cannot receive the resources. Blob and provisioned Resend resources are explicitly connected to Development, Preview, and Production.
 
 Resource names share one cross-app convention: `neon-<package-name>-apps`, `blob-<package-name>-apps`, and `resend-<package-name>-apps`. Neon is intentionally provisioned with `--no-connect` so its required Preview branching options remain available in Vercel's **Connect Project** form. The command then tells you how to connect Neon and pull Development variables; it does not pause or pull environment variables prematurely.
 
 Vercel retains any interactive billing and provider-consent prompts. The command stops on the first failure without deleting resources already created. The sections below are the manual equivalent, recovery path, and audit checklist for the resulting configuration.
 
+### Why Resend may be deferred
+
+A Vercel project link identifies the target project and organization, but it does not establish a Resend sending identity. [Vercel automatically assigns](https://vercel.com/docs/domains/working-with-domains) a shared `<project>.vercel.app` hostname, while [Resend requires](https://resend.com/docs/dashboard/domains/introduction) a domain the sender owns and can verify through DNS. Even after a custom domain is attached, a project may contain several domains, so the CLI does not guess which one should carry the product's email reputation.
+
+Keep the Resend SDK, email wrapper, and environment contract in the minted application. Once the product owns a domain and can add its SPF and DKIM records, run only the individual Resend command below with that explicit domain; do not rerun the full setup after Neon or Blob already exists. Set `RESEND_FROM_EMAIL` to an address on the verified domain before production use.
+
 ## Recovering from an interrupted setup
 
 If either project-link step fails, no provider resource command has run. Correct the failed link and run setup again.
 
-If Neon, Blob, or Resend fails, do not immediately rerun the complete setup. The failed command may have changed remote state before returning an error, while earlier service steps are known to have completed. Record the completed steps printed by the script, then inspect the named resources:
+If Neon, Blob, or a requested Resend installation fails, do not immediately rerun the complete setup. The failed command may have changed remote state before returning an error, while earlier service steps are known to have completed. Record the completed steps printed by the script, then inspect the named resources:
 
 ```bash
 vercel integration list --all
 vercel blob list-stores
 ```
 
-If a named resource exists, do not recreate it; connect or finish configuring it from Vercel's Storage dashboard. If it does not exist, run only the failed creation command printed by the script, then finish the remaining provider operations individually. Rerun the full setup only after confirming that none of its three named resources exists.
+If a named resource exists, do not recreate it; connect or finish configuring it from Vercel's Storage dashboard. If it does not exist, run only the failed creation command printed by the script, then finish the remaining provider operations individually. Rerun the full setup only after confirming that none of the resources named in its plan exists.
 
 ## Local verification
 
@@ -108,7 +116,8 @@ Use the Vercel/Neon integration flow only after confirming its billing, data-sha
   --plan free_v3 \
   --metadata region=iad1 \
   --metadata auth=false \
-  --no-connect)
+  --no-connect \
+  --scope <web-org-id>)
 ```
 
 Choose the region intentionally rather than copying `iad1` when another deployment region is required. `--no-connect` also skips the automatic environment pull. After provisioning, connect Neon to `web` from the resource's **Projects** tab using the environment and branching settings below.
@@ -232,7 +241,7 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 
 ## Blob and Resend on web only
 
-The guided setup creates a private Blob store and installs the Resend marketplace integration in the linked `web` project. Vercel injects `BLOB_READ_WRITE_TOKEN` and `RESEND_API_KEY`; set `RESEND_FROM_EMAIL` separately to a verified sender owned by the minted product. Neither variable belongs in `mkt`.
+The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN` and, when Resend is provisioned, `RESEND_API_KEY`; set `RESEND_FROM_EMAIL` separately to a verified sender owned by the minted product. Neither variable belongs in `mkt`.
 
 The equivalent individual creation commands are:
 
@@ -242,14 +251,19 @@ The equivalent individual creation commands are:
   --region iad1 \
   --environment development \
   --environment preview \
-  --environment production)
+  --environment production \
+  --scope <web-org-id>)
 
 (cd apps/web && vercel integration add resend \
   --name resend-<package-name>-apps \
+  --plan free \
+  --metadata domain=<sending-domain> \
+  --metadata region=us-east-1 \
   --environment development \
   --environment preview \
   --environment production \
-  --no-env-pull)
+  --no-env-pull \
+  --scope <web-org-id>)
 ```
 
 These commands create resources. Use them during recovery only after the resource listings confirm that the corresponding name does not already exist.
@@ -267,4 +281,4 @@ Application code uses `lib/storage/blob.ts` for private uploads/deletes and `lib
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
-Disposable validation confirmed the project-link shape, Neon creation command, unprefixed variable contract, three-environment connection, and saved Preview-branching configuration. It did not apply a product migration or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
+Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization, explicit provider scoping through the linked `web` organization ID, unconnected Neon creation in that organization, and private Blob connection to Development, Preview, and Production. It also confirmed that the current Resend CLI requires explicit `domain` and `region` metadata; Resend was not provisioned because the disposable app had no owned domain. The validation did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
