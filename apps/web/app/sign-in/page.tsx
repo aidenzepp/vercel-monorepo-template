@@ -14,7 +14,7 @@ export default async function SignInPage() {
 
   return (
     <main className="grid min-h-svh lg:grid-cols-2">
-      <section className="flex min-h-svh flex-col gap-4 p-6 md:p-10">
+      <section className="flex min-h-svh flex-col gap-4 px-6 py-10 md:px-10">
         <div className="flex justify-center">
           <Link aria-label="templ8 home" href="/">
             <Templ8Wordmark aria-hidden="true" className="h-8 w-auto" />
