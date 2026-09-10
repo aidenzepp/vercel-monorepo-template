@@ -22,7 +22,7 @@ export default async function AppLayout({
   const session = await requireSession();
 
   return (
-    <SessionProvider initialSession={session}>
+    <SessionProvider session={session}>
       <SidebarProvider>
         <Sidebar collapsible="offcanvas" variant="inset">
           <SidebarHeader className="h-16 items-center justify-center px-2">

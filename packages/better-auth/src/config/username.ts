@@ -38,9 +38,15 @@ const usernameSchema = z
   .pipe(
     z
       .string()
-      .min(USERNAME_MIN_LENGTH)
-      .max(USERNAME_MAX_LENGTH)
-      .regex(/^(?!\.)(?!.*\.\.)(?!.*\.$)[a-z0-9._]+$/u)
+      .min(USERNAME_MIN_LENGTH, "Enter a username.")
+      .max(
+        USERNAME_MAX_LENGTH,
+        `Username must be ${USERNAME_MAX_LENGTH} characters or fewer.`
+      )
+      .regex(
+        /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-z0-9._]+$/u,
+        "Use letters, numbers, underscores, and single periods between characters."
+      )
   )
   .brand<"Username">();
 

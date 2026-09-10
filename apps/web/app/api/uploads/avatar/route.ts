@@ -31,6 +31,11 @@ const blobResultSchema = z.strictObject({
   url: z.string(),
 });
 
+/**
+ * Mirrors the two request shapes emitted by Vercel's client-upload protocol.
+ * Parsing at this boundary keeps untrusted webhook and token metadata out of the
+ * SDK until its complete structure has been verified.
+ */
 const handleUploadBodySchema: z.ZodType<HandleUploadBody> =
   z.discriminatedUnion("type", [
     z.strictObject({
@@ -53,7 +58,9 @@ const handleUploadBodySchema: z.ZodType<HandleUploadBody> =
 const errorResponse = (message: string, status: number): Response =>
   Response.json({ message }, { status });
 
-/** Issues a private, size-bounded upload token for the current user's avatar. */
+/**
+ * Authorizes the current user's upload and acknowledges its completion event.
+ */
 const POST = async (request: Request): Promise<Response> => {
   const body = await result.trycatch(async () => {
     const value: unknown = await request.json();

@@ -2,11 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { upload } from "@vercel/blob/client";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -35,17 +30,19 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
 import { result } from "@workspace/utils/result";
-import { HatGlasses, UserRound } from "lucide-react";
-import Image from "next/image";
+import type { Result } from "@workspace/utils/result";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 
+import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/session";
 import {
   avatarContentTypeSchema,
   createAvatarPathname,
+  parseOwnedPrivateAvatarUrl,
 } from "@/lib/profile/avatar";
 import { profileSettingsSchema } from "@/lib/settings/profile-settings-schema";
 import type {
@@ -53,16 +50,8 @@ import type {
   ProfileSettingsFields,
 } from "@/lib/settings/profile-settings-schema";
 
-interface ProfileSettingsFormProps {
-  initialImage: string | null;
-  initialName: string;
-  initialUsername: string | null;
-  isAnonymous: boolean;
-  userId: string;
-}
-
 interface ProfileSettingsIssue {
-  field: "name" | "root" | "username";
+  field: "root" | "username";
   message: string;
 }
 
@@ -72,7 +61,32 @@ interface ProfileSettingsUpdate {
   username: string;
 }
 
-const profileUpdateError = (error: {
+interface UploadedAvatar {
+  file: File;
+  state: "uncommitted" | "update-outcome-unknown";
+  url: string;
+}
+
+/**
+ * Requests deletion through the authenticated, ownership-checking avatar route.
+ * Returns true only when the server confirms that the Blob was removed.
+ */
+const deleteStoredAvatar = async (url: string): Promise<boolean> => {
+  const response = await result.trycatch(
+    async () =>
+      await fetch("/api/avatar", {
+        body: JSON.stringify({ url }),
+        headers: { "content-type": "application/json" },
+        keepalive: true,
+        method: "DELETE",
+      })
+  );
+
+  return response.ok && response.value.ok;
+};
+
+/** Maps a Better Auth failure to the field and repair message the form owns. */
+const getProfileUpdateIssue = (error: {
   code?: string;
   status?: number;
 }): ProfileSettingsIssue => {
@@ -89,7 +103,8 @@ const profileUpdateError = (error: {
     case "INVALID_USERNAME": {
       return {
         field: "username",
-        message: "Use only letters, numbers, periods, and underscores.",
+        message:
+          "Use letters, numbers, underscores, and single periods between characters.",
       };
     }
     case "USERNAME_IS_ALREADY_TAKEN": {
@@ -101,13 +116,6 @@ const profileUpdateError = (error: {
     default: {
       break;
     }
-  }
-
-  if (error.status === 401) {
-    return {
-      field: "root",
-      message: "Your session expired. Sign in again, then retry.",
-    };
   }
 
   if (error.status === 429) {
@@ -123,29 +131,38 @@ const profileUpdateError = (error: {
   };
 };
 
-const ProfileSettingsForm = ({
-  initialImage,
-  initialName,
-  initialUsername,
-  isAnonymous,
-  userId,
-}: ProfileSettingsFormProps) => {
+/**
+ * Coordinates one profile update across React Hook Form, Better Auth, and Blob.
+ *
+ * A completed upload remains available while a rejected profile update is
+ * repaired and retried. An upload with an unknown update outcome is never
+ * deleted automatically, and the previous committed avatar is removed only
+ * after Better Auth accepts its replacement.
+ */
+const useProfileSettingsForm = () => {
   const router = useRouter();
+  const { user } = useSession();
   const avatarInput = useRef<HTMLInputElement | null>(null);
   const avatarPreviewUrl = useRef<string | null>(null);
-  const uploadedUrlByFile = useRef(new WeakMap<File, string>());
-  const [savedAvatarFile, setSavedAvatarFile] = useState<File>();
+  const uploadedAvatar = useRef<UploadedAvatar | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const profile = {
+    avatar: undefined,
+    name: user.name,
+    username: user.username ?? "",
+  };
   const form = useForm<ProfileSettingsFields, unknown, ProfileSettings>({
-    defaultValues: {
-      avatar: undefined,
-      name: initialName,
-      username: initialUsername ?? "",
-    },
+    defaultValues: profile,
+    resetOptions: { keepDirtyValues: true, keepErrors: true },
     resolver: zodResolver(profileSettingsSchema),
+    values: profile,
   });
-  const displayedImage = previewUrl ?? initialImage;
-  const { errors, isDirty, isSubmitting } = form.formState;
+  // The version changes the browser URL when Better Auth publishes a new image.
+  const savedImage =
+    user.image === null || user.image === undefined
+      ? null
+      : `/api/avatar?version=${encodeURIComponent(user.image)}`;
+  const displayedImage = previewUrl ?? savedImage;
 
   useEffect(
     () => () => {
@@ -166,64 +183,134 @@ const ProfileSettingsForm = ({
     setPreviewUrl(nextUrl);
   };
 
-  const reset = () => {
+  const resetProfile = () => {
+    const storedAvatar = uploadedAvatar.current;
+
+    if (storedAvatar !== null && storedAvatar.state === "uncommitted") {
+      void deleteStoredAvatar(storedAvatar.url);
+      uploadedAvatar.current = null;
+    }
+
     form.reset();
-    setAvatarPreview(savedAvatarFile);
+    setAvatarPreview(undefined);
     if (avatarInput.current !== null) {
       avatarInput.current.value = "";
     }
   };
 
-  const save = async (settings: ProfileSettings) => {
-    let image: string | undefined;
-    const { avatar } = settings;
-
-    if (avatar !== undefined) {
-      image = uploadedUrlByFile.current.get(avatar);
-
-      if (image === undefined) {
-        const contentType = avatarContentTypeSchema.safeParse(avatar.type);
-
-        if (!contentType.success) {
-          form.setError("avatar", {
-            message: "Choose a JPEG, PNG, or WebP image.",
-          });
-          return;
-        }
-
-        const uploaded = await result.trycatch(
-          async () =>
-            await upload(
-              createAvatarPathname(userId, contentType.data),
-              avatar,
-              {
-                access: "private",
-                contentType: contentType.data,
-                handleUploadUrl: "/api/uploads/avatar",
-              }
-            )
-        );
-
-        if (!uploaded.ok) {
-          form.setError("avatar", {
-            message:
-              "The avatar upload was interrupted. Your selection is still here. Try again.",
-          });
-          return;
-        }
-
-        image = uploaded.value.url;
-        uploadedUrlByFile.current.set(avatar, image);
-      }
+  /** Resolves one selected file to a private Blob that is safe to persist. */
+  const resolveAvatar = async (
+    avatar: File | undefined
+  ): Promise<Result<string | null>> => {
+    if (avatar === undefined) {
+      return result.pass(null);
     }
 
+    const completedUpload = uploadedAvatar.current;
+
+    if (completedUpload?.file === avatar) {
+      return result.pass(completedUpload.url);
+    }
+
+    if (completedUpload?.state === "update-outcome-unknown") {
+      form.setError("avatar", {
+        message:
+          "Refresh the page before choosing another avatar so the previous update can be confirmed.",
+      });
+
+      return result.fail(
+        new Error("The previous profile update has an unknown outcome.")
+      );
+    }
+
+    if (
+      completedUpload !== null &&
+      !(await deleteStoredAvatar(completedUpload.url))
+    ) {
+      form.setError("avatar", {
+        message: "The previous avatar upload could not be removed. Try again.",
+      });
+
+      return result.fail(
+        new Error("The previous avatar upload remains stored.")
+      );
+    }
+
+    uploadedAvatar.current = null;
+
+    const contentType = avatarContentTypeSchema.safeParse(avatar.type);
+
+    if (!contentType.success) {
+      form.setError("avatar", {
+        message: "Choose a JPEG, PNG, or WebP image.",
+      });
+
+      return result.fail(new Error("The avatar content type is unsupported."));
+    }
+
+    const uploaded = await result.trycatch(
+      async () =>
+        await upload(createAvatarPathname(user.id, contentType.data), avatar, {
+          access: "private",
+          contentType: contentType.data,
+          handleUploadUrl: "/api/uploads/avatar",
+        })
+    );
+
+    if (!uploaded.ok) {
+      const currentSession = await result.trycatch(
+        async () => await authClient.getSession()
+      );
+
+      if (currentSession.ok && currentSession.value.data === null) {
+        router.replace("/sign-in");
+        router.refresh();
+
+        return result.fail(uploaded.error);
+      }
+
+      form.setError("avatar", {
+        message:
+          "The avatar upload was interrupted. Your selection is still here. Try again.",
+      });
+
+      return result.fail(uploaded.error);
+    }
+
+    const image = uploaded.value.url;
+    uploadedAvatar.current = {
+      file: avatar,
+      state: "uncommitted",
+      url: image,
+    };
+
+    return result.pass(image);
+  };
+
+  const saveProfile = async (settings: ProfileSettings) => {
+    // Resolve the selected file to one private Blob, reusing a completed upload.
+    const resolvedAvatar = await resolveAvatar(settings.avatar);
+
+    if (!resolvedAvatar.ok) {
+      return;
+    }
+
+    const image = resolvedAvatar.value;
+
+    // Persist the identity update only after its optional avatar is available.
     const update: ProfileSettingsUpdate = {
       name: settings.name,
       username: settings.username,
     };
 
-    if (image !== undefined) {
+    if (image !== null) {
       update.image = image;
+
+      const completedUpload = uploadedAvatar.current;
+
+      if (completedUpload?.url === image) {
+        completedUpload.state = "update-outcome-unknown";
+      }
     }
 
     const response = await result.trycatch(
@@ -231,6 +318,8 @@ const ProfileSettingsForm = ({
     );
 
     if (!response.ok) {
+      // The request may have committed before its response was lost. Preserve the
+      // uploaded Blob until a later retry confirms the Better Auth outcome.
       form.setError("root", {
         message:
           "The profile service could not be reached. Your edits are still here. Try again.",
@@ -239,21 +328,49 @@ const ProfileSettingsForm = ({
     }
 
     if (response.value.error !== null) {
-      const issue = profileUpdateError(response.value.error);
+      const completedUpload = uploadedAvatar.current;
+
+      if (image !== null && completedUpload?.url === image) {
+        completedUpload.state = "uncommitted";
+      }
+
+      if (response.value.error.status === 401) {
+        router.replace("/sign-in");
+        router.refresh();
+        return;
+      }
+
+      // Retain a completed upload so correcting another field does not re-upload it.
+      const issue = getProfileUpdateIssue(response.value.error);
       form.setError(issue.field, { message: issue.message });
       return;
     }
 
-    if (avatar !== undefined) {
-      setSavedAvatarFile(avatar);
-      setAvatarPreview(avatar);
+    if (image !== null) {
+      uploadedAvatar.current = null;
     }
 
+    // Remove the previous committed avatar only after its replacement is saved.
+    const previousAvatar =
+      user.image === null || user.image === undefined
+        ? null
+        : parseOwnedPrivateAvatarUrl(user.image, user.id);
+
+    if (
+      image !== null &&
+      previousAvatar !== null &&
+      previousAvatar.toString() !== image
+    ) {
+      void deleteStoredAvatar(previousAvatar.toString());
+    }
+
+    // Commit the accepted values back into the form and shared session view.
     form.reset({
       avatar: undefined,
       name: settings.name,
       username: settings.username,
     });
+    setAvatarPreview(undefined);
     if (avatarInput.current !== null) {
       avatarInput.current.value = "";
     }
@@ -265,9 +382,36 @@ const ProfileSettingsForm = ({
     });
   };
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    void form.handleSubmit(save)(event);
+  const submitProfile = (event: SubmitEvent<HTMLFormElement>) => {
+    void form.handleSubmit(saveProfile)(event);
   };
+
+  const captureAvatarInput = (element: HTMLInputElement | null) => {
+    avatarInput.current = element;
+  };
+
+  return {
+    captureAvatarInput,
+    displayedImage,
+    form,
+    resetProfile,
+    setAvatarPreview,
+    submitProfile,
+    user,
+  };
+};
+
+const ProfileSettingsForm = () => {
+  const {
+    captureAvatarInput,
+    displayedImage,
+    form,
+    resetProfile,
+    setAvatarPreview,
+    submitProfile,
+    user,
+  } = useProfileSettingsForm();
+  const { errors, isDirty, isSubmitting } = form.formState;
 
   return (
     <Card>
@@ -278,80 +422,18 @@ const ProfileSettingsForm = ({
         </CardDescription>
       </CardHeader>
 
-      <form noValidate onSubmit={submit}>
+      <form noValidate onSubmit={submitProfile}>
         <CardContent>
           <FieldSet disabled={isSubmitting}>
             <FieldLegend className="sr-only">Profile</FieldLegend>
             <FieldError errors={[errors.root]} />
 
-            <Controller
+            <ProfileAvatarField
+              captureInput={captureAvatarInput}
               control={form.control}
-              name="avatar"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="settings-avatar">Avatar</FieldLabel>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="size-20">
-                      {displayedImage === null ? null : (
-                        <AvatarImage
-                          key={displayedImage}
-                          alt=""
-                          render={
-                            <Image
-                              alt=""
-                              fill
-                              sizes="5rem"
-                              src={displayedImage}
-                              unoptimized
-                            />
-                          }
-                          src={displayedImage}
-                        />
-                      )}
-                      <AvatarFallback>
-                        {isAnonymous ? (
-                          <HatGlasses aria-hidden="true" />
-                        ) : (
-                          <UserRound aria-hidden="true" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="min-w-0 flex-1">
-                      <Input
-                        accept="image/jpeg,image/png,image/webp"
-                        aria-describedby="settings-avatar-description"
-                        aria-errormessage={
-                          fieldState.invalid
-                            ? "settings-avatar-error"
-                            : undefined
-                        }
-                        aria-invalid={fieldState.invalid}
-                        id="settings-avatar"
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0];
-                          field.onChange(file);
-                          setAvatarPreview(file);
-                        }}
-                        ref={(element) => {
-                          avatarInput.current = element;
-                          field.ref(element);
-                        }}
-                        type="file"
-                      />
-                      <FieldDescription id="settings-avatar-description">
-                        JPEG, PNG, or WebP. Maximum 5 MB.
-                      </FieldDescription>
-                    </div>
-                  </div>
-                  <FieldError
-                    errors={[fieldState.error]}
-                    id="settings-avatar-error"
-                  />
-                </Field>
-              )}
+              image={displayedImage}
+              isAnonymous={user.isAnonymous === true}
+              onSelect={setAvatarPreview}
             />
 
             <FieldGroup className="gap-4">
@@ -411,7 +493,8 @@ const ProfileSettingsForm = ({
                       />
                     </InputGroup>
                     <FieldDescription id="settings-username-description">
-                      Use letters, numbers, periods, and underscores.
+                      Use letters, numbers, underscores, and single periods
+                      between characters.
                     </FieldDescription>
                     <FieldError
                       errors={[fieldState.error]}
@@ -428,7 +511,7 @@ const ProfileSettingsForm = ({
           <Button
             color="neutral"
             disabled={!isDirty || isSubmitting}
-            onClick={reset}
+            onClick={resetProfile}
             type="button"
             variant="outline"
           >

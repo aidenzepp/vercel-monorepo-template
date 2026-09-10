@@ -24,4 +24,14 @@ describe("usernameSchema", () => {
   ])("rejects %s", (_description, value) => {
     expect(usernameSchema.safeParse(value).success).toBe(false);
   });
+
+  test("explains how to repair invalid usernames", () => {
+    const empty = usernameSchema.safeParse("");
+    const periods = usernameSchema.safeParse("user..name");
+
+    expect(empty.error?.issues[0]?.message).toBe("Enter a username.");
+    expect(periods.error?.issues[0]?.message).toBe(
+      "Use letters, numbers, underscores, and single periods between characters."
+    );
+  });
 });

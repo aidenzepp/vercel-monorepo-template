@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { createContext, use, useEffect } from "react";
+import { redirect } from "next/navigation";
+import { createContext, useContext } from "react";
 
 import { authClient } from "@/lib/auth/auth-client";
 
@@ -12,30 +12,28 @@ const SessionContext = createContext<Session | undefined>(undefined);
 /**
  * Seeds Better Auth's client store from the server-validated session and keeps
  * protected client components synchronized with subsequent session updates.
+ *
+ * Better Auth accepts only the first non-null hydration, so calling it during
+ * render is idempotent. A completed client read with no session redirects before
+ * this provider can expose a nullable value.
  */
 const SessionProvider = ({
   children,
-  initialSession,
+  session,
 }: Readonly<{
   children: React.ReactNode;
-  initialSession: Session;
+  session: Session;
 }>) => {
-  const router = useRouter();
+  authClient.hydrateSession(session);
 
-  authClient.hydrateSession(initialSession);
+  const { data, isPending } = authClient.useSession();
 
-  const { data, error, isPending } = authClient.useSession();
-  const session = data ?? initialSession;
-
-  useEffect(() => {
-    if (!(isPending || error) && data === null) {
-      router.replace("/sign-in");
-      router.refresh();
-    }
-  }, [data, error, isPending, router]);
+  if (!isPending && data === null) {
+    redirect("/sign-in");
+  }
 
   return (
-    <SessionContext.Provider value={session}>
+    <SessionContext.Provider value={data ?? session}>
       {children}
     </SessionContext.Provider>
   );
@@ -45,7 +43,7 @@ const SessionProvider = ({
  * Returns the current non-null session inside the protected application shell.
  */
 const useSession = (): Session => {
-  const session = use(SessionContext);
+  const session = useContext(SessionContext);
 
   if (session === undefined) {
     throw new Error(
