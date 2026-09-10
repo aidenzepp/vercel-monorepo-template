@@ -143,12 +143,14 @@ function AttachmentActions({
 
 function AttachmentAction({
   className,
+  color = "neutral",
   variant,
   size = "icon-xs",
   ...props
 }: React.ComponentProps<typeof Button>) {
   return (
     <Button
+      color={color}
       data-slot="attachment-action"
       variant={variant ?? "ghost"}
       size={size}

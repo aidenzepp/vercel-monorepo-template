@@ -38,17 +38,19 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 
 type PaginationLinkProps = {
   isActive?: boolean;
-} & Pick<React.ComponentProps<typeof Button>, "size"> &
-  React.ComponentProps<"a">;
+} & Pick<React.ComponentProps<typeof Button>, "color" | "size"> &
+  Omit<React.ComponentProps<"a">, "color">;
 
 function PaginationLink({
   className,
+  color = "neutral",
   isActive,
   size = "icon",
   ...props
 }: PaginationLinkProps) {
   return (
     <Button
+      color={color}
       variant={isActive ? "outline" : "ghost"}
       size={size}
       className={cn(className)}
