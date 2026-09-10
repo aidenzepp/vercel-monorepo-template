@@ -25,7 +25,6 @@ BETTER_AUTH_API_KEY=local-verification-api-key
 BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
 BLOB_READ_WRITE_TOKEN=local-verification-blob-token
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
-RESEND_API_KEY=re_local_verification_key
 ```
 
 ## Guided service setup
@@ -239,7 +238,7 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 
 ## Blob and Resend on web only
 
-The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN` and, when Resend is provisioned, `RESEND_API_KEY`. Neither variable belongs in `mkt`.
+The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN`; `RESEND_API_KEY` is optional until Resend is provisioned, at which point Vercel injects it. Neither variable belongs in `mkt`.
 
 The equivalent individual creation commands are:
 

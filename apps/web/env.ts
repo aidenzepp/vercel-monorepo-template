@@ -15,6 +15,6 @@ export const env = createEnv({
       .enum(["development", "production", "test"])
       .default("development"),
     OAUTH_PROXY_SECRET: z.string().min(32),
-    RESEND_API_KEY: z.string().min(1),
+    RESEND_API_KEY: z.string().min(1).optional(),
   },
 });
