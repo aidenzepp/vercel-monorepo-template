@@ -4,9 +4,14 @@ import { cn } from "@workspace/ui/lib/utils";
 import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 
 import "@workspace/ui/globals.css";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Outfit, Roboto_Slab } from "next/font/google";
 
-const inter = Inter({
+const robotoSlabHeading = Roboto_Slab({
+  subsets: ["latin"],
+  variable: "--font-heading",
+});
+
+const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-sans",
 });
@@ -27,7 +32,8 @@ export default function RootLayout({
         "antialiased",
         fontMono.variable,
         "font-sans",
-        inter.variable
+        outfit.variable,
+        robotoSlabHeading.variable
       )}
       lang="en"
       suppressHydrationWarning
