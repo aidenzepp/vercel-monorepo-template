@@ -7,6 +7,11 @@ import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { username } from "better-auth/plugins/username";
 
+/**
+ * Create a fresh, identical plugin set for runtime auth and schema generation.
+ * Better Auth derives adapter fields from enabled plugins, so sharing their
+ * configuration prevents the generated schema from drifting from production.
+ */
 const createAuthPlugins = () => [
   anonymous(),
   apiKey(),
