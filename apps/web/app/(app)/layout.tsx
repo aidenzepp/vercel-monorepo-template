@@ -24,7 +24,7 @@ export default async function AppLayout({
   return (
     <SessionProvider initialSession={session}>
       <SidebarProvider>
-        <Sidebar collapsible="offcanvas">
+        <Sidebar collapsible="offcanvas" variant="inset">
           <SidebarHeader className="h-16 items-center justify-center px-2">
             <Link
               aria-label="templ8 home"

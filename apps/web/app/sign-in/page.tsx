@@ -13,18 +13,25 @@ export default async function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-svh flex-col gap-4 p-6 md:p-10">
-      <div className="flex justify-center md:justify-start">
-        <Link aria-label="templ8 home" href="/">
-          <Templ8Wordmark aria-hidden="true" className="h-8 w-auto" />
-        </Link>
-      </div>
-
-      <div className="flex flex-1 items-center justify-center pb-16">
-        <div className="w-full max-w-xs">
-          <SignInForm />
+    <main className="grid min-h-svh lg:grid-cols-2">
+      <section className="flex min-h-svh flex-col gap-4 p-6 md:p-10">
+        <div className="flex justify-center">
+          <Link aria-label="templ8 home" href="/">
+            <Templ8Wordmark aria-hidden="true" className="h-8 w-auto" />
+          </Link>
         </div>
-      </div>
+
+        <div className="flex flex-1 items-center justify-center py-12">
+          <div className="w-full max-w-xs">
+            <SignInForm />
+          </div>
+        </div>
+      </section>
+
+      <div
+        aria-hidden="true"
+        className="bg-muted hidden border-s bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:2rem_2rem] lg:block"
+      />
     </main>
   );
 }

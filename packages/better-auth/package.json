@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./config/name": "./src/config/name.ts",
     "./config/username": "./src/config/username.ts",
     "./errors/redirect": "./src/errors/redirect.ts"
   },

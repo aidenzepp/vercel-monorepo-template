@@ -19,6 +19,7 @@ const SignInForm = () => (
 
     <Button
       className="w-full"
+      color="neutral"
       disabled
       size="lg"
       title="Google sign-in is not configured"

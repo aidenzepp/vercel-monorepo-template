@@ -13,7 +13,10 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { FieldError } from "@workspace/ui/components/field";
 import { result } from "@workspace/utils/result";
+import { HatGlasses, LogOut, Settings, UserRound } from "lucide-react";
 import Form from "next/form";
+import Image from "next/image";
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { authClient } from "@/lib/auth/auth-client";
@@ -36,12 +39,6 @@ const SessionProfile = () => {
   const { user } = useSession();
   const [errorMessage, action, pending] = useActionState(signOut, null);
   const name = user.isAnonymous === true ? "Temporary user" : user.name;
-  const initials = name
-    .split(/\s+/u)
-    .map((part) => part.at(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <div className="flex flex-col gap-2">
@@ -52,9 +49,28 @@ const SessionProfile = () => {
         >
           <Avatar size="lg">
             {user.image === null || user.image === undefined ? null : (
-              <AvatarImage alt="" src={user.image} />
+              <AvatarImage
+                key={user.image}
+                alt=""
+                render={
+                  <Image
+                    alt=""
+                    fill
+                    sizes="2.5rem"
+                    src="/api/avatar"
+                    unoptimized
+                  />
+                }
+                src="/api/avatar"
+              />
             )}
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback>
+              {user.isAnonymous === true ? (
+                <HatGlasses aria-hidden="true" />
+              ) : (
+                <UserRound aria-hidden="true" />
+              )}
+            </AvatarFallback>
           </Avatar>
 
           <span className="min-w-0 flex-1">
@@ -66,12 +82,18 @@ const SessionProfile = () => {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" side="top">
+          <DropdownMenuItem render={<Link href="/settings" />}>
+            <Settings aria-hidden="true" />
+            Settings
+          </DropdownMenuItem>
           <Form action={action}>
             <DropdownMenuItem
               disabled={pending}
               nativeButton
               render={<button className="w-full" type="submit" />}
+              variant="destructive"
             >
+              <LogOut aria-hidden="true" />
               {pending ? "Signing out…" : "Sign out"}
             </DropdownMenuItem>
           </Form>
