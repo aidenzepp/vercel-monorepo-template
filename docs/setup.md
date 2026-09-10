@@ -18,7 +18,6 @@ Run commands from the repository root unless a command explicitly changes direct
 Before local verification, create the ignored repository-root `.env.local` with disposable values. These URLs are syntactically valid but intentionally point to an unavailable local address, so they cannot reach a real database. Replace these values only after the cloud setup provides the confirmed `web` project values; never commit this file.
 
 ```dotenv
-APP_NAME=App
 DATABASE_URL=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 DATABASE_URL_UNPOOLED=postgresql://disposable:disposable@127.0.0.1:1/disposable?sslmode=require
 BETTER_AUTH_URL=http://localhost:3000
@@ -27,7 +26,6 @@ BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
 BLOB_READ_WRITE_TOKEN=local-verification-blob-token
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
 RESEND_API_KEY=re_local_verification_key
-RESEND_FROM_EMAIL=onboarding@example.com
 ```
 
 ## Guided service setup
@@ -56,7 +54,7 @@ Vercel retains any interactive billing and provider-consent prompts. The command
 
 A Vercel project link identifies the target project and organization, but it does not establish a Resend sending identity. [Vercel automatically assigns](https://vercel.com/docs/domains/working-with-domains) a shared `<project>.vercel.app` hostname, while [Resend requires](https://resend.com/docs/dashboard/domains/introduction) a domain the sender owns and can verify through DNS. Even after a custom domain is attached, a project may contain several domains, so the CLI does not guess which one should carry the product's email reputation.
 
-Keep the Resend SDK, email wrapper, and environment contract in the minted application. Once the product owns a domain and can add its SPF and DKIM records, run only the individual Resend command below with that explicit domain; do not rerun the full setup after Neon or Blob already exists. Set `RESEND_FROM_EMAIL` to an address on the verified domain before production use.
+Keep the Resend SDK and API-key environment contract in the minted application. Once the product owns a domain and can add its SPF and DKIM records, run only the individual Resend command below with that explicit domain; do not rerun the full setup after Neon or Blob already exists. The product chooses its sender addresses when it implements email flows.
 
 ## Recovering from an interrupted setup
 
@@ -173,7 +171,7 @@ Generate secrets in an approved secret-management workflow. This local command e
 openssl rand -base64 48
 ```
 
-Also set `APP_NAME` and `RESEND_FROM_EMAIL` for every web environment. Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, sending domain, data-sharing implications, and target environments before saving secrets.
+Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, sending domain, data-sharing implications, and target environments before saving secrets.
 
 ## Root .env.local pull
 
@@ -217,17 +215,17 @@ The local handler returns `200 {"ok":true}`. Capture the remote response and pro
 
 ## Better Auth defaults and schema regeneration
 
-The web foundation enables email/password sign-in plus Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI by default. Admin, Last Login Method, OAuth Proxy, Test Utils, Infrastructure Dash, and Next Cookies remain enabled as well. The browser client installs every corresponding client plugin.
+The web foundation enables Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI by default. Admin, Last Login Method, OAuth Proxy, Infrastructure Dash, and Next Cookies remain enabled as well. The browser client installs every corresponding client plugin.
 
-Email verification is required for credential sign-in, password reset revokes existing sessions, and passwords must be 12–256 characters. Resend delivers verification, reset, organization invitation, and email 2FA messages. Two-factor secrets and OTPs use encrypted storage; passwordless accounts may enroll. Username normalization and validation match ShareFits: lowercase, trimmed, 1–30 characters, ASCII letters/numbers/periods/underscores, with no leading, trailing, or consecutive periods.
+The template does not enable email/password authentication or choose verification, reset, organization-invitation, or email-OTP behavior. Better Auth Infrastructure provides typed email delivery backed by its hosted templates when a product chooses to wire those flows. Username normalization and validation match ShareFits: lowercase, trimmed, 1–30 characters, ASCII letters/numbers/periods/underscores, with no leading, trailing, or consecutive periods.
 
-The Vercel runtime registers Better Auth background work with `waitUntil`, keeps a five-minute compact session cookie cache, and stores rate limits in Postgres rather than ephemeral server memory. The generated schema includes the documented lookup indexes for sessions, accounts, verification identifiers, API keys, organization membership/invitations, passkeys, and two-factor records. OpenAPI's interactive reference is available at `/api/auth/reference`.
+The Vercel runtime registers Better Auth background work with `waitUntil`. The generated schema includes the documented lookup indexes for sessions, accounts, verification identifiers, API keys, organization membership/invitations, passkeys, and two-factor records. OpenAPI's interactive reference is available at `/api/auth/reference`.
 
-Dash activity tracking is enabled with its default five-minute update interval, so `lastActiveAt` remains in the generated `auth.user` schema. Test Utils exposes privileged server context helpers but no browser plugin. Next.js Proxy remains a product choice until a product defines protected routes.
+Dash activity tracking is enabled with its default five-minute update interval, so `lastActiveAt` remains in the generated `auth.user` schema. Next.js Proxy remains a product choice until a product defines protected routes.
 
 Provider support remains a product decision. Before adding one, confirm its OAuth consent, data-sharing, callback URLs, and environment-variable requirements.
 
-1. Add a provider or shared schema-affecting plugin to the web auth foundation and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
+1. Add a provider or shared schema-affecting plugin to `lib/auth/auth-plugins.ts` and its server-only environment validation; do not add provider SDKs or credentials to `mkt` or `packages/ui`.
 2. Ensure the shared plugin factory remains consumed by both runtime auth and `db/schema/auth-config.ts`. Do not duplicate the plugin list.
 3. Regenerate and review the schema, then generate a migration:
 
@@ -241,7 +239,7 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 
 ## Blob and Resend on web only
 
-The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN` and, when Resend is provisioned, `RESEND_API_KEY`; set `RESEND_FROM_EMAIL` separately to a verified sender owned by the minted product. Neither variable belongs in `mkt`.
+The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN` and, when Resend is provisioned, `RESEND_API_KEY`. Neither variable belongs in `mkt`.
 
 The equivalent individual creation commands are:
 
@@ -268,7 +266,7 @@ The equivalent individual creation commands are:
 
 These commands create resources. Use them during recovery only after the resource listings confirm that the corresponding name does not already exist.
 
-Application code uses `lib/storage/blob.ts` for private uploads/deletes and `lib/email/send-email.ts` for server-only delivery. The wrappers pin the storage access mode, inject credentials from the validated environment, and return the workspace Result shape for Blob failures. Do not call the provider SDK directly unless a product needs behavior the wrapper cannot represent.
+The template includes the provider SDKs but does not invent a storage API or email-delivery abstraction before a product has concrete requirements. `lib/email/resend.ts` exports the server-only Resend client. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
 
 ## Production gate
 

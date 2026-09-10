@@ -1,5 +1,5 @@
-import { option } from "./option";
-import type { Option } from "./option";
+import { option } from "./option.js";
+import type { Option } from "./option.js";
 
 /**
  * The success branch of a Result. Narrows to { ok: true } with the carried

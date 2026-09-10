@@ -7,7 +7,6 @@ export const env = createEnv({
   experimental__runtimeEnv: process.env,
   extends: [vercel(), neonVercel()],
   server: {
-    APP_NAME: z.string().min(1).default("App"),
     BETTER_AUTH_API_KEY: z.string().min(1),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
@@ -17,6 +16,5 @@ export const env = createEnv({
       .default("development"),
     OAUTH_PROXY_SECRET: z.string().min(32),
     RESEND_API_KEY: z.string().min(1),
-    RESEND_FROM_EMAIL: z.email(),
   },
 });

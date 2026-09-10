@@ -2,7 +2,6 @@ import { relations } from "drizzle-orm";
 import {
   pgSchema,
   text,
-  bigint,
   timestamp,
   boolean,
   integer,
@@ -225,13 +224,6 @@ export const twoFactor = authSchema.table(
     index("twoFactor_userId_idx").on(table.userId),
   ]
 );
-
-export const rateLimit = authSchema.table("rate_limit", {
-  id: text("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  count: integer("count").notNull(),
-  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
-});
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),

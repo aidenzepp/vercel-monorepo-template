@@ -504,8 +504,8 @@ After connecting Neon and adding the application-owned variables, pull Developme
   vercel env pull ../../.env.local --environment=development
 
 Required application variables:
-  APP_NAME, BETTER_AUTH_URL, BETTER_AUTH_API_KEY, BETTER_AUTH_SECRET,
-  OAUTH_PROXY_SECRET, and RESEND_FROM_EMAIL`);
+  BETTER_AUTH_URL, BETTER_AUTH_API_KEY, BETTER_AUTH_SECRET, and
+  OAUTH_PROXY_SECRET`);
 };
 
 const main = async (arguments_: string[]): Promise<number> => {

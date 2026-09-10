@@ -4,13 +4,13 @@
 
 - environment validation in `env.ts`, using upstream `vercel()` and `neonVercel()` presets with no custom Neon prefix;
 - Neon connection URLs, with the pooled URL used at runtime and the unpooled URL used by Drizzle Kit;
-- private Vercel Blob storage and Resend email delivery;
+- Vercel Blob and Resend SDKs for product-owned storage and email flows;
 - Drizzle schema and product-owned migration commands under `db/`;
 - provider-neutral Better Auth configuration, client, and `app/api/auth/[...all]/route.ts`.
 
-The auth server enables email/password, Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI as foundation defaults. It also includes Admin, Last Login Method, OAuth Proxy, Better Auth Infrastructure Dash, Test Utils, and the Next Cookies integration. Schema-affecting defaults come from one shared plugin factory used by runtime auth and schema generation.
+The auth server enables Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI as foundation defaults. It also includes Admin, Last Login Method, OAuth Proxy, Better Auth Infrastructure Dash, and the Next Cookies integration. Schema-affecting defaults come from one shared plugin factory used by runtime auth and schema generation.
 
-Resend handles Better Auth verification, reset, invitation, and email 2FA delivery through one server-only helper. Vercel Blob operations use a private-storage wrapper. Better Auth background work is registered with Vercel `waitUntil`, session reads use a short cookie cache, and rate limits persist in Postgres.
+The template does not choose credential-authentication or email-delivery policy. Better Auth background work is registered with Vercel `waitUntil`, and the generated schema includes the documented lookup indexes for the enabled plugins.
 
 Do not move these concerns into `packages/ui` or `apps/mkt`. `packages/ui` is presentation-only; `mkt` stays public and database-free.
 
