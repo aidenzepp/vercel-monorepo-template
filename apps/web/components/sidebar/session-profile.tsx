@@ -19,8 +19,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { useSession } from "@/components/auth/session-provider";
 import { authClient } from "@/lib/auth/auth-client";
-import { useSession } from "@/lib/auth/session";
 
 const signOut = async (): Promise<string | null> => {
   const response = await result.trycatch(

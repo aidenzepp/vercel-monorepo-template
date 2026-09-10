@@ -30,20 +30,15 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
 import { result } from "@workspace/utils/result";
-import type { Result } from "@workspace/utils/result";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { SubmitEvent } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
+import { useSession } from "@/components/auth/session-provider";
 import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { authClient } from "@/lib/auth/auth-client";
-import { useSession } from "@/lib/auth/session";
-import {
-  avatarContentTypeSchema,
-  createAvatarPathname,
-  parseOwnedPrivateAvatarUrl,
-} from "@/lib/profile/avatar";
+import { createAvatarPathname } from "@/lib/profile/avatar";
 import { profileSettingsSchema } from "@/lib/settings/profile-settings-schema";
 import type {
   ProfileSettings,
@@ -55,35 +50,9 @@ interface ProfileSettingsIssue {
   message: string;
 }
 
-interface ProfileSettingsUpdate {
-  image?: string;
-  name: string;
-  username: string;
-}
-
-interface UploadedAvatar {
-  file: File;
-  state: "uncommitted" | "update-outcome-unknown";
-  url: string;
-}
-
-/**
- * Requests deletion through the authenticated, ownership-checking avatar route.
- * Returns true only when the server confirms that the Blob was removed.
- */
-const deleteStoredAvatar = async (url: string): Promise<boolean> => {
-  const response = await result.trycatch(
-    async () =>
-      await fetch("/api/avatar", {
-        body: JSON.stringify({ url }),
-        headers: { "content-type": "application/json" },
-        keepalive: true,
-        method: "DELETE",
-      })
-  );
-
-  return response.ok && response.value.ok;
-};
+type ProfileSettingsUpdate =
+  | { image: string }
+  | { name: string; username: string };
 
 /** Maps a Better Auth failure to the field and repair message the form owns. */
 const getProfileUpdateIssue = (error: {
@@ -131,21 +100,11 @@ const getProfileUpdateIssue = (error: {
   };
 };
 
-/**
- * Coordinates one profile update across React Hook Form, Better Auth, and Blob.
- *
- * A completed upload remains available while a rejected profile update is
- * repaired and retried. An upload with an unknown update outcome is never
- * deleted automatically, and the previous committed avatar is removed only
- * after Better Auth accepts its replacement.
- */
-const useProfileSettingsForm = () => {
+const ProfileSettingsForm = () => {
   const router = useRouter();
   const { user } = useSession();
   const avatarInput = useRef<HTMLInputElement | null>(null);
-  const avatarPreviewUrl = useRef<string | null>(null);
-  const uploadedAvatar = useRef<UploadedAvatar | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const uploadedAvatarUrls = useRef(new WeakMap<File, string>());
   const profile = {
     avatar: undefined,
     name: user.name,
@@ -157,223 +116,118 @@ const useProfileSettingsForm = () => {
     resolver: zodResolver(profileSettingsSchema),
     values: profile,
   });
-  // The version changes the browser URL when Better Auth publishes a new image.
-  const savedImage =
+  const { dirtyFields, errors, isDirty, isSubmitting } = form.formState;
+  // A changed query gives the browser a fresh read after Better Auth saves a new image.
+  const avatarUrl =
     user.image === null || user.image === undefined
       ? null
       : `/api/avatar?version=${encodeURIComponent(user.image)}`;
-  const displayedImage = previewUrl ?? savedImage;
 
-  useEffect(
-    () => () => {
-      if (avatarPreviewUrl.current !== null) {
-        URL.revokeObjectURL(avatarPreviewUrl.current);
-      }
-    },
-    []
-  );
-
-  const setAvatarPreview = (file: File | undefined) => {
-    if (avatarPreviewUrl.current !== null) {
-      URL.revokeObjectURL(avatarPreviewUrl.current);
-    }
-
-    const nextUrl = file === undefined ? null : URL.createObjectURL(file);
-    avatarPreviewUrl.current = nextUrl;
-    setPreviewUrl(nextUrl);
-  };
-
-  const resetProfile = () => {
-    const storedAvatar = uploadedAvatar.current;
-
-    if (storedAvatar !== null && storedAvatar.state === "uncommitted") {
-      void deleteStoredAvatar(storedAvatar.url);
-      uploadedAvatar.current = null;
-    }
-
-    form.reset();
-    setAvatarPreview(undefined);
-    if (avatarInput.current !== null) {
-      avatarInput.current.value = "";
-    }
-  };
-
-  /** Resolves one selected file to a private Blob that is safe to persist. */
-  const resolveAvatar = async (
-    avatar: File | undefined
-  ): Promise<Result<string | null>> => {
-    if (avatar === undefined) {
-      return result.pass(null);
-    }
-
-    const completedUpload = uploadedAvatar.current;
-
-    if (completedUpload?.file === avatar) {
-      return result.pass(completedUpload.url);
-    }
-
-    if (completedUpload?.state === "update-outcome-unknown") {
-      form.setError("avatar", {
-        message:
-          "Refresh the page before choosing another avatar so the previous update can be confirmed.",
-      });
-
-      return result.fail(
-        new Error("The previous profile update has an unknown outcome.")
-      );
-    }
-
-    if (
-      completedUpload !== null &&
-      !(await deleteStoredAvatar(completedUpload.url))
-    ) {
-      form.setError("avatar", {
-        message: "The previous avatar upload could not be removed. Try again.",
-      });
-
-      return result.fail(
-        new Error("The previous avatar upload remains stored.")
-      );
-    }
-
-    uploadedAvatar.current = null;
-
-    const contentType = avatarContentTypeSchema.safeParse(avatar.type);
-
-    if (!contentType.success) {
-      form.setError("avatar", {
-        message: "Choose a JPEG, PNG, or WebP image.",
-      });
-
-      return result.fail(new Error("The avatar content type is unsupported."));
-    }
-
-    const uploaded = await result.trycatch(
-      async () =>
-        await upload(createAvatarPathname(user.id, contentType.data), avatar, {
-          access: "private",
-          contentType: contentType.data,
-          handleUploadUrl: "/api/uploads/avatar",
-        })
-    );
-
-    if (!uploaded.ok) {
-      const currentSession = await result.trycatch(
-        async () => await authClient.getSession()
-      );
-
-      if (currentSession.ok && currentSession.value.data === null) {
-        router.replace("/sign-in");
-        router.refresh();
-
-        return result.fail(uploaded.error);
-      }
-
-      form.setError("avatar", {
-        message:
-          "The avatar upload was interrupted. Your selection is still here. Try again.",
-      });
-
-      return result.fail(uploaded.error);
-    }
-
-    const image = uploaded.value.url;
-    uploadedAvatar.current = {
-      file: avatar,
-      state: "uncommitted",
-      url: image,
-    };
-
-    return result.pass(image);
-  };
-
-  const saveProfile = async (settings: ProfileSettings) => {
-    // Resolve the selected file to one private Blob, reusing a completed upload.
-    const resolvedAvatar = await resolveAvatar(settings.avatar);
-
-    if (!resolvedAvatar.ok) {
-      return;
-    }
-
-    const image = resolvedAvatar.value;
-
-    // Persist the identity update only after its optional avatar is available.
-    const update: ProfileSettingsUpdate = {
-      name: settings.name,
-      username: settings.username,
-    };
-
-    if (image !== null) {
-      update.image = image;
-
-      const completedUpload = uploadedAvatar.current;
-
-      if (completedUpload?.url === image) {
-        completedUpload.state = "update-outcome-unknown";
-      }
-    }
-
+  const updateProfile = async (
+    update: ProfileSettingsUpdate
+  ): Promise<boolean> => {
     const response = await result.trycatch(
       async () => await authClient.updateUser(update)
     );
 
     if (!response.ok) {
-      // The request may have committed before its response was lost. Preserve the
-      // uploaded Blob until a later retry confirms the Better Auth outcome.
       form.setError("root", {
         message:
           "The profile service could not be reached. Your edits are still here. Try again.",
       });
-      return;
+      return false;
     }
 
-    if (response.value.error !== null) {
-      const completedUpload = uploadedAvatar.current;
+    if (response.value.error === null) {
+      return true;
+    }
 
-      if (image !== null && completedUpload?.url === image) {
-        completedUpload.state = "uncommitted";
-      }
+    if (response.value.error.status === 401) {
+      router.replace("/sign-in");
+      router.refresh();
+      return false;
+    }
 
-      if (response.value.error.status === 401) {
-        router.replace("/sign-in");
-        router.refresh();
+    const issue = getProfileUpdateIssue(response.value.error);
+    form.setError(issue.field, { message: issue.message });
+
+    return false;
+  };
+
+  /**
+   * Saves identity before uploading media, so a rejected name or username
+   * cannot leave a new Blob behind. Completed uploads are reused on retry.
+   */
+  const saveProfile = async (settings: ProfileSettings) => {
+    const identityChanged =
+      dirtyFields.name === true || dirtyFields.username === true;
+
+    if (identityChanged) {
+      const identitySaved = await updateProfile({
+        name: settings.name,
+        username: settings.username,
+      });
+
+      if (!identitySaved) {
         return;
       }
 
-      // Retain a completed upload so correcting another field does not re-upload it.
-      const issue = getProfileUpdateIssue(response.value.error);
-      form.setError(issue.field, { message: issue.message });
-      return;
+      form.resetField("name", { defaultValue: settings.name });
+      form.resetField("username", { defaultValue: settings.username });
     }
 
-    if (image !== null) {
-      uploadedAvatar.current = null;
+    if (dirtyFields.avatar === true && settings.avatar !== undefined) {
+      const { contentType, file } = settings.avatar;
+      let image = uploadedAvatarUrls.current.get(file);
+
+      if (image === undefined) {
+        const uploaded = await result.trycatch(
+          async () =>
+            await upload(createAvatarPathname(user.id, contentType), file, {
+              access: "private",
+              contentType,
+              handleUploadUrl: "/api/uploads/avatar",
+            })
+        );
+
+        if (!uploaded.ok) {
+          const session = await result.trycatch(
+            async () => await authClient.getSession()
+          );
+
+          const sessionExpired =
+            session.ok &&
+            session.value.data === null &&
+            (session.value.error === null ||
+              session.value.error?.status === 401);
+
+          if (sessionExpired) {
+            router.replace("/sign-in");
+            router.refresh();
+            return;
+          }
+
+          form.setError("avatar", {
+            message:
+              "The avatar upload was interrupted. Your selection is still here. Try again.",
+          });
+          return;
+        }
+
+        image = uploaded.value.url;
+        uploadedAvatarUrls.current.set(file, image);
+      }
+
+      if (!(await updateProfile({ image }))) {
+        return;
+      }
+
+      form.resetField("avatar");
+      if (avatarInput.current !== null) {
+        avatarInput.current.value = "";
+      }
     }
 
-    // Remove the previous committed avatar only after its replacement is saved.
-    const previousAvatar =
-      user.image === null || user.image === undefined
-        ? null
-        : parseOwnedPrivateAvatarUrl(user.image, user.id);
-
-    if (
-      image !== null &&
-      previousAvatar !== null &&
-      previousAvatar.toString() !== image
-    ) {
-      void deleteStoredAvatar(previousAvatar.toString());
-    }
-
-    // Commit the accepted values back into the form and shared session view.
-    form.reset({
-      avatar: undefined,
-      name: settings.name,
-      username: settings.username,
-    });
-    setAvatarPreview(undefined);
-    if (avatarInput.current !== null) {
-      avatarInput.current.value = "";
-    }
     router.refresh();
     toast.add({
       description: "Your changes are now reflected throughout templ8.",
@@ -382,36 +236,16 @@ const useProfileSettingsForm = () => {
     });
   };
 
+  const resetProfile = () => {
+    form.reset();
+    if (avatarInput.current !== null) {
+      avatarInput.current.value = "";
+    }
+  };
+
   const submitProfile = (event: SubmitEvent<HTMLFormElement>) => {
     void form.handleSubmit(saveProfile)(event);
   };
-
-  const captureAvatarInput = (element: HTMLInputElement | null) => {
-    avatarInput.current = element;
-  };
-
-  return {
-    captureAvatarInput,
-    displayedImage,
-    form,
-    resetProfile,
-    setAvatarPreview,
-    submitProfile,
-    user,
-  };
-};
-
-const ProfileSettingsForm = () => {
-  const {
-    captureAvatarInput,
-    displayedImage,
-    form,
-    resetProfile,
-    setAvatarPreview,
-    submitProfile,
-    user,
-  } = useProfileSettingsForm();
-  const { errors, isDirty, isSubmitting } = form.formState;
 
   return (
     <Card>
@@ -429,80 +263,66 @@ const ProfileSettingsForm = () => {
             <FieldError errors={[errors.root]} />
 
             <ProfileAvatarField
-              captureInput={captureAvatarInput}
+              captureInput={(element) => {
+                avatarInput.current = element;
+              }}
               control={form.control}
-              image={displayedImage}
+              image={avatarUrl}
               isAnonymous={user.isAnonymous === true}
-              onSelect={setAvatarPreview}
             />
 
             <FieldGroup className="gap-4">
-              <Controller
-                control={form.control}
-                name="name"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="settings-name">Name</FieldLabel>
-                    <Input
-                      {...field}
-                      aria-describedby="settings-name-description"
-                      aria-errormessage={
-                        fieldState.invalid ? "settings-name-error" : undefined
-                      }
-                      aria-invalid={fieldState.invalid}
-                      autoComplete="name"
-                      id="settings-name"
-                    />
-                    <FieldDescription id="settings-name-description">
-                      This is the name shown throughout the application.
-                    </FieldDescription>
-                    <FieldError
-                      errors={[fieldState.error]}
-                      id="settings-name-error"
-                    />
-                  </Field>
-                )}
-              />
+              <Field data-invalid={errors.name !== undefined}>
+                <FieldLabel htmlFor="settings-name">Name</FieldLabel>
+                <Input
+                  {...form.register("name")}
+                  aria-describedby="settings-name-description"
+                  aria-errormessage={
+                    errors.name === undefined
+                      ? undefined
+                      : "settings-name-error"
+                  }
+                  aria-invalid={errors.name !== undefined}
+                  autoComplete="name"
+                  id="settings-name"
+                />
+                <FieldDescription id="settings-name-description">
+                  This is the name shown throughout the application.
+                </FieldDescription>
+                <FieldError errors={[errors.name]} id="settings-name-error" />
+              </Field>
 
-              <Controller
-                control={form.control}
-                name="username"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="settings-username">
-                      Username
-                    </FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon>
-                        <InputGroupText>@</InputGroupText>
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        {...field}
-                        aria-describedby="settings-username-description"
-                        aria-errormessage={
-                          fieldState.invalid
-                            ? "settings-username-error"
-                            : undefined
-                        }
-                        aria-invalid={fieldState.invalid}
-                        autoCapitalize="none"
-                        autoComplete="username"
-                        id="settings-username"
-                        placeholder="username"
-                        spellCheck={false}
-                      />
-                    </InputGroup>
-                    <FieldDescription id="settings-username-description">
-                      Use letters, numbers, underscores, and single periods
-                      between characters.
-                    </FieldDescription>
-                    <FieldError
-                      errors={[fieldState.error]}
-                      id="settings-username-error"
-                    />
-                  </Field>
-                )}
-              />
+              <Field data-invalid={errors.username !== undefined}>
+                <FieldLabel htmlFor="settings-username">Username</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <InputGroupText>@</InputGroupText>
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    {...form.register("username")}
+                    aria-describedby="settings-username-description"
+                    aria-errormessage={
+                      errors.username === undefined
+                        ? undefined
+                        : "settings-username-error"
+                    }
+                    aria-invalid={errors.username !== undefined}
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    id="settings-username"
+                    placeholder="username"
+                    spellCheck={false}
+                  />
+                </InputGroup>
+                <FieldDescription id="settings-username-description">
+                  Use letters, numbers, underscores, and single periods between
+                  characters.
+                </FieldDescription>
+                <FieldError
+                  errors={[errors.username]}
+                  id="settings-username-error"
+                />
+              </Field>
             </FieldGroup>
           </FieldSet>
         </CardContent>

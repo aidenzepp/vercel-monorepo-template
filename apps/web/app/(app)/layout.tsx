@@ -10,8 +10,8 @@ import {
 import { Templ8Wordmark } from "@workspace/ui/logos/templ8";
 import Link from "next/link";
 
+import { SessionProvider } from "@/components/auth/session-provider";
 import { SessionProfile } from "@/components/sidebar/session-profile";
-import { SessionProvider } from "@/lib/auth/session";
 import { requireSession } from "@/lib/auth/session-server";
 
 export default async function AppLayout({

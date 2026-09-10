@@ -17,23 +17,24 @@ import Image from "next/image";
 import { Controller } from "react-hook-form";
 import type { Control } from "react-hook-form";
 
-import type { ProfileSettingsFields } from "@/lib/settings/profile-settings-schema";
+import type {
+  ProfileSettings,
+  ProfileSettingsFields,
+} from "@/lib/settings/profile-settings-schema";
 
 interface ProfileAvatarFieldProps {
   captureInput: (element: HTMLInputElement | null) => void;
-  control: Control<ProfileSettingsFields>;
+  control: Control<ProfileSettingsFields, unknown, ProfileSettings>;
   image: string | null;
   isAnonymous: boolean;
-  onSelect: (file: File | undefined) => void;
 }
 
-/** Renders the avatar preview and binds its file input to the profile form. */
+/** Renders the saved avatar and binds its file input to the profile form. */
 const ProfileAvatarField = ({
   captureInput,
   control,
   image,
   isAnonymous,
-  onSelect,
 }: ProfileAvatarFieldProps) => (
   <Controller
     control={control}
@@ -76,7 +77,6 @@ const ProfileAvatarField = ({
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 field.onChange(file);
-                onSelect(file);
               }}
               ref={(element) => {
                 captureInput(element);

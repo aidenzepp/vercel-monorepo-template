@@ -46,9 +46,7 @@ const useSession = (): Session => {
   const session = useContext(SessionContext);
 
   if (session === undefined) {
-    throw new Error(
-      "AUTH_SESSION_PROVIDER_MISSING: useSession must be called inside SessionProvider."
-    );
+    throw new Error("useSession must be called inside SessionProvider.");
   }
 
   return session;

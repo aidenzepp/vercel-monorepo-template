@@ -8,6 +8,11 @@ const avatarContentTypeSchema = z.enum(AVATAR_CONTENT_TYPES);
 
 type AvatarContentType = z.infer<typeof avatarContentTypeSchema>;
 
+interface AvatarFile {
+  contentType: AvatarContentType;
+  file: File;
+}
+
 const EXTENSION_BY_CONTENT_TYPE = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -29,7 +34,11 @@ const avatarFileSchema = z
   .refine(
     (file) => file.size <= MAXIMUM_AVATAR_SIZE_IN_BYTES,
     "Choose an image no larger than 5 MB."
-  );
+  )
+  .transform((file): AvatarFile => ({
+    contentType: avatarContentTypeSchema.parse(file.type),
+    file,
+  }));
 
 /** Returns the only client-upload pathname authorized for this user and type. */
 const createAvatarPathname = (
@@ -108,4 +117,4 @@ export {
   parseGoogleAvatarUrl,
   parseOwnedPrivateAvatarUrl,
 };
-export type { AvatarContentType };
+export type { AvatarContentType, AvatarFile };
