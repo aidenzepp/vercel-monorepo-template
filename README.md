@@ -1,4 +1,4 @@
-# vercel-monorepo-template
+# templ8
 
 Personal Bun + Turborepo monorepo foundation with two Next.js applications and shared packages.
 
