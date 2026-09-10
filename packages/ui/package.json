@@ -9,6 +9,7 @@
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
+    "./logos/*": "./src/logos/*.tsx",
     "./next/async-boundary": "./src/next/async-boundary.tsx",
     "./next/error-boundary": "./src/next/error-boundary.tsx",
     "./next/theme-provider": "./src/next/theme-provider.tsx"

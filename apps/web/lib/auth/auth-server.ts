@@ -55,6 +55,13 @@ const auth = betterAuth({
     nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET,
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+      strategy: "compact",
+    },
+  },
 });
 
 export { auth };

@@ -12,14 +12,15 @@ import { username } from "better-auth/plugins/username";
  * Better Auth derives adapter fields from enabled plugins, so sharing their
  * configuration prevents the generated schema from drifting from production.
  */
-const createAuthPlugins = () => [
-  anonymous(),
-  apiKey(),
-  organization(),
-  passkey(),
-  twoFactor(),
-  username(usernamePluginOptions),
-  openAPI(),
-];
+const createAuthPlugins = () =>
+  [
+    anonymous(),
+    apiKey(),
+    organization(),
+    passkey(),
+    twoFactor(),
+    username(usernamePluginOptions),
+    openAPI(),
+  ] as const;
 
 export { createAuthPlugins };
