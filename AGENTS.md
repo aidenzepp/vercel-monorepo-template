@@ -4,9 +4,10 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 
 ## Application ownership
 
-- `apps/web` is the authenticated product. It owns its environment contract, Neon connection, Drizzle schema and migrations, Better Auth configuration, and auth API route.
+- `apps/web` is the authenticated product. It owns its environment contract, Neon connection, Drizzle schema and migrations, Better Auth runtime configuration, and auth API route.
 - `apps/mkt` is the public marketing site. Do not add authentication or database dependencies there for convenience; keep product state behind `web`.
 - Both production build scripts use `next build --webpack` until a current Next.js/Turbopack build is proven in this environment.
+- `packages/better-auth` owns provider-neutral validation, plugin configuration values, and Better Auth-owned error catalogs. It must not own a database, environment variables, framework adapters, provider credentials, delivery integrations, or product-specific user fields and copy. Import its public surfaces through direct subpaths.
 - `packages/ui` owns shared Shadcn components, styles, hooks, and Next.js providers. Import its public surfaces through direct subpaths such as `@workspace/ui/components/button` and `@workspace/ui/next/theme-provider`; do not introduce a barrel.
 - Both application layouts mount the shared theme provider plus Vercel Analytics and Speed Insights. No dedicated async-boundary test or application consumer exists; its current evidence is limited to `packages/ui` typechecking.
 

@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/better-auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config/username": "./src/config/username.ts",
+    "./errors/redirect": "./src/errors/redirect.ts"
+  },
+  "scripts": {
+    "format": "bun --cwd ../.. oxfmt --config oxfmt.config.ts --write packages/better-auth",
+    "lint": "bun --cwd ../.. oxlint --config oxlint.config.ts packages/better-auth",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@workspace/typescript-config": "workspace:*",
+    "better-auth": "^1.7.2"
+  }
+}

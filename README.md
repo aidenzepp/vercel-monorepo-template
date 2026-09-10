@@ -10,6 +10,7 @@ It establishes shared presentation infrastructure while keeping product state in
 - Turborepo scripts for build, lint, format, typecheck
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
 - TypeScript 7's native compiler
+- `packages/better-auth`: shared Better Auth configuration and error contracts
 - `packages/utils`: Result, Option, Zero, Pino logger
 - `packages/ui`: the complete shared Shadcn component set, styles, hooks, and Next.js providers
 - `apps/web`: authenticated full-stack product foundation
@@ -46,11 +47,18 @@ Import shared foundation code from direct workspace package subpaths:
 import { result } from "@workspace/utils/result";
 import { logger } from "@workspace/utils/logger";
 import { Button } from "@workspace/ui/components/button";
+import { usernameSchema } from "@workspace/better-auth/config/username";
 ```
 
 `packages/ui` is shared presentation infrastructure. Keep application-specific data, routes, environment variables, and providers in the owning application.
 
 ## Packages
+
+### `@workspace/better-auth`
+
+- provider-neutral validation and Better Auth configuration consumed by runtime and schema generation
+- version-matched Better Auth redirect error codes for application-owned recovery copy
+- no database, environment, framework, provider, or user-interface ownership
 
 ### `@workspace/utils`
 

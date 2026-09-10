@@ -8,7 +8,7 @@
 - Drizzle schema and product-owned migration commands under `db/`;
 - provider-neutral Better Auth configuration, client, and `app/api/auth/[...all]/route.ts`.
 
-The auth server enables Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI as foundation defaults. It also includes Admin, Last Login Method, OAuth Proxy, Better Auth Infrastructure Dash, and the Next Cookies integration. Schema-affecting defaults come from one shared plugin factory used by runtime auth and schema generation.
+The auth server enables Username, Anonymous, Passkey, Two-Factor Authentication, API Key, Organization, and OpenAPI as foundation defaults. It also includes Admin, Last Login Method, OAuth Proxy, Better Auth Infrastructure Dash, and the Next Cookies integration. Schema-affecting defaults come from one shared plugin factory used by runtime auth and schema generation. Provider-neutral validation and error contracts live in `@workspace/better-auth`; the web application retains ownership of its server, database, environment, and delivery integrations.
 
 The template does not choose credential-authentication or email-delivery policy. Better Auth background work is registered with Vercel `waitUntil`, and the generated schema includes the documented lookup indexes for the enabled plugins.
 
