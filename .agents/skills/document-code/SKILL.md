@@ -30,11 +30,14 @@ Follow `packages/utils/src/result.ts` and `packages/utils/src/option.ts`:
 | Function, component, or named helper | `@param` for every argument and `@returns` for its semantic result. For destructuring, document both `props` and every `props.property`. |
 | Callback signature | Describe the capability or intent, then document every callback argument with `@param` and its completion with `@returns`. |
 | Interface or object type | Define the whole contract, then document every property in consumer vocabulary. Property comments are authoritative. |
+| Module-scope non-callable `const` | State the invariant, policy, shared consumers, or system role that the value establishes. |
 | Public overload set | Document each public overload whose contract differs. Do not separately document the implementation signature. |
 
 For a `void` function, omit `@returns` when completion has no consumer-facing meaning. Include it when completion establishes a meaningful side-effect contract. For components, describe the rendered responsibility rather than writing “JSX.”
 
 Reusable props types own the complete property meaning. The component's `@param props.property` entry states how that property participates in this component; it must not copy the property comment verbatim.
+
+For an inline object parameter, the function's `@param` entry defines the object as a whole and each property entry defines one member; do not add a second standalone comment. Overloads differ when they accept different representations, return different guarantees, or expose different failures. Put shared invariants in each public contract only when callers of that overload need them.
 
 Use optional tags only when their condition holds:
 
@@ -45,40 +48,9 @@ Use optional tags only when their condition holds:
 
 Do not repeat TypeScript types in prose or add tags with no information. Small file-local helpers still receive a concise purpose plus applicable `@param` and `@returns` tags; they do not receive optional tags by default.
 
-## Example
+## Labeled Examples
 
-```tsx
-/**
- * The values and capability required to display and update a user's identity.
- */
-interface UserIdentityProps {
-  /** The public identity fields rendered without requiring session access. */
-  user: Pick<User, "image" | "name" | "username">;
-  /**
-   * Persists an edited public identity through the owning application boundary.
-   *
-   * @param user - The edited name and username to persist.
-   * @returns The updated user or the persistence failure.
-   */
-  onSave: (user: Pick<User, "name" | "username">) => Promise<Result<User>>;
-}
-
-/**
- * Displays a user's public identity and delegates persistence to its owner.
- *
- * The component receives user data and application behavior explicitly, so it
- * remains independent of the session provider and persistence service.
- *
- * @param props - The identity values and update capability.
- * @param props.user - Supplies the public fields rendered in this form.
- * @param props.onSave - Supplies the application-owned update capability.
- * @returns The editable identity form for the supplied user.
- * @see {@link UserIdentityProps}
- */
-const UserIdentity = ({ onSave, user }: UserIdentityProps) => {
-  // ...
-};
-```
+**REQUIRED REFERENCE:** Read [references/examples.md](references/examples.md) before writing or reviewing code documentation. Treat each `POSITIVE` and `NEGATIVE` label as acceptance data: reproduce the documented contract quality, not merely the comment shape.
 
 ## Review
 

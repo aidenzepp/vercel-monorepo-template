@@ -61,29 +61,8 @@ For each class or behavior ask: **Is it intrinsic to the primitive, or contextua
 
 A large intrinsic class list signals incorrect composition. Inspect the primitive and its API first. Improve an incomplete shared primitive instead of imitating it locally.
 
-## Canonical Shape
+## Labeled Examples
 
-```tsx
-const UserMenu = ({ onSignOut, user }: UserMenuProps) => (
-  <DropdownMenu>
-    <UserMenuTrigger avatar={user.image} name={user.name} />
-    <UserMenuContent onSignOut={onSignOut} />
-  </DropdownMenu>
-);
-
-const SidebarUserMenuBoundary = () => {
-  const { user } = useSession();
-  const router = useRouter();
-
-  const onSignOut = async () => {
-    await authClient.signOut();
-    router.replace("/sign-in");
-  };
-
-  return <UserMenu onSignOut={onSignOut} user={user} />;
-};
-```
-
-`UserMenuTrigger`, `UserMenuContent`, and their action/identity leaves receive props. They do not call `useSession`, import auth or routing, or rebuild Shadcn behavior with feature classes.
+**REQUIRED REFERENCE:** Read [references/examples.md](references/examples.md) before creating or reviewing a component family. Treat each `POSITIVE` and `NEGATIVE` label as acceptance data: match the responsibility boundary demonstrated by the label, not merely the example's names or formatting.
 
 This skill excludes JSDoc, effects, derived state, form-state strategy, and memoization. Apply dedicated guidance separately.
