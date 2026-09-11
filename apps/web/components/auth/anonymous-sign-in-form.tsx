@@ -2,7 +2,6 @@
 
 import { Button } from "@workspace/ui/components/button";
 import { Field, FieldError } from "@workspace/ui/components/field";
-import { Spinner } from "@workspace/ui/components/spinner";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import Form from "next/form";
@@ -51,8 +50,7 @@ const AnonymousSignInForm = () => {
   return (
     <Field>
       <Form action={action}>
-        <Button className="w-full" disabled={pending} size="lg" type="submit">
-          {pending ? <Spinner /> : null}
+        <Button className="w-full" loading={pending} size="lg" type="submit">
           {pending ? "Creating account…" : "Continue temporarily"}
         </Button>
       </Form>

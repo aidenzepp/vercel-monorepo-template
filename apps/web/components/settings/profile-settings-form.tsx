@@ -28,7 +28,6 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@workspace/ui/components/input-group";
-import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
@@ -263,8 +262,7 @@ const ProfileSettingsForm = ({ user }: { user: ProfileSettingsUser }) => {
             >
               Reset
             </Button>
-            <Button disabled={!isDirty || isSubmitting} type="submit">
-              {isSubmitting ? <Spinner aria-hidden="true" /> : null}
+            <Button disabled={!isDirty} loading={isSubmitting} type="submit">
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>
           </CardFooter>
