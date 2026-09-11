@@ -163,8 +163,7 @@ const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
         />
       </InputGroup>
       <FieldDescription id="settings-username-description">
-        Use letters, numbers, underscores, and single periods between
-        characters.
+        Your username uniquely identifies you throughout the application.
       </FieldDescription>
       <FieldError errors={[errors.username]} id="settings-username-error" />
     </Field>
