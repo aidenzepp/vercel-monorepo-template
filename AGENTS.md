@@ -37,6 +37,7 @@ Ultracite oxlint + oxfmt. Root scripts: `check`, `fix`, `lint`, `format`, `typec
 ## Skills
 
 - `.agents/skills/component-decomposition` when creating, changing, or reviewing React UI
+- `.agents/skills/async-boundaries` when composing React loading, failure, streaming, or Promise-reading regions
 - `.agents/skills/document-code` when writing or reviewing TypeScript and TSX program units
 - `.agents/skills/betterauth-best-practices` when configuring or reviewing Better Auth
 - `.agents/skills/conventional-commits` when committing
@@ -54,6 +55,6 @@ See Skills policy below for what stays out of the template.
 
 ## Skills policy
 
-Ship foundation skills that apply broadly across the checked-in workspace. The repo-owned foundation set is `component-decomposition`, `document-code`, and `conventional-commits`.
+Ship foundation skills that apply broadly across the checked-in workspace. The repo-owned foundation set is `async-boundaries`, `component-decomposition`, `document-code`, and `conventional-commits`.
 
 Optional stack skills (drizzle-first, error-messages, bonsai, etc.) live in the personal skills library and get copied into a product workspace when that workspace needs them. Keep a copied stack skill only while the checked-in stack requires it; do not vendor uncertain stack choices into this template.

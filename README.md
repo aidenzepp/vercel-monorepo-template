@@ -15,7 +15,7 @@ It establishes shared presentation infrastructure while keeping product state in
 - `packages/ui`: the complete shared Shadcn component set, styles, hooks, and Next.js providers
 - `apps/web`: authenticated full-stack product foundation
 - `apps/mkt`: public marketing foundation
-- Agent skill: conventional-commits
+- Repo-owned agent skills for async boundaries, component decomposition, code documentation, and conventional commits
 
 `web` owns Neon, Drizzle, Better Auth, and the auth route. `mkt` intentionally has no authentication or database dependency.
 

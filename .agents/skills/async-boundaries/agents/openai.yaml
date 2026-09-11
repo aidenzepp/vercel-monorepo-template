@@ -1,0 +1,4 @@
+interface:
+  display_name: "Async Boundaries"
+  short_description: "Place React loading and error boundaries around unresolved UI"
+  default_prompt: "Use $async-boundaries to structure this asynchronous React UI. Keep known content visible, isolate independent loading and failure states, prefer Server Component await, and use promise passing or React use() only when the consumer requires it."
