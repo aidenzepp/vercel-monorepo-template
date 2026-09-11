@@ -5,14 +5,13 @@ import { Field, FieldError } from "@workspace/ui/components/field";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import Form from "next/form";
+import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
 import { authClient } from "@/lib/auth/auth-client";
 
-/**
- * Creates a real Better Auth anonymous user and enters the protected app.
- */
-const signInAnonymously = async (): Promise<string | null> => {
+/** Creates a real Better Auth anonymous user and session. */
+const createAnonymousSession = async (): Promise<string | null> => {
   const response = await result.trycatch(
     async () => await authClient.signIn.anonymous()
   );
@@ -37,11 +36,20 @@ const signInAnonymously = async (): Promise<string | null> => {
     return "A temporary account couldn’t be created. Try again.";
   }
 
-  window.location.assign("/");
   return null;
 };
 
 const AnonymousSignInForm = () => {
+  const router = useRouter();
+  const signInAnonymously = async (): Promise<string | null> => {
+    const errorMessage = await createAnonymousSession();
+
+    if (errorMessage === null) {
+      router.replace("/");
+    }
+
+    return errorMessage;
+  };
   const [errorMessage, action, pending] = useActionState(
     signInAnonymously,
     null

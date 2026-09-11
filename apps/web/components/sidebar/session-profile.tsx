@@ -24,6 +24,7 @@ import { result } from "@workspace/utils/result";
 import { HatGlasses, LogOut, Settings, UserRound } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useId } from "react";
 
 import { useSession } from "@/components/auth/session-provider";
@@ -81,7 +82,7 @@ const AnonymousProfilePreview = () => (
   </>
 );
 
-const signOut = async (): Promise<string | null> => {
+const requestSignOut = async (): Promise<string | null> => {
   const response = await result.trycatch(
     async () => await authClient.signOut()
   );
@@ -106,12 +107,21 @@ const signOut = async (): Promise<string | null> => {
     return "We couldn’t sign you out. Try again.";
   }
 
-  window.location.assign("/sign-in");
   return null;
 };
 
 /** Owns the profile menu actions and sign-out feedback. */
 const SessionProfileOptions = () => {
+  const router = useRouter();
+  const signOut = async (): Promise<string | null> => {
+    const errorMessage = await requestSignOut();
+
+    if (errorMessage === null) {
+      router.replace("/sign-in");
+    }
+
+    return errorMessage;
+  };
   const [errorMessage, action, pending] = useActionState(signOut, null);
   const formId = useId();
 
