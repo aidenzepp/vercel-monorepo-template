@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Code"
+  short_description: "Write precise JSDoc in the repository's established prose style"
+  default_prompt: "Use $document-code to document or review TypeScript and TSX program units in this repository. Require complete contract coverage, follow the prose style established by result.ts and option.ts, and use informative JSDoc tags without duplicating TypeScript types."

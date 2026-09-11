@@ -1,0 +1,4 @@
+interface:
+  display_name: "Component Decomposition"
+  short_description: "Build readable React component families with explicit boundaries"
+  default_prompt: "Use $component-decomposition to decompose this React UI into a coherent component family with explicit boundary dependencies, prop-driven feature components, standard names, and correctly composed Shadcn primitives."
