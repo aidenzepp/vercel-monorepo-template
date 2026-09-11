@@ -33,6 +33,7 @@
     "@workspace/ui": "workspace:*",
     "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.2",
+    "files-sdk": "2.4.1",
     "lucide-react": "^1.44.0",
     "next": "latest",
     "react": "19.2.4",

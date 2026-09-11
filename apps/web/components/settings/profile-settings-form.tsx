@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { upload } from "@vercel/blob/client";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -34,11 +33,16 @@ import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import type { SubmitEvent } from "react";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { useSession } from "@/components/auth/session-provider";
 import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { authClient } from "@/lib/auth/auth-client";
-import { createAvatarPathname } from "@/lib/profile/avatar";
+import {
+  completeAvatarUpload,
+  prepareAvatarUpload,
+} from "@/lib/profile/avatar-upload";
+import type { PreparedAvatarUpload } from "@/lib/profile/avatar-upload";
 import { profileSettingsSchema } from "@/lib/settings/profile-settings-schema";
 import type {
   ProfileSettings,
@@ -53,6 +57,30 @@ interface ProfileSettingsIssue {
 type ProfileSettingsUpdate =
   | { image: string }
   | { name: string; username: string };
+
+const avatarUploadResultSchema = z.object({ url: z.url() });
+
+/** Sends one avatar directly to the upload URL authorized by the server. */
+const uploadAvatar = async (
+  file: File,
+  upload: PreparedAvatarUpload
+): Promise<string> => {
+  const response = await fetch(upload.signedUploadUrl, {
+    body: file,
+    headers: upload.headers,
+    method: "PUT",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Avatar upload failed with status ${response.status}.`);
+  }
+
+  const body: unknown = await response.json();
+
+  const uploaded = avatarUploadResultSchema.parse(body);
+
+  return await completeAvatarUpload(uploaded.url);
+};
 
 /** Maps a Better Auth failure to the field and repair message the form owns. */
 const getProfileUpdateIssue = (error: {
@@ -181,14 +209,14 @@ const ProfileSettingsForm = () => {
       let image = uploadedAvatarUrls.current.get(file);
 
       if (image === undefined) {
-        const uploaded = await result.trycatch(
-          async () =>
-            await upload(createAvatarPathname(user.id, contentType), file, {
-              access: "private",
-              contentType,
-              handleUploadUrl: "/api/uploads/avatar",
-            })
-        );
+        const uploaded = await result.trycatch(async () => {
+          const prepared = await prepareAvatarUpload({
+            contentType,
+            size: file.size,
+          });
+
+          return await uploadAvatar(file, prepared);
+        });
 
         if (!uploaded.ok) {
           const session = await result.trycatch(
@@ -214,7 +242,7 @@ const ProfileSettingsForm = () => {
           return;
         }
 
-        image = uploaded.value.url;
+        image = uploaded.value;
         uploadedAvatarUrls.current.set(file, image);
       }
 

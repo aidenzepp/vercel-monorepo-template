@@ -8,14 +8,14 @@ import {
 
 describe("avatar storage policy", () => {
   test("creates one user-scoped pathname per supported content type", () => {
-    expect(createAvatarPathname("user/one", "image/jpeg")).toBe(
-      "users/user%2Fone/avatar/avatar.jpg"
+    expect(createAvatarPathname("user/one", "image/jpeg", "avatar-id")).toBe(
+      "users/user%2Fone/avatar/avatar-id.jpg"
     );
-    expect(createAvatarPathname("user/one", "image/png")).toBe(
-      "users/user%2Fone/avatar/avatar.png"
+    expect(createAvatarPathname("user/one", "image/png", "avatar-id")).toBe(
+      "users/user%2Fone/avatar/avatar-id.png"
     );
-    expect(createAvatarPathname("user/one", "image/webp")).toBe(
-      "users/user%2Fone/avatar/avatar.webp"
+    expect(createAvatarPathname("user/one", "image/webp", "avatar-id")).toBe(
+      "users/user%2Fone/avatar/avatar-id.webp"
     );
   });
 
@@ -26,6 +26,15 @@ describe("avatar storage policy", () => {
         "user/one"
       )?.pathname
     ).toBe("/users/user%2Fone/avatar/avatar-random123.webp");
+
+    expect(
+      parseOwnedPrivateAvatarUrl(
+        "https://store.private.blob.vercel-storage.com/users/user%2Fone/avatar/123e4567-e89b-42d3-a456-426614174000.webp",
+        "user/one"
+      )?.pathname
+    ).toBe(
+      "/users/user%2Fone/avatar/123e4567-e89b-42d3-a456-426614174000.webp"
+    );
 
     expect(
       parseOwnedPrivateAvatarUrl(

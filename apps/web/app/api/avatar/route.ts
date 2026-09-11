@@ -1,9 +1,8 @@
-import { get } from "@vercel/blob";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 
-import { env } from "@/env";
 import { auth } from "@/lib/auth/auth-server";
+import { fileService } from "@/lib/files/files-service";
 import {
   parseGoogleAvatarUrl,
   parseOwnedPrivateAvatarUrl,
@@ -35,11 +34,7 @@ const GET = async (request: Request): Promise<Response> => {
   }
 
   const avatar = await result.trycatch(
-    async () =>
-      await get(privateAvatar.toString(), {
-        access: "private",
-        token: env.BLOB_READ_WRITE_TOKEN,
-      })
+    async () => await fileService.url(privateAvatar.pathname.slice(1))
   );
 
   if (!avatar.ok) {
@@ -48,18 +43,7 @@ const GET = async (request: Request): Promise<Response> => {
     return new Response(null, { status: 502 });
   }
 
-  if (avatar.value === null || avatar.value.statusCode !== 200) {
-    return new Response(null, { status: 404 });
-  }
-
-  return new Response(avatar.value.stream, {
-    headers: {
-      "cache-control": "private, no-store",
-      "content-type": avatar.value.blob.contentType,
-      etag: avatar.value.blob.etag,
-      "x-content-type-options": "nosniff",
-    },
-  });
+  return Response.redirect(avatar.value, 307);
 };
 
 export { GET };

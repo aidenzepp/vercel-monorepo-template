@@ -43,9 +43,10 @@ const avatarFileSchema = z
 /** Returns the only client-upload pathname authorized for this user and type. */
 const createAvatarPathname = (
   userId: string,
-  contentType: AvatarContentType
+  contentType: AvatarContentType,
+  avatarId: string
 ): string =>
-  `users/${encodeURIComponent(userId)}/avatar/avatar.${EXTENSION_BY_CONTENT_TYPE[contentType]}`;
+  `users/${encodeURIComponent(userId)}/avatar/${avatarId}.${EXTENSION_BY_CONTENT_TYPE[contentType]}`;
 
 /**
  * Accepts only a private Blob URL within the current user's avatar namespace.
@@ -67,9 +68,11 @@ const parseOwnedPrivateAvatarUrl = (
   const isPrivateBlobHost =
     url.hostname.endsWith(".private.blob.vercel-storage.com") &&
     url.hostname !== ".private.blob.vercel-storage.com";
-  const isAvatarFilename = /^avatar(?:-[A-Za-z0-9]+)?\.(?:jpg|png|webp)$/u.test(
-    filename
-  );
+  const isAvatarFilename =
+    /^avatar(?:-[A-Za-z0-9]+)?\.(?:jpg|png|webp)$/u.test(filename) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp)$/u.test(
+      filename
+    );
 
   if (
     url.protocol !== "https:" ||
