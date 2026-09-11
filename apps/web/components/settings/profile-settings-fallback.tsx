@@ -12,7 +12,9 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useErrorBoundaryRetry } from "@workspace/ui/next/error-boundary";
 
-/** Preserves the profile card’s shape while its fields load. */
+/**
+ * Preserves the profile card’s shape while its fields load.
+ */
 const ProfileSettingsLoading = () => (
   <Card aria-busy="true" aria-label="Loading profile settings">
     <CardHeader>
@@ -32,7 +34,9 @@ const ProfileSettingsLoading = () => (
   </Card>
 );
 
-/** Explains a profile-loading failure and retries only the failed region. */
+/**
+ * Explains a profile-loading failure and retries only the failed region.
+ */
 const ProfileSettingsError = () => {
   const retry = useErrorBoundaryRetry();
 

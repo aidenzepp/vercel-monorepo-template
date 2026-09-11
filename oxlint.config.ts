@@ -2,13 +2,21 @@ import { defineConfig } from "oxlint";
 import antiSlop from "ultracite/oxlint/anti-slop";
 import core from "ultracite/oxlint/core";
 
-/** The upstream exclusions preserved while adding workspace-specific lint policy. */
+/**
+ * The upstream exclusions preserved while adding workspace-specific lint
+ * policy.
+ */
 const ultraciteIgnorePatterns = core.ignorePatterns ?? [];
 
-/** The upstream plugin registrations preserved by the composed configuration. */
+/**
+ * The upstream plugin registrations preserved by the composed configuration.
+ */
 const ultracitePlugins = core.plugins ?? [];
 
-/** Sources excluded because they are upstream-generated or intentional rule fixtures. */
+/**
+ * Sources excluded because they are upstream-generated or intentional rule
+ * fixtures.
+ */
 const ignorePatterns = [
   ...ultraciteIgnorePatterns,
   // The ShadCN registry currently emits package components directly under src/components.
@@ -19,7 +27,9 @@ const ignorePatterns = [
   "tools/oxlint-plugin-workspace/test/fixtures/**/*.{ts,tsx}",
 ];
 
-/** The local plugin module containing workspace-specific enforcement rules. */
+/**
+ * The local plugin module containing workspace-specific enforcement rules.
+ */
 const workspaceOxlintPlugin = "./tools/oxlint-plugin-workspace/index.mjs";
 
 export default defineConfig({

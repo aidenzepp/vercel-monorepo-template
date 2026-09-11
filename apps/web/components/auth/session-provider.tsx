@@ -14,8 +14,8 @@ const SessionContext = createContext<Session | undefined>(undefined);
  * protected client components synchronized with subsequent session updates.
  *
  * Better Auth accepts only the first non-null hydration, so calling it during
- * render is idempotent. A completed client read with no session redirects before
- * this provider can expose a nullable value.
+ * render is idempotent. A completed client read with no session redirects
+ * before this provider can expose a nullable value.
  */
 const SessionProvider = ({
   children,

@@ -5,7 +5,9 @@ import { Suspense } from "react";
 type ErrorBoundaryProps = ComponentProps<typeof ErrorBoundary>;
 
 type AsyncBoundaryProps = Readonly<{
-  /** Content protected by the combined asynchronous boundary. */
+  /**
+   * Content protected by the combined asynchronous boundary.
+   */
   children: ErrorBoundaryProps["children"];
 
   /**
@@ -15,15 +17,17 @@ type AsyncBoundaryProps = Readonly<{
    */
   failure: ErrorBoundaryProps["fallback"];
 
-  /** Content displayed while a descendant is suspended. */
+  /**
+   * Content displayed while a descendant is suspended.
+   */
   loading: ReactNode;
 }>;
 
 /**
  * Gives one asynchronous region explicit loading and failure states.
  *
- * Place this near the data-consuming leaf so unrelated interface regions
- * remain available while this content loads or fails.
+ * Place this near the data-consuming leaf so unrelated interface regions remain
+ * available while this content loads or fails.
  */
 const AsyncBoundary = ({ children, failure, loading }: AsyncBoundaryProps) => (
   <ErrorBoundary fallback={failure}>

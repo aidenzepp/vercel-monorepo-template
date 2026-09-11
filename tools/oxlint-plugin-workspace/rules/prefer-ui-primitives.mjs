@@ -22,14 +22,22 @@
  * }} RuleVisitor
  */
 
-/** The rule summary exposed by Oxlint configuration and editor tooling. */
+/**
+ * The rule summary exposed by Oxlint configuration and editor tooling.
+ */
 const description =
   "Require established workspace or framework primitives when application JSX has a direct semantic replacement.";
 
-/** The diagnostic template pairing each intrinsic tag with its replacement direction. */
+/**
+ * The diagnostic template pairing each intrinsic tag with its replacement
+ * direction.
+ */
 const message = "Do not use <{{element}}> in application UI. {{direction}}";
 
-/** Maps forbidden intrinsic tags to actionable workspace-specific replacement guidance. */
+/**
+ * Maps forbidden intrinsic tags to actionable workspace-specific replacement
+ * guidance.
+ */
 const replacementDirections = new Map([
   [
     "button",
@@ -63,10 +71,13 @@ const replacementDirections = new Map([
   ["caption", "Use the shared TableCaption component."],
 ]);
 
-/** Reports application JSX that bypasses an established UI primitive. */
+/**
+ * Reports application JSX that bypasses an established UI primitive.
+ */
 const preferUiPrimitives = {
   /**
-   * Creates the visitor that reports intrinsic JSX with direct primitive replacements.
+   * Creates the visitor that reports intrinsic JSX with direct primitive
+   * replacements.
    *
    * @param {RuleContext} context Oxlint rule context for reporting diagnostics.
    * @returns {RuleVisitor} Visitor that inspects JSX opening elements.
@@ -74,9 +85,11 @@ const preferUiPrimitives = {
   create(context) {
     return {
       /**
-       * Reports an intrinsic JSX element when the workspace provides its semantic primitive.
+       * Reports an intrinsic JSX element when the workspace provides its
+       * semantic primitive.
        *
-       * @param {JSXOpeningElementNode} node Parsed JSX opening element candidate.
+       * @param {JSXOpeningElementNode} node Parsed JSX opening element
+       *   candidate.
        */
       JSXOpeningElement(node) {
         if (node.name?.type !== "JSXIdentifier") {

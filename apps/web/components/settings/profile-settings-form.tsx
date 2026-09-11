@@ -54,7 +54,9 @@ interface ProfileSettingsIssue {
   message: string;
 }
 
-/** Maps a Better Auth failure to the field and repair message the form owns. */
+/**
+ * Maps a Better Auth failure to the field and repair message the form owns.
+ */
 const getProfileUpdateIssue = (error: {
   code?: string;
   status?: number;
@@ -102,7 +104,9 @@ const getProfileUpdateIssue = (error: {
   };
 };
 
-/** Edits the display name registered by the surrounding profile form. */
+/**
+ * Edits the display name registered by the surrounding profile form.
+ */
 const ProfileNameInput = ({ placeholder }: { placeholder?: string }) => {
   const {
     formState: { errors },
@@ -131,7 +135,9 @@ const ProfileNameInput = ({ placeholder }: { placeholder?: string }) => {
   );
 };
 
-/** Edits the username registered by the surrounding profile form. */
+/**
+ * Edits the username registered by the surrounding profile form.
+ */
 const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
   const {
     formState: { errors },
@@ -169,7 +175,9 @@ const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
   );
 };
 
-/** Owns profile validation, submission, and the form shared by both inputs. */
+/**
+ * Owns profile validation, submission, and the form shared by both inputs.
+ */
 const ProfileSettingsForm = ({ user }: { user: ProfileSettingsUser }) => {
   const form = useForm<ProfileSettingsFields, unknown, ProfileSettings>({
     defaultValues: {

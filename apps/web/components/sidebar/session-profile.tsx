@@ -37,7 +37,9 @@ interface SessionProfilePreviewProps {
   username: Session["user"]["username"];
 }
 
-/** Displays the public identity of a signed-in user. */
+/**
+ * Displays the public identity of a signed-in user.
+ */
 const SessionProfilePreview = ({
   avatar,
   name,
@@ -64,7 +66,9 @@ const SessionProfilePreview = ({
   </>
 );
 
-/** Displays the fixed identity used for an anonymous session. */
+/**
+ * Displays the fixed identity used for an anonymous session.
+ */
 const AnonymousProfilePreview = () => (
   <>
     <Avatar>
@@ -110,7 +114,9 @@ const requestSignOut = async (): Promise<string | null> => {
   return null;
 };
 
-/** Owns the profile menu actions and sign-out feedback. */
+/**
+ * Owns the profile menu actions and sign-out feedback.
+ */
 const SessionProfileOptions = () => {
   const router = useRouter();
   const signOut = async (): Promise<string | null> => {
@@ -166,7 +172,9 @@ const SessionProfileOptions = () => {
   );
 };
 
-/** Chooses the session preview and composes its account menu. */
+/**
+ * Chooses the session preview and composes its account menu.
+ */
 const SessionProfile = () => {
   const { user } = useSession();
 

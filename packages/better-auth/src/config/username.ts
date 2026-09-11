@@ -50,7 +50,9 @@ const usernameSchema = z
   )
   .brand<"Username">();
 
-/** A canonical username that has passed every shared username invariant. */
+/**
+ * A canonical username that has passed every shared username invariant.
+ */
 type Username = z.infer<typeof usernameSchema>;
 
 /**

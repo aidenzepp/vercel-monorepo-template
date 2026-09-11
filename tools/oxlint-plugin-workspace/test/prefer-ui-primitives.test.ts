@@ -3,13 +3,20 @@ import path from "node:path";
 
 import { z } from "zod";
 
-/** The repository root used as the working directory for integration lint runs. */
+/**
+ * The repository root used as the working directory for integration lint runs.
+ */
 const workspaceRoot = path.resolve(import.meta.dir, "../../..");
 
-/** The isolated Oxlint configuration that enables only the rule under test. */
+/**
+ * The isolated Oxlint configuration that enables only the rule under test.
+ */
 const configPath = path.resolve(import.meta.dir, "oxlint.config.mjs");
 
-/** Validates the stable diagnostic fields consumed by the integration assertions. */
+/**
+ * Validates the stable diagnostic fields consumed by the integration
+ * assertions.
+ */
 const oxlintOutputSchema = z.object({
   diagnostics: z.array(
     z.object({
@@ -19,7 +26,8 @@ const oxlintOutputSchema = z.object({
 });
 
 /**
- * Runs Oxlint against one controlled JSX fixture with only the workspace rule enabled.
+ * Runs Oxlint against one controlled JSX fixture with only the workspace rule
+ * enabled.
  *
  * @param fixture - The fixture whose diagnostics should be captured.
  * @returns The process result and emitted diagnostics.

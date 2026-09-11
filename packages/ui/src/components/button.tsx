@@ -53,7 +53,9 @@ const buttonVariants = cva(
 
 type ButtonProps = ButtonPrimitive.Props &
   VariantProps<typeof buttonVariants> & {
-    /** Disables the button and renders the standard progress indicator. */
+    /**
+     * Disables the button and renders the standard progress indicator.
+     */
     loading?: boolean;
   };
 

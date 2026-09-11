@@ -10,7 +10,9 @@ import { useActionState } from "react";
 
 import { authClient } from "@/lib/auth/auth-client";
 
-/** Creates a real Better Auth anonymous user and session. */
+/**
+ * Creates a real Better Auth anonymous user and session.
+ */
 const createAnonymousSession = async (): Promise<string | null> => {
   const response = await result.trycatch(
     async () => await authClient.signIn.anonymous()

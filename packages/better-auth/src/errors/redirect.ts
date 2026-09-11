@@ -171,7 +171,9 @@ const redirectErrorCode = {
 
 const redirectErrorCodeSchema = z.enum(redirectErrorCode);
 
-/** A Better Auth-owned OAuth redirect error recognized by this package. */
+/**
+ * A Better Auth-owned OAuth redirect error recognized by this package.
+ */
 type RedirectErrorCode = z.infer<typeof redirectErrorCodeSchema>;
 
 export { redirectErrorCode, redirectErrorCodeSchema };

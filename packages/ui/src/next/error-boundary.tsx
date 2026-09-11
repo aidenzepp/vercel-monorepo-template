@@ -6,7 +6,9 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 
 type ErrorBoundaryProps = Readonly<{
-  /** Content protected by this boundary. */
+  /**
+   * Content protected by this boundary.
+   */
   children: ReactNode;
 
   /**
@@ -31,8 +33,8 @@ const NextErrorBoundary = catchError(
  * Contains a rendering failure to one portion of the interface.
  *
  * This boundary does not catch errors from event handlers or arbitrary
- * asynchronous callbacks. Errors thrown by the fallback continue to the
- * nearest ancestor boundary.
+ * asynchronous callbacks. Errors thrown by the fallback continue to the nearest
+ * ancestor boundary.
  */
 const ErrorBoundary = ({ children, fallback }: ErrorBoundaryProps) => (
   <NextErrorBoundary fallback={fallback}>{children}</NextErrorBoundary>

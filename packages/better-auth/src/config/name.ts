@@ -1,9 +1,13 @@
 import { z } from "zod";
 
-/** The shortest stored name accepted after surrounding whitespace is removed. */
+/**
+ * The shortest stored name accepted after surrounding whitespace is removed.
+ */
 const NAME_MIN_LENGTH = 1;
 
-/** The longest stored name accepted by the shared authentication boundary. */
+/**
+ * The longest stored name accepted by the shared authentication boundary.
+ */
 const NAME_MAX_LENGTH = 50;
 
 /**
@@ -19,7 +23,9 @@ const nameSchema = z
   .max(NAME_MAX_LENGTH, `Name must be ${NAME_MAX_LENGTH} characters or fewer.`)
   .brand<"ProfileName">();
 
-/** A stored name that has passed every shared name invariant. */
+/**
+ * A stored name that has passed every shared name invariant.
+ */
 type ProfileName = z.infer<typeof nameSchema>;
 
 export { NAME_MAX_LENGTH, NAME_MIN_LENGTH, nameSchema };

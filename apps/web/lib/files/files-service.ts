@@ -20,7 +20,9 @@ type BlobCredentials = Pick<
 
 const DEFAULT_URL_LIFETIME_IN_SECONDS = 5 * 60;
 
-/** Returns only the credentials understood by Vercel's signing functions. */
+/**
+ * Returns only the credentials understood by Vercel's signing functions.
+ */
 const getBlobCredentials = (options: FileServiceOptions): BlobCredentials => {
   const credentials: BlobCredentials = {};
 
@@ -131,7 +133,9 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   };
 };
 
-/** Vercel Blob-backed implementation of the provider-neutral Files API. */
+/**
+ * Vercel Blob-backed implementation of the provider-neutral Files API.
+ */
 class FileService extends Files<VercelBlobAdapter> {
   constructor(options: FileServiceOptions = {}) {
     super({ adapter: signedVercelBlob(options) });
