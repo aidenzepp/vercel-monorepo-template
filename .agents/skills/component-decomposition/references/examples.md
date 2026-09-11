@@ -37,27 +37,104 @@ const ProfileSettingsForm = () => {
 
 ### POSITIVE — A named boundary supplies a prop-driven component family
 
-**Decisive evidence:** The boundary alone reads the session and auth client. The form owns form coordination, each field owns one semantic input, and the action owns submit presentation. React Hook Form context is appropriate here because the leaves participate in the form protocol rather than acquire application data.
+**Decisive evidence:** The boundary alone reads the session and auth client. The form owns form coordination, `ProfileFormRow` owns the shared accessible field structure, each field owns one semantic input, and the action owns submit presentation. React Hook Form context is appropriate here because the leaves participate in the form protocol rather than acquire application data.
 
 ```tsx
+import type { ReactNode } from "react";
+import type { FieldError as HookFormFieldError } from "react-hook-form";
+
 type ProfileSettings = {
   name: string;
   username: string;
 };
+
+interface ProfileFormRowProps {
+  children: ReactNode;
+  controlId: string;
+  description: string;
+  error?: HookFormFieldError;
+  label: string;
+}
 
 interface ProfileSettingsFormProps {
   user: ProfileSettings;
   onSave: (profile: ProfileSettings) => Promise<void>;
 }
 
+const ProfileFormRow = ({
+  children,
+  controlId,
+  description,
+  error,
+  label,
+}: ProfileFormRowProps) => (
+  <Field data-invalid={error !== undefined}>
+    <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+    {children}
+    <FieldDescription id={`${controlId}-description`}>
+      {description}
+    </FieldDescription>
+    <FieldError
+      errors={error === undefined ? [] : [error]}
+      id={`${controlId}-error`}
+    />
+  </Field>
+);
+
 const ProfileNameInput = ({ placeholder }: { placeholder?: string }) => {
-  const { register } = useFormContext<ProfileSettings>();
-  return <Input {...register("name")} placeholder={placeholder} />;
+  const {
+    formState: { errors },
+    register,
+  } = useFormContext<ProfileSettings>();
+  const controlId = "profile-name";
+
+  return (
+    <ProfileFormRow
+      controlId={controlId}
+      description="Shown throughout the application."
+      error={errors.name}
+      label="Name"
+    >
+      <Input
+        {...register("name")}
+        aria-describedby={`${controlId}-description`}
+        aria-errormessage={
+          errors.name === undefined ? undefined : `${controlId}-error`
+        }
+        aria-invalid={errors.name !== undefined}
+        id={controlId}
+        placeholder={placeholder}
+      />
+    </ProfileFormRow>
+  );
 };
 
 const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
-  const { register } = useFormContext<ProfileSettings>();
-  return <Input {...register("username")} placeholder={placeholder} />;
+  const {
+    formState: { errors },
+    register,
+  } = useFormContext<ProfileSettings>();
+  const controlId = "profile-username";
+
+  return (
+    <ProfileFormRow
+      controlId={controlId}
+      description="Uniquely identifies this user."
+      error={errors.username}
+      label="Username"
+    >
+      <Input
+        {...register("username")}
+        aria-describedby={`${controlId}-description`}
+        aria-errormessage={
+          errors.username === undefined ? undefined : `${controlId}-error`
+        }
+        aria-invalid={errors.username !== undefined}
+        id={controlId}
+        placeholder={placeholder}
+      />
+    </ProfileFormRow>
+  );
 };
 
 const ProfileSaveAction = () => {
