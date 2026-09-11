@@ -1,7 +1,6 @@
+import { ErrorBoundary } from "@workspace/ui/next/error-boundary";
 import type { ComponentProps, ReactNode } from "react";
 import { Suspense } from "react";
-
-import { ErrorBoundary } from "./error-boundary.js";
 
 type ErrorBoundaryProps = ComponentProps<typeof ErrorBoundary>;
 
