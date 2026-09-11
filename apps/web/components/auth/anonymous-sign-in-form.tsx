@@ -3,6 +3,7 @@
 import { Button } from "@workspace/ui/components/button";
 import { Field, FieldError } from "@workspace/ui/components/field";
 import { Spinner } from "@workspace/ui/components/spinner";
+import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import Form from "next/form";
 import { useActionState } from "react";
@@ -17,7 +18,23 @@ const signInAnonymously = async (): Promise<string | null> => {
     async () => await authClient.signIn.anonymous()
   );
 
-  if (!response.ok || response.value.error) {
+  if (!response.ok) {
+    logger.error(
+      { err: response.error, operation: "auth.sign_in.anonymous" },
+      "Anonymous sign-in request failed"
+    );
+    return "A temporary account couldn’t be created. Try again.";
+  }
+
+  if (response.value.error) {
+    logger.warn(
+      {
+        code: response.value.error.code,
+        operation: "auth.sign_in.anonymous",
+        status: response.value.error.status,
+      },
+      "Anonymous sign-in rejected"
+    );
     return "A temporary account couldn’t be created. Try again.";
   }
 

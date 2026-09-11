@@ -1,9 +1,12 @@
-import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
-import { requireSession } from "@/lib/auth/session-server";
+import { AsyncBoundary } from "@workspace/ui/next/async-boundary";
 
-export default async function SettingsPage() {
-  const { user } = await requireSession();
+import { ProfileSettings } from "@/components/settings/profile-settings";
+import {
+  ProfileSettingsError,
+  ProfileSettingsLoading,
+} from "@/components/settings/profile-settings-fallback";
 
+export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-8">
       <header className="flex flex-col gap-1">
@@ -15,9 +18,12 @@ export default async function SettingsPage() {
         </p>
       </header>
 
-      <ProfileSettingsForm
-        user={{ name: user.name, username: user.username }}
-      />
+      <AsyncBoundary
+        failure={<ProfileSettingsError />}
+        loading={<ProfileSettingsLoading />}
+      >
+        <ProfileSettings />
+      </AsyncBoundary>
     </div>
   );
 }

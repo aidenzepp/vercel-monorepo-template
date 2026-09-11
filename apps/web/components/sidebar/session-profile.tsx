@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { FieldError } from "@workspace/ui/components/field";
+import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import { HatGlasses, LogOut, Settings, UserRound } from "lucide-react";
 import Form from "next/form";
@@ -26,8 +27,24 @@ const signOut = async (): Promise<string | null> => {
     async () => await authClient.signOut()
   );
 
-  if (!response.ok || response.value.error) {
-    return "Sign out failed. Try again.";
+  if (!response.ok) {
+    logger.error(
+      { err: response.error, operation: "auth.sign_out" },
+      "Sign-out request failed"
+    );
+    return "We couldn’t sign you out. Try again.";
+  }
+
+  if (response.value.error) {
+    logger.warn(
+      {
+        code: response.value.error.code,
+        operation: "auth.sign_out",
+        status: response.value.error.status,
+      },
+      "Sign-out rejected"
+    );
+    return "We couldn’t sign you out. Try again.";
   }
 
   window.location.assign("/sign-in");

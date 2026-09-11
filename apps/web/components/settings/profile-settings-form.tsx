@@ -30,6 +30,7 @@ import {
 } from "@workspace/ui/components/input-group";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
+import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import type { SubmitEvent } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
@@ -90,13 +91,15 @@ const getProfileUpdateIssue = (error: {
   if (error.status === 429) {
     return {
       field: "root",
-      message: "Too many updates were attempted. Wait a moment, then retry.",
+      message:
+        "You’ve made several changes in a short time. Wait a moment, then try again.",
     };
   }
 
   return {
     field: "root",
-    message: "Your profile could not be updated. Try again.",
+    message:
+      "We couldn’t save your changes. Your edits are still here. Try again.",
   };
 };
 
@@ -189,14 +192,26 @@ const ProfileSettingsForm = ({ user }: { user: ProfileSettingsUser }) => {
     );
 
     if (!response.ok) {
+      logger.error(
+        { err: response.error, operation: "profile.update" },
+        "Profile update request failed"
+      );
       form.setError("root", {
         message:
-          "The profile service could not be reached. Your edits are still here. Try again.",
+          "We couldn’t save your changes. Your edits are still here. Try again.",
       });
       return;
     }
 
     if (response.value.error !== null) {
+      logger.warn(
+        {
+          code: response.value.error.code,
+          operation: "profile.update",
+          status: response.value.error.status,
+        },
+        "Profile update rejected"
+      );
       const issue = getProfileUpdateIssue(response.value.error);
       form.setError(issue.field, { message: issue.message });
       return;
