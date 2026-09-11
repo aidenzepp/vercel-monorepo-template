@@ -9,7 +9,21 @@ Make each program unit's contract and system role clear before a reader studies 
 
 ## Required coverage
 
-Add a `/** ... */` doc comment to every module-scope function, component, interface, type alias, class, service, enum, namespace, callback type, and `const` declaration. Also document each interface or object-type property and every named file-local helper function. Local values declared inside a function are not program units unless the declaration is itself a helper function.
+Add a doc comment to every module-scope function, component, standalone domain or service type, class, service, enum, namespace, callback type, and `const` declaration. Also document every named file-local helper function. Local values declared inside a function are not program units unless the declaration is itself a helper function.
+
+Component-local props interfaces and object types are structural support for the component, not separate documentation surfaces. The component comment owns their parameter contract. A standalone domain, service, or library interface owns its own contract because callers consume that interface directly.
+
+## Format Every Doc Comment
+
+Always use multiline JSDoc, including for one sentence:
+
+```ts
+/**
+ * The largest username accepted by the authentication boundary.
+ */
+```
+
+Never use `/** ... */` on one line. Oxfmt enforces this across formatted source with `jsdoc.commentLineStrategy: "multiline"`. The canonical `result.ts` and `option.ts` exemplars are excluded from JSDoc normalization so the formatter cannot rewrite their deliberately chosen prose and examples; they already follow the multiline rule.
 
 ## Write in the repository's voice
 
@@ -28,14 +42,15 @@ Follow `packages/utils/src/result.ts` and `packages/utils/src/option.ts`:
 | Program unit | Required documentation |
 | --- | --- |
 | Function, component, or named helper | `@param` for every argument and `@returns` for its semantic result. For destructuring, document both `props` and every `props.property`. |
-| Callback signature | Describe the capability or intent, then document every callback argument with `@param` and its completion with `@returns`. |
-| Interface or object type | Define the whole contract, then document every property in consumer vocabulary. Property comments are authoritative. |
+| Component-local props type | Leave it structural. Put the prop meanings and callback completion contract on the component's `@param` tags. |
+| Standalone callback signature | Describe the capability or intent, then document every callback argument with `@param` and its completion with `@returns`. |
+| Standalone domain, service, or library interface | Define the whole contract. Document every callable member with its arguments and semantic result. Document a data property only when the comment adds a constraint, invariant, or domain meaning not already established by the interface comment. |
 | Module-scope non-callable `const` | State the invariant, policy, shared consumers, or system role that the value establishes. |
 | Public overload set | Document each public overload whose contract differs. Do not separately document the implementation signature. |
 
 For a `void` function, omit `@returns` when completion has no consumer-facing meaning. Include it when completion establishes a meaningful side-effect contract. For components, describe the rendered responsibility rather than writing “JSX.”
 
-Reusable props types own the complete property meaning. The component's `@param props.property` entry states how that property participates in this component; it must not copy the property comment verbatim.
+Document each fact once at the surface that owns it. For a component, that is the component comment—not its local props interface. For a standalone interface, that is the interface and its non-obvious members—not every function that happens to accept it.
 
 For an inline object parameter, the function's `@param` entry defines the object as a whole and each property entry defines one member; do not add a second standalone comment. Overloads differ when they accept different representations, return different guarantees, or expose different failures. Put shared invariants in each public contract only when callers of that overload need them.
 
@@ -48,10 +63,20 @@ Use optional tags only when their condition holds:
 
 Do not repeat TypeScript types in prose or add tags with no information. Small file-local helpers still receive a concise purpose plus applicable `@param` and `@returns` tags; they do not receive optional tags by default.
 
+## Cite Authoritative Sources
+
+Add `@see` links whenever a reader would otherwise need to rediscover the external rule behind the code. Common triggers include framework behavior, provider configuration, protocol requirements, version-specific error values, compatibility constraints, and adaptations of an upstream primitive.
+
+- Link canonical documentation for the supported public behavior.
+- Also link a versioned source permalink when the exact implementation or emitted value matters.
+- Use `@see {@link Symbol}` for a useful relationship to another repository unit.
+- Place the link on the smallest unit that owns the sourced behavior.
+- Omit generic homepages and links that add nothing beyond an import or parameter type.
+
 ## Labeled Examples
 
 **REQUIRED REFERENCE:** Read [references/examples.md](references/examples.md) before writing or reviewing code documentation. Treat each `POSITIVE` and `NEGATIVE` label as acceptance data: reproduce the documented contract quality, not merely the comment shape.
 
 ## Review
 
-Confirm every required unit, property, argument, and destructured property is documented; tags follow the unit's contract; openings define purpose with established vocabulary; follow-ups add information absent from the signature; and links resolve to useful relationships. Reject comments that narrate syntax, duplicate types, or merely restate names.
+Confirm every required unit, argument, and destructured property is documented; component-local props do not duplicate component prose; standalone interfaces retain their own contracts; every block is multiline; tags follow the unit's contract; authoritative links sit beside sourced behavior; and links resolve to useful relationships. Reject comments that narrate syntax, duplicate types, or merely restate names.

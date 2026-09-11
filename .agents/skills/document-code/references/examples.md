@@ -27,14 +27,12 @@ const ProfileNameInput = ({ placeholder }: ProfileNameInputProps) => (
 );
 ```
 
-### POSITIVE — Documentation states the consumer-facing contract once
+### POSITIVE — The component owns its local props contract
 
-**Decisive evidence:** The props type owns the full property meaning. The component tags explain how the object and property participate here without copying that property comment, and the return describes the rendered responsibility.
+**Decisive evidence:** The local props interface stays structural. The component is the public behavior a reader needs to understand, so its tags own the object and property meanings without a second copy on the interface.
 
 ```tsx
-/** The presentation values accepted by the profile name field. */
 interface ProfileNameInputProps {
-  /** The hint displayed while the name control has no value. */
   placeholder?: string;
 }
 
@@ -50,22 +48,46 @@ const ProfileNameInput = ({ placeholder }: ProfileNameInputProps) => (
 );
 ```
 
-### POSITIVE — A callback property documents its capability and completion
+### POSITIVE — A component owns its callback prop contract
 
-**Decisive evidence:** The interface defines the family boundary, the `user` property states the subset's role, and `onSave` explains both the intent of its argument and what promise completion guarantees.
+**Decisive evidence:** The local props interface remains structural. The component comment explains the callback at the point where callers choose to provide it, including what promise completion guarantees.
 
 ```tsx
-/** The values and persistence capability required by profile settings. */
 interface ProfileSettingsFormProps {
-  /** The current public identity used to initialize the editable fields. */
   user: Pick<User, "name" | "username">;
-  /**
-   * Persists an edited public identity through the owning application boundary.
-   *
-   * @param profile - The validated name and username to persist.
-   * @returns A promise that settles after the saved identity becomes observable.
-   */
   onSave: (profile: ProfileSettings) => Promise<void>;
+}
+
+/**
+ * Displays editable public identity fields and submits validated changes.
+ *
+ * @param props - The values and persistence capability for profile settings.
+ * @param props.user - Supplies the current public identity shown by the fields.
+ * @param props.onSave - Persists the validated identity and resolves once the saved values are observable.
+ * @returns The form used to edit a user's public identity.
+ */
+const ProfileSettingsForm = ({ user, onSave }: ProfileSettingsFormProps) => {
+  // ...
+};
+```
+
+### POSITIVE — A standalone interface owns its reusable boundary
+
+**Decisive evidence:** This interface is consumed independently of one component. Its comment defines the service boundary, while the method comment records the non-obvious completion guarantee once for every caller.
+
+```ts
+/**
+ * The persistence operations available for a user's public profile.
+ */
+interface ProfileRepository {
+  /**
+   * Persists a validated public identity.
+   *
+   * @param userId - The user whose public identity is changing.
+   * @param profile - The validated name and username to persist.
+   * @returns A promise that resolves once later reads can observe the saved values.
+   */
+  save(userId: string, profile: ProfileSettings): Promise<void>;
 }
 ```
 
@@ -88,7 +110,9 @@ const normalizeUsername = (value: string) => value.trim().toLowerCase();
 **Decisive evidence:** The constant identifies the consumers that must agree. The helper documents its input meaning and exact semantic result without optional tag filler.
 
 ```ts
-/** The largest username accepted by both form validation and Better Auth. */
+/**
+ * The largest username accepted by both form validation and Better Auth.
+ */
 const MAX_USERNAME_LENGTH = 32;
 
 /**
@@ -186,4 +210,55 @@ const UserMenu = (props: UserMenuProps) => null;
 const requireSession = async (): Promise<Session> => {
   // ...
 };
+```
+
+## Authoritative source links
+
+### NEGATIVE — A generic homepage does not explain the sourced behavior
+
+**Decisive evidence:** The comment claims an upstream-owned error catalog but links only to a homepage. A reader still has to rediscover the relevant documentation and cannot verify which source version the local values mirror.
+
+```ts
+/**
+ * Better Auth redirect error codes.
+ *
+ * @see https://better-auth.com
+ */
+const redirectErrorCodeSchema = z.enum(["account_not_linked"]);
+```
+
+### POSITIVE — Documentation and versioned source make provenance verifiable
+
+**Decisive evidence:** The canonical documentation explains the supported public behavior. The versioned source permalink proves the exact emitted value mirrored by this repository.
+
+```ts
+/**
+ * Validates the redirect error codes owned by the installed Better Auth version.
+ *
+ * @see https://better-auth.com/docs/reference/errors
+ * @see https://github.com/better-auth/better-auth/blob/v1.7.2/packages/better-auth/src/oauth2/errors.ts
+ */
+const redirectErrorCodeSchema = z.enum(["account_not_linked"]);
+```
+
+## Comment format
+
+### NEGATIVE — A one-line JSDoc block hides the normal documentation shape
+
+**Decisive evidence:** Even a correct sentence uses the forbidden compact form, making comments visually inconsistent and leaving no natural place for future tags.
+
+```ts
+/** The largest username accepted by the authentication boundary. */
+const MAX_USERNAME_LENGTH = 32;
+```
+
+### POSITIVE — Every JSDoc block uses the multiline form
+
+**Decisive evidence:** The block follows the same stable shape whether it contains one sentence or several tags.
+
+```ts
+/**
+ * The largest username accepted by the authentication boundary.
+ */
+const MAX_USERNAME_LENGTH = 32;
 ```
