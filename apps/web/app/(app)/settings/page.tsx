@@ -1,6 +1,9 @@
 import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
+import { requireSession } from "@/lib/auth/session-server";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const { user } = await requireSession();
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-8">
       <header className="flex flex-col gap-1">
@@ -12,7 +15,9 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      <ProfileSettingsForm />
+      <ProfileSettingsForm
+        user={{ name: user.name, username: user.username }}
+      />
     </div>
   );
 }

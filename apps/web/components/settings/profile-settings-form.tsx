@@ -31,12 +31,10 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
 import { result } from "@workspace/utils/result";
-import { useRouter } from "next/navigation";
 import type { SubmitEvent } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { z } from "zod";
 
-import { useSession } from "@/components/auth/session-provider";
 import { authClient } from "@/lib/auth/auth-client";
 
 const profileSettingsSchema = z.object({
@@ -46,6 +44,10 @@ const profileSettingsSchema = z.object({
 
 type ProfileSettingsFields = z.input<typeof profileSettingsSchema>;
 type ProfileSettings = z.output<typeof profileSettingsSchema>;
+type ProfileSettingsUser = Pick<
+  (typeof authClient.$Infer.Session)["user"],
+  "name" | "username"
+>;
 
 interface ProfileSettingsIssue {
   field: "root" | "username";
@@ -167,9 +169,7 @@ const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
 };
 
 /** Owns profile validation, submission, and the form shared by both inputs. */
-const ProfileSettingsForm = () => {
-  const router = useRouter();
-  const { user } = useSession();
+const ProfileSettingsForm = ({ user }: { user: ProfileSettingsUser }) => {
   const form = useForm<ProfileSettingsFields, unknown, ProfileSettings>({
     defaultValues: {
       name: user.name,
@@ -197,19 +197,12 @@ const ProfileSettingsForm = () => {
     }
 
     if (response.value.error !== null) {
-      if (response.value.error.status === 401) {
-        router.replace("/sign-in");
-        router.refresh();
-        return;
-      }
-
       const issue = getProfileUpdateIssue(response.value.error);
       form.setError(issue.field, { message: issue.message });
       return;
     }
 
     form.reset(settings);
-    router.refresh();
     toast.add({
       description: "Your changes are now reflected throughout templ8.",
       title: "Profile updated",
