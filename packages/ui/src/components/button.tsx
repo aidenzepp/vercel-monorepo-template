@@ -1,4 +1,5 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
@@ -50,21 +51,35 @@ const buttonVariants = cva(
   }
 );
 
+type ButtonProps = ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    /** Disables the button and renders the standard progress indicator. */
+    loading?: boolean;
+  };
+
 function Button({
+  children,
   className,
   color = "default",
+  disabled,
+  loading = false,
   variant = "primary",
   size = "default",
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
     <ButtonPrimitive
+      aria-busy={loading || undefined}
       data-slot="button"
       data-color={color}
       data-variant={variant}
       className={cn(buttonVariants({ color, variant, size, className }))}
+      disabled={disabled || loading}
       {...props}
-    />
+    >
+      {loading ? <Spinner data-icon="inline-start" /> : null}
+      {children}
+    </ButtonPrimitive>
   );
 }
 
