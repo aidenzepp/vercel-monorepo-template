@@ -1,5 +1,11 @@
 import { Button } from "@workspace/ui/components/button";
+import { Kbd } from "@workspace/ui/components/kbd";
 
+/**
+ * Displays the marketing application's starter page.
+ *
+ * @returns The initial marketing workspace and its development shortcut.
+ */
 export default function Page() {
   return (
     <div className="flex min-h-svh p-6">
@@ -11,7 +17,7 @@ export default function Page() {
           <Button className="mt-2">Button</Button>
         </div>
         <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
+          (Press <Kbd>d</Kbd> to toggle dark mode)
         </div>
       </div>
     </div>
