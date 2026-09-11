@@ -8,7 +8,6 @@
 - Final implementation screenshots:
   - `/private/tmp/templ8-sign-in-split.png`
   - `/private/tmp/templ8-shell-inset.png`
-  - `/private/tmp/templ8-shell-avatar-mobile.png`
 - Combined comparison inputs:
   - `/private/tmp/templ8-sign-in-comparison-v3.jpg`
   - `/private/tmp/templ8-shell-comparison-v2.jpg`
@@ -21,7 +20,7 @@ The final desktop implementation captures are 1280 × 720 pixels. The sign-in so
 - Light theme.
 - Signed-out sign-in page with enabled anonymous action and disabled Google action.
 - Signed-in anonymous session with the inset sidebar at desktop and the responsive sidebar at a 645-pixel viewport.
-- Verified anonymous loading and success states, protected-route redirect, account-menu opening, semantic settings-link navigation, profile update, private Blob avatar upload and authenticated read, and session refresh.
+- Verified anonymous loading and success states, protected-route redirect, account-menu opening, semantic settings-link navigation, profile update, and session refresh.
 - Browser and server logs showed successful auth requests and no remaining application errors in the final pass.
 
 ## Fidelity review
@@ -40,7 +39,7 @@ Focused comparison was used for the wordmark, form controls, sidebar header, and
 1. Initial sign-in comparison found an oversized wordmark relative to the source. The wordmark height was reduced from 2.75rem to 2rem on sign-in and from 2.25rem to 2rem in the sidebar. The revised evidence is `/private/tmp/templ8-sign-in-comparison-v2.png`.
 2. Initial shell comparison found the profile name truncated by a permanently visible sign-out button. Sign-out moved into an accessible account dropdown triggered by the complete profile row. The revised evidence is `/private/tmp/templ8-shell-comparison.png`.
 3. The approved refinement centered the sign-in wordmark within its panel, introduced a Tailwind-only responsive grid panel, changed the Google action to neutral outline, and adopted the inset sidebar. The revised evidence is `/private/tmp/templ8-sign-in-comparison-v3.jpg` and `/private/tmp/templ8-shell-comparison-v2.jpg`.
-4. The account menu gained semantic Settings navigation and icon-labelled sign out. The settings route successfully updated name and username, uploaded an avatar directly to private Blob storage, served it through the authenticated avatar route, and refreshed both desktop and mobile session surfaces.
+4. The account menu gained semantic Settings navigation and icon-labelled sign out. The settings route successfully updated name and username and refreshed both desktop and mobile session surfaces.
 
 ## Findings
 

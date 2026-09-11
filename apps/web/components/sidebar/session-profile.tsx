@@ -15,7 +15,6 @@ import { FieldError } from "@workspace/ui/components/field";
 import { result } from "@workspace/utils/result";
 import { HatGlasses, LogOut, Settings, UserRound } from "lucide-react";
 import Form from "next/form";
-import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -49,20 +48,7 @@ const SessionProfile = () => {
         >
           <Avatar size="lg">
             {user.image === null || user.image === undefined ? null : (
-              <AvatarImage
-                key={user.image}
-                alt=""
-                render={
-                  <Image
-                    alt=""
-                    fill
-                    sizes="2.5rem"
-                    src="/api/avatar"
-                    unoptimized
-                  />
-                }
-                src="/api/avatar"
-              />
+              <AvatarImage key={user.image} alt="" src={user.image} />
             )}
             <AvatarFallback>
               {user.isAnonymous === true ? (

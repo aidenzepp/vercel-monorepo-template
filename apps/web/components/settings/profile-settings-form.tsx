@@ -1,6 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { nameSchema } from "@workspace/better-auth/config/name";
+import { usernameSchema } from "@workspace/better-auth/config/username";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -30,57 +32,25 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { toast } from "@workspace/ui/components/toast";
 import { result } from "@workspace/utils/result";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
 import type { SubmitEvent } from "react";
-import { useForm } from "react-hook-form";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { z } from "zod";
 
 import { useSession } from "@/components/auth/session-provider";
-import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { authClient } from "@/lib/auth/auth-client";
-import {
-  completeAvatarUpload,
-  prepareAvatarUpload,
-} from "@/lib/profile/avatar-upload";
-import type { PreparedAvatarUpload } from "@/lib/profile/avatar-upload";
-import { profileSettingsSchema } from "@/lib/settings/profile-settings-schema";
-import type {
-  ProfileSettings,
-  ProfileSettingsFields,
-} from "@/lib/settings/profile-settings-schema";
+
+const profileSettingsSchema = z.object({
+  name: nameSchema,
+  username: usernameSchema,
+});
+
+type ProfileSettingsFields = z.input<typeof profileSettingsSchema>;
+type ProfileSettings = z.output<typeof profileSettingsSchema>;
 
 interface ProfileSettingsIssue {
   field: "root" | "username";
   message: string;
 }
-
-type ProfileSettingsUpdate =
-  | { image: string }
-  | { name: string; username: string };
-
-const avatarUploadResultSchema = z.object({ url: z.url() });
-
-/** Sends one avatar directly to the upload URL authorized by the server. */
-const uploadAvatar = async (
-  file: File,
-  upload: PreparedAvatarUpload
-): Promise<string> => {
-  const response = await fetch(upload.signedUploadUrl, {
-    body: file,
-    headers: upload.headers,
-    method: "PUT",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Avatar upload failed with status ${response.status}.`);
-  }
-
-  const body: unknown = await response.json();
-
-  const uploaded = avatarUploadResultSchema.parse(body);
-
-  return await completeAvatarUpload(uploaded.url);
-};
 
 /** Maps a Better Auth failure to the field and repair message the form owns. */
 const getProfileUpdateIssue = (error: {
@@ -128,34 +98,94 @@ const getProfileUpdateIssue = (error: {
   };
 };
 
+/** Edits the display name registered by the surrounding profile form. */
+const ProfileNameInput = ({ placeholder }: { placeholder?: string }) => {
+  const {
+    formState: { errors },
+    register,
+  } = useFormContext<ProfileSettingsFields, unknown, ProfileSettings>();
+
+  return (
+    <Field data-invalid={errors.name !== undefined}>
+      <FieldLabel htmlFor="settings-name">Name</FieldLabel>
+      <Input
+        {...register("name")}
+        aria-describedby="settings-name-description"
+        aria-errormessage={
+          errors.name === undefined ? undefined : "settings-name-error"
+        }
+        aria-invalid={errors.name !== undefined}
+        autoComplete="name"
+        id="settings-name"
+        placeholder={placeholder}
+      />
+      <FieldDescription id="settings-name-description">
+        This is the name shown throughout the application.
+      </FieldDescription>
+      <FieldError errors={[errors.name]} id="settings-name-error" />
+    </Field>
+  );
+};
+
+/** Edits the username registered by the surrounding profile form. */
+const ProfileUsernameInput = ({ placeholder }: { placeholder?: string }) => {
+  const {
+    formState: { errors },
+    register,
+  } = useFormContext<ProfileSettingsFields, unknown, ProfileSettings>();
+
+  return (
+    <Field data-invalid={errors.username !== undefined}>
+      <FieldLabel htmlFor="settings-username">Username</FieldLabel>
+      <InputGroup>
+        <InputGroupAddon>
+          <InputGroupText>@</InputGroupText>
+        </InputGroupAddon>
+        <InputGroupInput
+          {...register("username")}
+          aria-describedby="settings-username-description"
+          aria-errormessage={
+            errors.username === undefined
+              ? undefined
+              : "settings-username-error"
+          }
+          aria-invalid={errors.username !== undefined}
+          autoCapitalize="none"
+          autoComplete="username"
+          id="settings-username"
+          placeholder={placeholder}
+          spellCheck={false}
+        />
+      </InputGroup>
+      <FieldDescription id="settings-username-description">
+        Use letters, numbers, underscores, and single periods between
+        characters.
+      </FieldDescription>
+      <FieldError errors={[errors.username]} id="settings-username-error" />
+    </Field>
+  );
+};
+
+/** Owns profile validation, submission, and the form shared by both inputs. */
 const ProfileSettingsForm = () => {
   const router = useRouter();
   const { user } = useSession();
-  const avatarInput = useRef<HTMLInputElement | null>(null);
-  const uploadedAvatarUrls = useRef(new WeakMap<File, string>());
-  const profile = {
-    avatar: undefined,
-    name: user.name,
-    username: user.username ?? "",
-  };
   const form = useForm<ProfileSettingsFields, unknown, ProfileSettings>({
-    defaultValues: profile,
-    resetOptions: { keepDirtyValues: true, keepErrors: true },
+    defaultValues: {
+      name: user.name,
+      username: user.username ?? "",
+    },
     resolver: zodResolver(profileSettingsSchema),
-    values: profile,
   });
-  const { dirtyFields, errors, isDirty, isSubmitting } = form.formState;
-  // A changed query gives the browser a fresh read after Better Auth saves a new image.
-  const avatarUrl =
-    user.image === null || user.image === undefined
-      ? null
-      : `/api/avatar?version=${encodeURIComponent(user.image)}`;
+  const { errors, isDirty, isSubmitting } = form.formState;
 
-  const updateProfile = async (
-    update: ProfileSettingsUpdate
-  ): Promise<boolean> => {
+  const saveProfile = async (settings: ProfileSettings) => {
     const response = await result.trycatch(
-      async () => await authClient.updateUser(update)
+      async () =>
+        await authClient.updateUser({
+          name: settings.name,
+          username: settings.username,
+        })
     );
 
     if (!response.ok) {
@@ -163,112 +193,28 @@ const ProfileSettingsForm = () => {
         message:
           "The profile service could not be reached. Your edits are still here. Try again.",
       });
-      return false;
+      return;
     }
 
-    if (response.value.error === null) {
-      return true;
-    }
-
-    if (response.value.error.status === 401) {
-      router.replace("/sign-in");
-      router.refresh();
-      return false;
-    }
-
-    const issue = getProfileUpdateIssue(response.value.error);
-    form.setError(issue.field, { message: issue.message });
-
-    return false;
-  };
-
-  /**
-   * Saves identity before uploading media, so a rejected name or username
-   * cannot leave a new Blob behind. Completed uploads are reused on retry.
-   */
-  const saveProfile = async (settings: ProfileSettings) => {
-    const identityChanged =
-      dirtyFields.name === true || dirtyFields.username === true;
-
-    if (identityChanged) {
-      const identitySaved = await updateProfile({
-        name: settings.name,
-        username: settings.username,
-      });
-
-      if (!identitySaved) {
+    if (response.value.error !== null) {
+      if (response.value.error.status === 401) {
+        router.replace("/sign-in");
+        router.refresh();
         return;
       }
 
-      form.resetField("name", { defaultValue: settings.name });
-      form.resetField("username", { defaultValue: settings.username });
+      const issue = getProfileUpdateIssue(response.value.error);
+      form.setError(issue.field, { message: issue.message });
+      return;
     }
 
-    if (dirtyFields.avatar === true && settings.avatar !== undefined) {
-      const { contentType, file } = settings.avatar;
-      let image = uploadedAvatarUrls.current.get(file);
-
-      if (image === undefined) {
-        const uploaded = await result.trycatch(async () => {
-          const prepared = await prepareAvatarUpload({
-            contentType,
-            size: file.size,
-          });
-
-          return await uploadAvatar(file, prepared);
-        });
-
-        if (!uploaded.ok) {
-          const session = await result.trycatch(
-            async () => await authClient.getSession()
-          );
-
-          const sessionExpired =
-            session.ok &&
-            session.value.data === null &&
-            (session.value.error === null ||
-              session.value.error?.status === 401);
-
-          if (sessionExpired) {
-            router.replace("/sign-in");
-            router.refresh();
-            return;
-          }
-
-          form.setError("avatar", {
-            message:
-              "The avatar upload was interrupted. Your selection is still here. Try again.",
-          });
-          return;
-        }
-
-        image = uploaded.value;
-        uploadedAvatarUrls.current.set(file, image);
-      }
-
-      if (!(await updateProfile({ image }))) {
-        return;
-      }
-
-      form.resetField("avatar");
-      if (avatarInput.current !== null) {
-        avatarInput.current.value = "";
-      }
-    }
-
+    form.reset(settings);
     router.refresh();
     toast.add({
       description: "Your changes are now reflected throughout templ8.",
       title: "Profile updated",
       type: "success",
     });
-  };
-
-  const resetProfile = () => {
-    form.reset();
-    if (avatarInput.current !== null) {
-      avatarInput.current.value = "";
-    }
   };
 
   const submitProfile = (event: SubmitEvent<HTMLFormElement>) => {
@@ -284,95 +230,41 @@ const ProfileSettingsForm = () => {
         </CardDescription>
       </CardHeader>
 
-      <form noValidate onSubmit={submitProfile}>
-        <CardContent>
-          <FieldSet disabled={isSubmitting}>
-            <FieldLegend className="sr-only">Profile</FieldLegend>
-            <FieldError errors={[errors.root]} />
+      <FormProvider {...form}>
+        <form noValidate onSubmit={submitProfile}>
+          <CardContent>
+            <FieldSet disabled={isSubmitting}>
+              <FieldLegend className="sr-only">Profile</FieldLegend>
+              <FieldError errors={[errors.root]} />
 
-            <ProfileAvatarField
-              captureInput={(element) => {
-                avatarInput.current = element;
+              <FieldGroup className="gap-4">
+                <ProfileNameInput placeholder="Your name" />
+                <ProfileUsernameInput placeholder="username" />
+              </FieldGroup>
+            </FieldSet>
+          </CardContent>
+
+          <CardFooter className="mt-6 justify-end gap-2">
+            <Button
+              color="neutral"
+              disabled={!isDirty || isSubmitting}
+              onClick={() => {
+                form.reset();
               }}
-              control={form.control}
-              image={avatarUrl}
-              isAnonymous={user.isAnonymous === true}
-            />
-
-            <FieldGroup className="gap-4">
-              <Field data-invalid={errors.name !== undefined}>
-                <FieldLabel htmlFor="settings-name">Name</FieldLabel>
-                <Input
-                  {...form.register("name")}
-                  aria-describedby="settings-name-description"
-                  aria-errormessage={
-                    errors.name === undefined
-                      ? undefined
-                      : "settings-name-error"
-                  }
-                  aria-invalid={errors.name !== undefined}
-                  autoComplete="name"
-                  id="settings-name"
-                />
-                <FieldDescription id="settings-name-description">
-                  This is the name shown throughout the application.
-                </FieldDescription>
-                <FieldError errors={[errors.name]} id="settings-name-error" />
-              </Field>
-
-              <Field data-invalid={errors.username !== undefined}>
-                <FieldLabel htmlFor="settings-username">Username</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon>
-                    <InputGroupText>@</InputGroupText>
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    {...form.register("username")}
-                    aria-describedby="settings-username-description"
-                    aria-errormessage={
-                      errors.username === undefined
-                        ? undefined
-                        : "settings-username-error"
-                    }
-                    aria-invalid={errors.username !== undefined}
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    id="settings-username"
-                    placeholder="username"
-                    spellCheck={false}
-                  />
-                </InputGroup>
-                <FieldDescription id="settings-username-description">
-                  Use letters, numbers, underscores, and single periods between
-                  characters.
-                </FieldDescription>
-                <FieldError
-                  errors={[errors.username]}
-                  id="settings-username-error"
-                />
-              </Field>
-            </FieldGroup>
-          </FieldSet>
-        </CardContent>
-
-        <CardFooter className="mt-6 justify-end gap-2">
-          <Button
-            color="neutral"
-            disabled={!isDirty || isSubmitting}
-            onClick={resetProfile}
-            type="button"
-            variant="outline"
-          >
-            Reset
-          </Button>
-          <Button disabled={!isDirty || isSubmitting} type="submit">
-            {isSubmitting ? <Spinner aria-hidden="true" /> : null}
-            {isSubmitting ? "Saving…" : "Save changes"}
-          </Button>
-        </CardFooter>
-      </form>
+              type="button"
+              variant="outline"
+            >
+              Reset
+            </Button>
+            <Button disabled={!isDirty || isSubmitting} type="submit">
+              {isSubmitting ? <Spinner aria-hidden="true" /> : null}
+              {isSubmitting ? "Saving…" : "Save changes"}
+            </Button>
+          </CardFooter>
+        </form>
+      </FormProvider>
     </Card>
   );
 };
 
-export { ProfileSettingsForm };
+export { ProfileNameInput, ProfileSettingsForm, ProfileUsernameInput };
