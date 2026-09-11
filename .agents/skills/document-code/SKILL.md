@@ -23,7 +23,7 @@ Always use multiline JSDoc, including for one sentence:
  */
 ```
 
-Never use `/** ... */` on one line. Oxfmt enforces this across formatted source with `jsdoc.commentLineStrategy: "multiline"`. The canonical `result.ts` and `option.ts` exemplars are excluded from JSDoc normalization so the formatter cannot rewrite their deliberately chosen prose and examples; they already follow the multiline rule.
+Never use `/** ... */` on one line. Oxfmt enforces this across formatted source with `jsdoc.commentLineStrategy: "multiline"`.
 
 ## Write in the repository's voice
 

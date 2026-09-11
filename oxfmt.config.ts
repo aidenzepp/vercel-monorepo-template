@@ -10,10 +10,4 @@ export default defineConfig({
     commentLineStrategy: "multiline",
     lineWrappingStyle: "balance",
   },
-  overrides: [
-    {
-      files: ["packages/utils/src/option.ts", "packages/utils/src/result.ts"],
-      options: { jsdoc: false },
-    },
-  ],
 });

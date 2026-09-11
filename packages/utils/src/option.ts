@@ -4,17 +4,16 @@
  * indexing, and the rest of the JavaScript ecosystem.
  *
  * @example
- * ```ts
- * const user: Option<User> = users.get(id)
- * if (user !== option.none) {
- *     return user.name
- * }
- * ```
+ *   const user: Option<User> = users.get(id);
+ *   if (user !== option.none) {
+ *     return user.name;
+ *   }
  */
 type Option<T> = T | typeof none;
 
 /**
- * The absent value. Reads as intentional absence rather than a forgotten return.
+ * The absent value. Reads as intentional absence rather than a forgotten
+ * return.
  */
 const none = undefined;
 

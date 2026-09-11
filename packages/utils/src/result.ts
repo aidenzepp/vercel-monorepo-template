@@ -6,10 +6,8 @@ import type { Option } from "@workspace/utils/option";
  * value accessible via .value.
  *
  * @example
- * ```ts
- * const p: Pass<number> = result.pass(42)
- * p.value // 42
- * ```
+ *   const p: Pass<number> = result.pass(42);
+ *   p.value; // 42
  */
 type Pass<T> = Readonly<{ ok: true; value: T }>;
 
@@ -19,10 +17,8 @@ type Pass<T> = Readonly<{ ok: true; value: T }>;
  * stack, and cause are always available.
  *
  * @example
- * ```ts
- * const f: Fail<TypeError> = result.fail(new TypeError("bad input"))
- * f.error // TypeError
- * ```
+ *   const f: Fail<TypeError> = result.fail(new TypeError("bad input"));
+ *   f.error; // TypeError
  */
 type Fail<E extends Error = Error> = Readonly<{ ok: false; error: E }>;
 
@@ -31,15 +27,13 @@ type Fail<E extends Error = Error> = Readonly<{ ok: false; error: E }>;
  * Check .ok to narrow before reading .value or .error.
  *
  * @example
- * ```ts
- * const loaded: Result<User> = result.trycatch(() => db.getUser(id))
+ *   const loaded: Result<User> = result.trycatch(() => db.getUser(id));
  *
- * if (loaded.ok) {
- *     return loaded.value
- * }
+ *   if (loaded.ok) {
+ *     return loaded.value;
+ *   }
  *
- * throw loaded.error
- * ```
+ *   throw loaded.error;
  */
 type Result<T, E extends Error = Error> = Pass<T> | Fail<E>;
 
@@ -104,16 +98,14 @@ const is = <E extends Error>(
  * Result namespace for fallible operations.
  *
  * @example
- * ```ts
- * import { result } from "@workspace/utils/result"
+ *   import { result } from "@workspace/utils/result";
  *
- * const parsed = result.trycatch(() => JSON.parse(raw))
- * if (!parsed.ok) {
- *     throw new Error("config parse failed", { cause: parsed.error })
- * }
+ *   const parsed = result.trycatch(() => JSON.parse(raw));
+ *   if (!parsed.ok) {
+ *     throw new Error("config parse failed", { cause: parsed.error });
+ *   }
  *
- * const config = parsed.value
- * ```
+ *   const config = parsed.value;
  */
 const result = { fail, is, pass, trycatch } as const;
 
