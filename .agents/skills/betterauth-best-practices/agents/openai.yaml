@@ -1,0 +1,4 @@
+interface:
+  display_name: "Better Auth Best Practices"
+  short_description: "Configure and review Better Auth safely"
+  default_prompt: "Use $betterauth-best-practices to configure or review Better Auth against the installed version, preserving the repository's application and shared-package boundaries."

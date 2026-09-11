@@ -38,6 +38,7 @@ Ultracite oxlint + oxfmt. Root scripts: `check`, `fix`, `lint`, `format`, `typec
 
 - `.agents/skills/component-decomposition` when creating, changing, or reviewing React UI
 - `.agents/skills/document-code` when writing or reviewing TypeScript and TSX program units
+- `.agents/skills/betterauth-best-practices` when configuring or reviewing Better Auth
 - `.agents/skills/conventional-commits` when committing
 
 See Skills policy below for what stays out of the template.
