@@ -45,11 +45,14 @@ For the full local-to-cloud workflow, including manual Vercel service configurat
 Import shared foundation code from direct workspace package subpaths:
 
 ```ts
+import { createEnv } from "@t3-oss/env-nextjs";
+import { usernameSchema } from "@workspace/better-auth/config/username";
+import { resend } from "@workspace/t3-env/config/resend";
+import { Button } from "@workspace/ui/components/button";
 import { result } from "@workspace/utils/result";
 import { logger } from "@workspace/utils/logger";
-import { Button } from "@workspace/ui/components/button";
-import { usernameSchema } from "@workspace/better-auth/config/username";
-import { env as resendEnv } from "@workspace/t3-env/config/resend";
+
+const env = createEnv({ extends: [resend()] });
 ```
 
 `packages/ui` is shared presentation infrastructure. Keep application-specific data, routes, environment variables, and providers in the owning application.
@@ -65,7 +68,7 @@ import { env as resendEnv } from "@workspace/t3-env/config/resend";
 ### `@workspace/t3-env`
 
 - server environment contracts composed through T3 Env's `extends` option
-- direct config subpaths for Better Auth, Resend, and Vercel Blob
+- `betterAuth()`, `resend()`, and `vercelBlob()` presets on direct config subpaths
 - no duplicate Neon or Vercel schemas; applications use T3 Env's upstream presets
 
 ### `@workspace/utils`
