@@ -169,6 +169,9 @@ const redirectErrorCode = {
   unableToLinkAccount: "unable_to_link_account",
 } as const;
 
+/**
+ * Runtime parser for Better Auth-owned OAuth redirect error codes.
+ */
 const redirectErrorCodeSchema = z.enum(redirectErrorCode);
 
 /**

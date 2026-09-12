@@ -21,6 +21,10 @@ if (process.env.NODE_ENV === "development") {
   };
 }
 
+/**
+ * Shared structured logger configured for readable development output and
+ * machine-readable deployed logs.
+ */
 const logger = pino(loggerOptions);
 
 export { logger };

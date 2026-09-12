@@ -12,6 +12,11 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+/**
+ * Browser Better Auth client with companions for every enabled server plugin.
+ *
+ * @see https://better-auth.com/docs/concepts/client
+ */
 const authClient = createAuthClient({
   plugins: [
     adminClient(),

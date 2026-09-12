@@ -34,6 +34,10 @@ Personal monorepo foundation with two checked-in Next.js applications and shared
 
 Ultracite oxlint + oxfmt. Root scripts: `check`, `fix`, `lint`, `format`, `typecheck`.
 
+- `workspace/require-doc-comment` enforces the program-unit coverage defined by the repo-owned `document-code` skill; native JSDoc rules enforce complete parameter and result contracts.
+- Application UI must satisfy `workspace/prefer-ui-primitives` and must not import `buttonVariants`. Compose links and other interactive elements through `Button`'s supported render API so the primitive owns both behavior and styling.
+- Generated Shadcn sources and the Better Auth-generated schema remain excluded from repository-authored documentation policy.
+
 ## Skills
 
 - `.agents/skills/component-decomposition` when creating, changing, or reviewing React UI

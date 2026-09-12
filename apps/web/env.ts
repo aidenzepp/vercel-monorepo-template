@@ -2,6 +2,9 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { neonVercel, vercel } from "@t3-oss/env-nextjs/presets-zod";
 import { z } from "zod";
 
+/**
+ * Validated server environment owned by the authenticated web application.
+ */
 export const env = createEnv({
   emptyStringAsUndefined: true,
   experimental__runtimeEnv: process.env,

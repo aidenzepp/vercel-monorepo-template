@@ -20,6 +20,9 @@ const none = undefined;
 /**
  * Construct a present Option value. This is the identity function; it marks a
  * value as intentionally present without adding a wrapper.
+ *
+ * @param value - The intentionally present value.
+ * @returns The unchanged present value.
  */
 const some = <T>(value: T): T => value;
 

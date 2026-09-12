@@ -11,17 +11,30 @@ import type {
 
 import { env } from "@/env";
 
+/**
+ * Vercel Blob configuration callers may supply without changing the service's
+ * deterministic object-key policy.
+ */
 type FileServiceOptions = Omit<VercelBlobAdapterOptions, "addRandomSuffix">;
 
+/**
+ * Credentials forwarded to Vercel Blob signing operations.
+ */
 type BlobCredentials = Pick<
   IssueSignedTokenOptions,
   "oidcToken" | "storeId" | "token"
 >;
 
+/**
+ * Default lifetime for signed upload and download URLs.
+ */
 const DEFAULT_URL_LIFETIME_IN_SECONDS = 5 * 60;
 
 /**
  * Returns only the credentials understood by Vercel's signing functions.
+ *
+ * @param options - The adapter options that may contain provider credentials.
+ * @returns Only the credential fields accepted by the signing SDK.
  */
 const getBlobCredentials = (options: FileServiceOptions): BlobCredentials => {
   const credentials: BlobCredentials = {};
@@ -39,6 +52,12 @@ const getBlobCredentials = (options: FileServiceOptions): BlobCredentials => {
   return credentials;
 };
 
+/**
+ * Converts a relative lifetime into the absolute timestamp Vercel expects.
+ *
+ * @param expiresIn - Optional lifetime in seconds.
+ * @returns The expiration timestamp in milliseconds.
+ */
 const expiresAt = (expiresIn?: number): number =>
   Date.now() + (expiresIn ?? DEFAULT_URL_LIFETIME_IN_SECONDS) * 1000;
 
@@ -48,6 +67,9 @@ const expiresAt = (expiresIn?: number): number =>
  * The upstream adapter predates `issueSignedToken()` and `presignUrl()`. This
  * adapter preserves its storage behavior while supplying signed private reads
  * and direct client uploads through the standard Files interface.
+ *
+ * @param options - Storage, access, and credential options for the adapter.
+ * @returns A Vercel Blob adapter with signed upload and download support.
  */
 const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   const access = options.access ?? "public";
@@ -142,6 +164,9 @@ class FileService extends Files<VercelBlobAdapter> {
   }
 }
 
+/**
+ * Application FileService configured for the private Vercel Blob store.
+ */
 const fileService = new FileService({
   access: "private",
   token: env.BLOB_READ_WRITE_TOKEN,

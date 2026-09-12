@@ -13,12 +13,21 @@ import * as schema from "@/db/schema/auth";
 import { env } from "@/env";
 import { createAuthPlugins } from "@/lib/auth/auth-plugins";
 
+/**
+ * Vercel deployment hosts accepted in addition to the canonical auth origin.
+ */
 const VERCEL_ALLOWED_HOSTS = [
   env.VERCEL_URL,
   env.VERCEL_BRANCH_URL,
   env.VERCEL_PROJECT_PRODUCTION_URL,
 ].filter((host): host is string => host !== undefined);
 
+/**
+ * Server-owned Better Auth instance for runtime requests and session policy.
+ *
+ * @see https://better-auth.com/docs/installation
+ * @see https://better-auth.com/docs/guides/optimizing-for-performance
+ */
 const auth = betterAuth({
   account: { encryptOAuthTokens: true },
   advanced: {

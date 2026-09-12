@@ -94,6 +94,9 @@ interface ProfileSettingsFormProps {
   user: ProfileSettingsUser;
 }
 
+/**
+ * Validated profile values and account policy required by the save operation.
+ */
 interface SaveProfileOptions {
   canEditUsername: boolean;
   settings: ProfileSettings;

@@ -1,66 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import path from "node:path";
 
-import { z } from "zod";
-
-/**
- * The repository root used as the working directory for integration lint runs.
- */
-const workspaceRoot = path.resolve(import.meta.dir, "../../..");
-
-/**
- * The isolated Oxlint configuration that enables only the rule under test.
- */
-const configPath = path.resolve(import.meta.dir, "oxlint.config.mjs");
-
-/**
- * Validates the stable diagnostic fields consumed by the integration
- * assertions.
- */
-const oxlintOutputSchema = z.object({
-  diagnostics: z.array(
-    z.object({
-      message: z.string(),
-    })
-  ),
-});
-
-/**
- * Runs Oxlint against one controlled JSX fixture with only the workspace rule
- * enabled.
- *
- * @param fixture - The fixture whose diagnostics should be captured.
- * @returns The process result and emitted diagnostics.
- */
-const runOxlint = (fixture: "allowed.tsx" | "forbidden.tsx") => {
-  const fixturePath = path.resolve(import.meta.dir, "fixtures", fixture);
-  const process = Bun.spawnSync({
-    cmd: [
-      "bunx",
-      "oxlint",
-      "--config",
-      configPath,
-      "--format",
-      "json",
-      fixturePath,
-    ],
-    cwd: workspaceRoot,
-    stderr: "pipe",
-    stdout: "pipe",
-  });
-  const rawOutput: unknown = JSON.parse(process.stdout.toString());
-  const output = oxlintOutputSchema.parse(rawOutput);
-
-  return {
-    diagnostics: output.diagnostics.map(({ message }) => message),
-    exitCode: process.exitCode,
-    stderr: process.stderr.toString(),
-  };
-};
+import { runOxlint } from "./run-oxlint";
 
 describe("workspace/prefer-ui-primitives", () => {
   test("reports every native element with a direct application primitive", () => {
-    const result = runOxlint("forbidden.tsx");
+    const result = runOxlint("oxlint.config.mjs", "forbidden.tsx");
     const expectedMessages = [
       "Do not use <button> in application UI. Use the existing shared Button or a specialized shared button primitive.",
       "Do not use <input> in application UI. Use the shared Input component.",
@@ -96,7 +40,7 @@ describe("workspace/prefer-ui-primitives", () => {
   });
 
   test("allows semantic structural elements without direct replacements", () => {
-    const result = runOxlint("allowed.tsx");
+    const result = runOxlint("oxlint.config.mjs", "allowed.tsx");
 
     expect(result).toEqual({
       diagnostics: [],

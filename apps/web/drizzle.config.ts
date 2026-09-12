@@ -2,6 +2,9 @@ import { defineConfig } from "drizzle-kit";
 
 import { env } from "./env";
 
+/**
+ * Direct Neon connection used only by Drizzle Kit schema commands.
+ */
 const databaseUrl = env.DATABASE_URL_UNPOOLED;
 
 if (databaseUrl === undefined || databaseUrl === "") {

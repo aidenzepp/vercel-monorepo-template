@@ -39,27 +39,42 @@ type Result<T, E extends Error = Error> = Pass<T> | Fail<E>;
 
 /**
  * Construct a successful Result carrying the given value.
+ *
+ * @param value - The successful value to carry.
+ * @returns A successful Result branch containing the value.
  */
 const pass = <T>(value: T): Pass<T> => ({ ok: true, value }) as const;
 
 /**
  * Construct a failed Result carrying the given error.
+ *
+ * @param error - The Error subclass to carry.
+ * @returns A failed Result branch containing the error.
  */
 const fail = <E extends Error>(error: E): Fail<E> =>
   ({ error, ok: false }) as const;
 
 /**
  * Coerce an unknown rejection cause into a Fail<Error>.
+ *
+ * @param cause - The rejection value emitted by an operation.
+ * @returns A failed Result carrying a normalized Error.
  */
 const onReject = (cause: unknown): Fail =>
   fail(cause instanceof Error ? cause : new Error(String(cause)));
 
 /**
  * Execute an async thunk and capture the outcome as a Result.
+ *
+ * @param fn - The asynchronous operation to execute.
+ * @returns A promise carrying the operation's successful value or failure.
  */
 function trycatch<T>(fn: () => Promise<T>): Promise<Result<T>>;
 /**
  * Execute a synchronous thunk and capture the outcome as a Result.
+ *
+ * @param fn - The synchronous operation to execute.
+ * @returns The operation's successful value or failure.
  */
 function trycatch<T>(fn: () => T): Result<T>;
 
@@ -78,6 +93,11 @@ function trycatch<T>(fn: () => T | Promise<T>): Result<T> | Promise<Result<T>> {
 /**
  * Walk an error's cause chain looking for an instance of the given constructor.
  * Returns the matched error or option.none if no match is found.
+ *
+ * @param error - The outermost error whose causes should be inspected.
+ * @param ctor - The Error subclass constructor to match.
+ * @param depth - The maximum number of linked causes to inspect.
+ * @returns The matching error or intentional absence.
  */
 const is = <E extends Error>(
   error: Error,

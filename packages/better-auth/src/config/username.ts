@@ -22,6 +22,9 @@ const USERNAME_MAX_LENGTH = 30;
  *
  * Trimming and lowercasing make capitalization and accidental surrounding
  * whitespace irrelevant to uniqueness without rewriting internal characters.
+ *
+ * @param value - The raw username submitted at an authentication boundary.
+ * @returns The canonical value used for validation and persistence.
  */
 const normalizeUsername = (value: string): string => value.trim().toLowerCase();
 

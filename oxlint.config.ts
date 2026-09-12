@@ -72,11 +72,13 @@ export default defineConfig({
         "no-inline-comments": "off",
         "sort-keys": "off",
         "unicorn/numeric-separators-style": "off",
+        "workspace/require-doc-comment": "off",
       },
     },
     {
       files: ["apps/**/*.{ts,tsx}"],
       rules: {
+        "workspace/no-app-button-variants": "error",
         "workspace/prefer-ui-primitives": "error",
       },
     },
@@ -90,12 +92,19 @@ export default defineConfig({
         "apps/**/*.generated.{ts,tsx}",
       ],
       rules: {
+        "workspace/no-app-button-variants": "off",
         "workspace/prefer-ui-primitives": "off",
       },
     },
   ],
-  plugins: [...ultracitePlugins, "react"],
+  plugins: [...ultracitePlugins, "jsdoc", "react"],
   rules: {
+    "jsdoc/check-tag-names": "error",
+    "jsdoc/require-param": "error",
+    "jsdoc/require-param-description": "error",
+    "jsdoc/require-returns": "error",
+    "jsdoc/require-returns-description": "error",
     "workspace/no-built-in-try-catch": "error",
+    "workspace/require-doc-comment": "error",
   },
 });

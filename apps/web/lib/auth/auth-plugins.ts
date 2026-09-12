@@ -11,6 +11,9 @@ import { username } from "better-auth/plugins/username";
  * Create a fresh, identical plugin set for runtime auth and schema generation.
  * Better Auth derives adapter fields from enabled plugins, so sharing their
  * configuration prevents the generated schema from drifting from production.
+ *
+ * @returns A fresh schema-bearing Better Auth plugin tuple.
+ * @see https://better-auth.com/docs/concepts/database#extending-core-schema
  */
 const createAuthPlugins = () =>
   [

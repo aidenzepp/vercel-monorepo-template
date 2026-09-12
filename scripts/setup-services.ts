@@ -7,6 +7,9 @@ import { z } from "zod";
 
 import packageJson from "../package.json" with { type: "json" };
 
+/**
+ * Neon regions accepted by both the Neon integration and Vercel Blob setup.
+ */
 const neonRegions = [
   "cle1",
   "iad1",
@@ -18,17 +21,30 @@ const neonRegions = [
   "gru1",
 ] as const;
 
+/**
+ * Vercel environments that receive shared service credentials.
+ */
 const vercelEnvironments = ["development", "preview", "production"] as const;
+
+/**
+ * Reusable Vercel CLI arguments that connect a service to every environment.
+ */
 const environmentArguments = vercelEnvironments.flatMap((environment) => [
   "--environment",
   environment,
 ]);
 
+/**
+ * Validates requested regions before any cloud resource is created.
+ */
 const regionSchema = z.enum(neonRegions, {
   error: (issue) =>
     `SETUP_REGION_UNSUPPORTED: Unsupported region "${String(issue.input)}". Choose one of: ${neonRegions.join(", ")}.`,
 });
 
+/**
+ * Validates the optional domain Resend will configure for sending mail.
+ */
 const resendDomainSchema = z
   .string()
   .trim()
@@ -44,28 +60,50 @@ const resendDomainSchema = z
       "SETUP_RESEND_DOMAIN_INVALID: Enter a domain you own, such as example.com.",
   });
 
+/**
+ * Parses the complete, supported setup command input.
+ */
 const optionsSchema = z.object({
   region: regionSchema.default("iad1"),
   resendDomain: resendDomainSchema.optional(),
 });
 
+/**
+ * Validates the Vercel project identity persisted by `vercel link`.
+ */
 const projectLinkSchema = z.object({
   orgId: z.string().min(1),
   projectId: z.string().min(1),
   projectName: z.string().min(1),
 });
 
+/**
+ * Valid setup options after command-line parsing and validation.
+ */
 type SetupOptions = z.infer<typeof optionsSchema>;
+
+/**
+ * Verified Vercel project identity loaded from one linked application.
+ */
 type ProjectLink = z.infer<typeof projectLinkSchema>;
 
+/**
+ * One serial Vercel CLI operation in the setup plan.
+ */
 type SetupStep = Readonly<{
   arguments: readonly string[];
   directory: string;
   label: string;
 }>;
 
+/**
+ * A provider-provisioning step paired with the resource it may create.
+ */
 type ServiceStep = SetupStep & Readonly<{ resourceName: string }>;
 
+/**
+ * The exact interruption point and prior progress of a failed plan.
+ */
 type PlanFailure = Readonly<{
   completed: readonly string[];
   error: string;
@@ -74,28 +112,61 @@ type PlanFailure = Readonly<{
   ok: false;
 }>;
 
+/**
+ * Completion state returned after executing a serial setup plan.
+ */
 type PlanResult = Readonly<{ ok: true }> | PlanFailure;
 
+/**
+ * User input after either successful validation or actionable rejection.
+ */
 type ParsedOptions =
   | Readonly<{ ok: true; value: SetupOptions }>
   | Readonly<{ error: string; ok: false }>;
 
+/**
+ * Deterministic cross-application names for every provisioned provider.
+ */
 type ResourceNames = Readonly<{
   blob: string;
   neon: string;
   resend: string;
 }>;
 
+/**
+ * Distinct verified projects for the marketing and authenticated applications.
+ */
 type ProjectLinks = Readonly<{
   marketing: ProjectLink;
   web: ProjectLink;
 }>;
 
+/**
+ * Absolute repository root used to resolve application working directories.
+ */
 const repositoryRoot = path.resolve(import.meta.dir, "..");
+
+/**
+ * Authenticated application directory used for linking and provisioning.
+ */
 const webDirectory = path.join(repositoryRoot, "apps/web");
+
+/**
+ * Marketing application directory used for its independent Vercel link.
+ */
 const marketingDirectory = path.join(repositoryRoot, "apps/mkt");
+
+/**
+ * Placeholder package name that must be replaced before cloud setup.
+ */
 const templatePackageName = "vercel-monorepo-template";
 
+/**
+ * Parses supported command-line options without accepting silent extras.
+ *
+ * @param arguments_ - Arguments passed after the setup script name.
+ * @returns Validated setup options or one actionable input error.
+ */
 const parseOptions = (arguments_: string[]): ParsedOptions => {
   const { positionals, tokens } = parseArgs({
     allowPositionals: true,
@@ -201,6 +272,12 @@ const parseOptions = (arguments_: string[]): ParsedOptions => {
   };
 };
 
+/**
+ * Converts a package name into the stable Vercel resource-name stem.
+ *
+ * @param packageName - The root package name selected by the template owner.
+ * @returns A lowercase, unscoped, hyphen-safe resource name.
+ */
 const normalizeResourceName = (packageName: string): string => {
   const unscopedName = packageName.split("/").at(-1) ?? packageName;
 
@@ -211,12 +288,23 @@ const normalizeResourceName = (packageName: string): string => {
     .replaceAll(/^-|-$/gu, "");
 };
 
+/**
+ * Derives the provider resource names shared across both applications.
+ *
+ * @param resourceName - The normalized root package name.
+ * @returns Names for the Blob, Neon, and Resend resources.
+ */
 const createResourceNames = (resourceName: string): ResourceNames => ({
   blob: `blob-${resourceName}-apps`,
   neon: `neon-${resourceName}-apps`,
   resend: `resend-${resourceName}-apps`,
 });
 
+/**
+ * Creates the application-linking plan that must succeed before provisioning.
+ *
+ * @returns Serial link steps for the authenticated and marketing applications.
+ */
 const createLinkPlan = (): SetupStep[] => [
   {
     arguments: ["link"],
@@ -230,6 +318,14 @@ const createLinkPlan = (): SetupStep[] => [
   },
 ];
 
+/**
+ * Creates the provider-provisioning plan for the verified Vercel scope.
+ *
+ * @param names - Deterministic names for the resources being created.
+ * @param options - Validated region and optional Resend domain.
+ * @param scope - Vercel organization that owns the linked applications.
+ * @returns Serial provider steps, with Resend omitted when no domain was given.
+ */
 const createServicePlan = (
   names: ResourceNames,
   options: SetupOptions,
@@ -306,6 +402,12 @@ const createServicePlan = (
   return plan;
 };
 
+/**
+ * Prints a readable preview of the serial operations about to run.
+ *
+ * @param heading - Context shown before the plan table.
+ * @param plan - Ordered steps that will be executed.
+ */
 const printPlan = (heading: string, plan: readonly SetupStep[]): void => {
   console.log(heading);
   console.table(
@@ -317,6 +419,13 @@ const printPlan = (heading: string, plan: readonly SetupStep[]): void => {
   );
 };
 
+/**
+ * Executes a Vercel CLI plan serially and stops at the first failure.
+ *
+ * @param vercel - Absolute path to the installed Vercel CLI.
+ * @param plan - Ordered operations to execute.
+ * @returns Completion or the exact failed step and completed prefix.
+ */
 const runPlan = async (
   vercel: string,
   plan: readonly SetupStep[]
@@ -365,6 +474,13 @@ const runPlan = async (
   return { ok: true };
 };
 
+/**
+ * Loads and validates the project identity written by `vercel link`.
+ *
+ * @param appName - Human-readable application name used in errors.
+ * @param directory - Linked application directory containing `.vercel` state.
+ * @returns The verified project link or an actionable filesystem failure.
+ */
 const loadProjectLink = async (
   appName: string,
   directory: string
@@ -408,6 +524,11 @@ const loadProjectLink = async (
   return result.pass(parsed.data);
 };
 
+/**
+ * Loads both application links and rejects accidental project reuse.
+ *
+ * @returns Two distinct verified Vercel projects or the first link failure.
+ */
 const loadProjectLinks = async (): Promise<Result<ProjectLinks>> => {
   const web = await loadProjectLink("web", webDirectory);
 
@@ -432,6 +553,11 @@ const loadProjectLinks = async (): Promise<Result<ProjectLinks>> => {
   return result.pass({ marketing: marketing.value, web: web.value });
 };
 
+/**
+ * Prints the verified application-to-project mapping before provisioning.
+ *
+ * @param projects - Distinct Vercel links for both applications.
+ */
 const printProjectLinks = (projects: ProjectLinks): void => {
   console.log("Verified Vercel project links:");
   console.table([
@@ -450,6 +576,11 @@ const printProjectLinks = (projects: ProjectLinks): void => {
   ]);
 };
 
+/**
+ * Explains a project-link failure and confirms that provisioning never began.
+ *
+ * @param failure - Failed link step and the steps completed before it.
+ */
 const printLinkFailure = (failure: PlanFailure): void => {
   console.error(
     `SETUP_LINK_FAILED: ${failure.failed.label} failed. ${failure.error}`
@@ -459,6 +590,12 @@ const printLinkFailure = (failure: PlanFailure): void => {
   );
 };
 
+/**
+ * Explains a provider failure without claiming that remote state rolled back.
+ *
+ * @param failure - Failed provider step and the steps completed before it.
+ * @param resourceNames - Every resource name the operator must inspect.
+ */
 const printServiceFailure = (
   failure: PlanFailure,
   resourceNames: readonly string[]
@@ -474,6 +611,13 @@ const printServiceFailure = (
   );
 };
 
+/**
+ * Prints the remaining manual connections and required application variables.
+ *
+ * @param names - Names of the provisioned provider resources.
+ * @param webProject - Authenticated Vercel project that owns the services.
+ * @param resendProvisioned - Whether this run included Resend provisioning.
+ */
 const printNextSteps = (
   names: ResourceNames,
   webProject: ProjectLink,
@@ -508,6 +652,13 @@ Required application variables:
   OAUTH_PROXY_SECRET`);
 };
 
+/**
+ * Validates local prerequisites, links both applications, and provisions the
+ * selected services in a recoverable order.
+ *
+ * @param arguments_ - Arguments passed after the setup script name.
+ * @returns A process exit code describing setup success or failure.
+ */
 const main = async (arguments_: string[]): Promise<number> => {
   const options = parseOptions(arguments_);
 

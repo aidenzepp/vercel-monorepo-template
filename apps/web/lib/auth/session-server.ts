@@ -10,6 +10,9 @@ import { auth } from "@/lib/auth/auth-server";
 /**
  * Reads the current request's session once and shares it across Server
  * Components rendered for that request.
+ *
+ * @returns The current nullable Better Auth session.
+ * @see https://better-auth.com/docs/concepts/session-management
  */
 const getSession = cache(async () => {
   const session = await result.trycatch(
@@ -33,6 +36,8 @@ const getSession = cache(async () => {
  *
  * Protected layouts call this once so their descendants receive a non-null
  * session instead of repeating nullable checks and redirects.
+ *
+ * @returns The current authenticated Better Auth session.
  */
 const requireSession = async () => {
   const session = await getSession();
