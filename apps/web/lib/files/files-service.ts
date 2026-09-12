@@ -206,8 +206,11 @@ const url = async (
  * @returns A Vercel Blob adapter with signed upload and download support.
  */
 const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
-  const access = options.access ?? "public";
-  const allowOverwrite = options.allowOverwrite ?? false;
+  // Resolve policy once so the inherited adapter methods and our signed URL
+  // methods cannot apply different defaults. Files SDK defaults access to
+  // public and overwrites to true; this service preserves public access but
+  // rejects overwrites unless the caller explicitly opts in.
+  const { access = "public", allowOverwrite = false } = options;
   const credentials = getBlobCredentials(options);
   const adapter = vercelBlob({
     ...options,
