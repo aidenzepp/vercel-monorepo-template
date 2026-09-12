@@ -32,6 +32,7 @@
     "@workspace/better-auth": "workspace:*",
     "@workspace/t3-env": "workspace:*",
     "@workspace/ui": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "better-auth": "^1.7.2",
     "cuelume": "0.2.2",
     "drizzle-orm": "^0.45.2",
