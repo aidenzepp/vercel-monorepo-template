@@ -9,13 +9,14 @@ import type {
   VercelBlobAdapterOptions,
 } from "files-sdk/vercel-blob";
 
-import { env } from "@/env";
-
 /**
  * Vercel Blob configuration callers may supply without changing the service's
- * deterministic object-key policy.
+ * deterministic, create-only object-key policy.
  */
-type FileServiceOptions = Omit<VercelBlobAdapterOptions, "addRandomSuffix">;
+type FileServiceOptions = Omit<
+  VercelBlobAdapterOptions,
+  "addRandomSuffix" | "allowOverwrite"
+>;
 
 /**
  * Credentials forwarded to Vercel Blob signing operations.
@@ -31,10 +32,15 @@ type BlobCredentials = Pick<
 const DEFAULT_URL_LIFETIME_IN_SECONDS = 5 * 60;
 
 /**
- * Returns only the credentials understood by Vercel's signing functions.
+ * Returns only the optional credentials understood by Vercel's signing
+ * functions.
+ *
+ * An empty result preserves the Blob SDK's per-operation credential lookup:
+ * Vercel OIDC first, then the local read-write token fallback.
  *
  * @param options - The adapter options that may contain provider credentials.
  * @returns Only the credential fields accepted by the signing SDK.
+ * @see https://vercel.com/docs/oidc
  */
 const getBlobCredentials = (options: FileServiceOptions): BlobCredentials => {
   const credentials: BlobCredentials = {};
@@ -77,6 +83,7 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   const adapter = vercelBlob({
     ...options,
     addRandomSuffix: false,
+    allowOverwrite: false,
   });
 
   return {
@@ -88,7 +95,7 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
       if (upload.minSize !== undefined && upload.minSize > 0) {
         throw new FilesError(
           "Provider",
-          "Vercel Blob cannot enforce a minimum size on a signed upload.",
+          "vercel-blob: signedUploadUrl() cannot enforce minSize; omit it or pass 0.",
           undefined,
           { permanent: true }
         );
@@ -99,6 +106,7 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
         upload.contentType === undefined ? undefined : [upload.contentType];
       const token = await issueSignedToken({
         ...credentials,
+        abortSignal: upload.signal,
         allowedContentTypes,
         maximumSizeInBytes: upload.maxSize,
         operations: ["put"],
@@ -130,7 +138,7 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
       if (request?.responseContentDisposition !== undefined) {
         throw new FilesError(
           "Provider",
-          "Vercel Blob signed URLs cannot override Content-Disposition.",
+          "vercel-blob: url() cannot override Content-Disposition.",
           undefined,
           { permanent: true }
         );
@@ -139,6 +147,7 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
       const validUntil = expiresAt(request?.expiresIn);
       const token = await issueSignedToken({
         ...credentials,
+        abortSignal: request?.signal,
         operations: ["get"],
         pathname: key,
         validUntil,
@@ -159,6 +168,16 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
  * Vercel Blob-backed implementation of the provider-neutral Files API.
  */
 class FileService extends Files<VercelBlobAdapter> {
+  /**
+   * Constructs a provider-neutral file client backed by Vercel Blob.
+   *
+   * Object keys remain caller-owned and create-only. When credentials are
+   * omitted, the Blob SDK resolves auto-rotating Vercel OIDC credentials per
+   * operation before falling back to `BLOB_READ_WRITE_TOKEN`.
+   *
+   * @param options - Optional Vercel Blob access and credential overrides.
+   * @see https://files-sdk.dev/docs/adapters/vercel-blob
+   */
   constructor(options: FileServiceOptions = {}) {
     super({ adapter: signedVercelBlob(options) });
   }
@@ -169,7 +188,6 @@ class FileService extends Files<VercelBlobAdapter> {
  */
 const fileService = new FileService({
   access: "private",
-  token: env.BLOB_READ_WRITE_TOKEN,
 });
 
 export { FileService, fileService };

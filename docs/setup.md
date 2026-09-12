@@ -238,7 +238,7 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 
 ## Blob and Resend on web only
 
-The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN`; `RESEND_API_KEY` is optional until Resend is provisioned, at which point Vercel injects it. Neither variable belongs in `mkt`.
+The guided setup always creates a private Blob store and installs the Resend marketplace integration only when `--resend-domain` is supplied. Vercel injects `BLOB_READ_WRITE_TOKEN`; when both `VERCEL_OIDC_TOKEN` and `BLOB_STORE_ID` are available, the file service prefers those auto-rotating OIDC credentials instead. `RESEND_API_KEY` is optional until Resend is provisioned, at which point Vercel injects it. None of these variables belongs in `mkt`.
 
 The equivalent individual creation commands are:
 
@@ -265,7 +265,7 @@ The equivalent individual creation commands are:
 
 These commands create resources. Use them during recovery only after the resource listings confirm that the corresponding name does not already exist.
 
-The template includes the provider SDKs but does not invent a storage API or email-delivery abstraction before a product has concrete requirements. `lib/email/resend.ts` exports the server-only Resend client. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
+`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic, create-only keys, signed private reads, and constrained browser-direct uploads. It leaves product object paths, authorization, and per-use-case upload limits to the caller. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
 
 ## Production gate
 
