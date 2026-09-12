@@ -66,7 +66,7 @@ const SoundEffectsContext = createContext<SoundEffects | undefined>(undefined);
  * @param sound - The named recipe requested by an application interaction.
  * @see https://www.npmjs.com/package/cuelume/v/0.2.2
  */
-const playSoundEffect = (sound?: Parameters<typeof playCuelume>[0]) => {
+const play = (sound?: Parameters<typeof playCuelume>[0]) => {
   playCuelume(sound);
 };
 
@@ -157,7 +157,7 @@ const SoundEffectsProvider = ({ children }: SoundEffectsProviderProps) => {
   const soundEffects = useMemo(
     () => ({
       enabled,
-      play: playSoundEffect,
+      play,
       setEnabled: soundEffectsController.setEnabled,
       setVolume: soundEffectsController.setVolume,
       volume,
@@ -188,4 +188,4 @@ const useSoundEffects = (): SoundEffects => {
   return soundEffects;
 };
 
-export { playSoundEffect, SoundEffectsProvider, useSoundEffects };
+export { SoundEffectsProvider, useSoundEffects };

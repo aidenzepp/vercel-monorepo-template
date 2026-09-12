@@ -39,7 +39,6 @@ import { z } from "zod";
 import { useSession } from "@/components/auth/session-provider";
 import type { Session } from "@/components/auth/session-provider";
 import { authClient } from "@/lib/auth/auth-client";
-import { playSoundEffect } from "@/lib/sound-effects/sound-effects";
 
 /**
  * Accepts an unset username while preserving the shared Better Auth contract
@@ -102,14 +101,6 @@ interface SaveProfileOptions {
   canEditUsername: boolean;
   settings: ProfileSettings;
   userId: string;
-}
-
-/**
- * The save operation and sound capability used by profile orchestration.
- */
-interface SaveProfileWithSoundsOptions {
-  playSound: (sound: "loading" | "ready") => void;
-  save: () => Promise<ProfileSettingsIssue | null>;
 }
 
 /**
@@ -244,27 +235,6 @@ const saveProfile = async ({
   });
 
   return null;
-};
-
-/**
- * Announces a profile save from its immediate start through settlement.
- *
- * @param options - The save operation and scoped sound capability.
- * @param options.playSound - Plays the loading and ready lifecycle cues.
- * @param options.save - Performs the existing profile persistence operation.
- * @returns The original repairable save result after the ready cue plays.
- */
-const saveProfileWithSounds = async ({
-  playSound,
-  save,
-}: SaveProfileWithSoundsOptions): Promise<ProfileSettingsIssue | null> => {
-  playSound("loading");
-
-  const issue = await save().finally(() => {
-    playSound("ready");
-  });
-
-  return issue;
 };
 
 /**
@@ -546,11 +516,7 @@ const ProfileSettingsFormBoundary = () => {
     <ProfileSettingsForm
       canEditUsername={canEditUsername}
       onSave={async (settings) =>
-        await saveProfileWithSounds({
-          playSound: playSoundEffect,
-          save: async () =>
-            await saveProfile({ canEditUsername, settings, userId: user.id }),
-        })
+        await saveProfile({ canEditUsername, settings, userId: user.id })
       }
       user={{ name: user.name, username: user.username }}
     />
@@ -563,5 +529,4 @@ export {
   ProfileSettingsForm,
   ProfileSettingsFormBoundary,
   ProfileUsernameInput,
-  saveProfileWithSounds,
 };

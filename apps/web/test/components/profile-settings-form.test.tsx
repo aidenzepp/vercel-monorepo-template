@@ -7,7 +7,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   createProfileUpdate,
   ProfileSettingsForm,
-  saveProfileWithSounds,
 } from "../../components/settings/profile-settings-form";
 
 /**
@@ -34,28 +33,6 @@ test("anonymous profile forms disable the username field", () => {
   expect(markup).toMatch(
     /<button(?=[^>]*data-cuelume-toggle="press")[^>]*>Reset<\/button>/u
   );
-});
-
-test("plays loading until a profile save settles, then ready", async () => {
-  const sounds: string[] = [];
-  const { promise: saveHasSettled, resolve: resolveSave } =
-    Promise.withResolvers<undefined>();
-  const saving = saveProfileWithSounds({
-    playSound: (sound) => {
-      sounds.push(sound);
-    },
-    save: async () => {
-      await saveHasSettled;
-      return null;
-    },
-  });
-
-  expect(sounds).toEqual(["loading"]);
-
-  resolveSave();
-
-  expect(await saving).toBeNull();
-  expect(sounds).toEqual(["loading", "ready"]);
 });
 
 test("anonymous profile updates omit the username", () => {
