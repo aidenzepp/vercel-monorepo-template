@@ -37,7 +37,7 @@ PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run check
 PATH=/Users/sterling/.bun/bin:$PATH /Users/sterling/.bun/bin/bun run fix
 ```
 
-For the full local-to-cloud workflow, including verified Vercel/Neon provisioning commands and the still-required product Preview gate, read [docs/setup.md](docs/setup.md). Each app also documents its ownership boundary: [web](apps/web/README.md) and [mkt](apps/mkt/README.md).
+For the full local-to-cloud workflow, including manual Vercel service configuration and the still-required product Preview gate, read [docs/setup.md](docs/setup.md). Each app also documents its ownership boundary: [web](apps/web/README.md) and [mkt](apps/mkt/README.md).
 
 ## Package boundaries
 

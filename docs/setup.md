@@ -24,49 +24,32 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_API_KEY=local-verification-api-key
 BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
 BLOB_STORE_ID=store_local-verification
-VERCEL_OIDC_TOKEN=local-verification-oidc-token
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
 ```
 
-## Guided service setup
+These placeholders support static checks and local builds only. They do not authorize database, Blob, email, or Better Auth Infrastructure operations.
 
-Before setup, replace the root `package.json` name with the minted product's slug. The script rejects the unchanged `vercel-monorepo-template` placeholder so it cannot create permanently misnamed resources.
+## Cloud setup
 
-Run setup directly in an interactive terminal. It immediately applies the opinionated cloud steps and can create resources and provider charges; non-interactive execution is rejected before any Vercel command runs:
+Cloud resources are configured deliberately through Vercel and their provider dashboards. There is no all-in-one provisioning command: project ownership, Neon branching, Blob OIDC, sending-domain verification, environments, billing, and consent must remain visible and reviewable.
 
-```bash
-bun run setup:services
-# Provision Resend when the product owns a sending domain:
-bun run setup:services --resend-domain=mail.example.com
-# Choose another default service region when needed:
-bun run setup:services --region=fra1
-```
+Before creating resources, replace the root `package.json` name with the minted product's slug. Shared resources follow one naming convention:
 
-Without `--resend-domain`, setup completes Neon and reports Resend as deferred. When the option is present, replace `mail.example.com` with a sending domain you own; Resend uses its free plan and `us-east-1` region. The accepted service regions are `cle1`, `iad1`, `pdx1`, `fra1`, `lhr1`, `syd1`, `sin1`, and `gru1`. Neon uses the selected region directly, and the printed Blob instructions carry it forward as the opinionated dashboard default. Missing, repeated, unknown, and unsupported options fail before setup reaches Vercel.
+- `neon-<package-name>-apps`
+- `blob-<package-name>-apps`
+- `resend-<package-name>-apps`
 
-The command first links both apps, validates their `.vercel/project.json` files, and refuses to continue if `web` and `mkt` target the same Vercel project. Only then does it provision Neon with Neon Auth disabled and, when a sending domain was supplied, install and connect Resend through the `web` project. Every provider command receives the verified `web` organization ID as its explicit Vercel scope, so a different global CLI scope cannot receive the resources. Provisioned Resend resources are explicitly connected to Development, Preview, and Production.
+Use `iad1` as the default Neon and Blob region unless the product's deployment or data-residency requirements justify another region. Configure the cloud foundation in this order:
 
-Resource names share one cross-app convention: `neon-<package-name>-apps`, `blob-<package-name>-apps`, and `resend-<package-name>-apps`. Neon is intentionally provisioned with `--no-connect` so its required Preview branching options remain available in Vercel's **Connect Project** form. Blob is intentionally created from the `web` project's Storage dashboard so its project connection uses OIDC without adding a long-lived read-write token. The command tells you how to finish both connections and pull Development variables; it does not pause or pull environment variables prematurely.
+1. Create separate Vercel projects for `apps/web` and `apps/mkt`, then link each local app to its project.
+2. Create and connect Neon only to `web`, with Neon Auth disabled and Preview branching enabled.
+3. Create and connect a private Blob store only to `web`, using OIDC without a read-write token.
+4. Install Resend only after the product owns a sending domain and can verify its DNS records.
+5. Add the application-owned Better Auth variables to `web`.
+6. Pull the completed Development environment into the repository-root `.env.local`.
+7. Apply the baseline migration to a confirmed non-production Neon branch and prove a Preview deployment before production.
 
-Vercel retains any interactive billing and provider-consent prompts. The command stops on the first failure without deleting resources already created. The sections below are the manual equivalent, recovery path, and audit checklist for the resulting configuration.
-
-### Why Resend may be deferred
-
-A Vercel project link identifies the target project and organization, but it does not establish a Resend sending identity. [Vercel automatically assigns](https://vercel.com/docs/domains/working-with-domains) a shared `<project>.vercel.app` hostname, while [Resend requires](https://resend.com/docs/dashboard/domains/introduction) a domain the sender owns and can verify through DNS. Even after a custom domain is attached, a project may contain several domains, so the CLI does not guess which one should carry the product's email reputation.
-
-Keep the Resend SDK and API-key environment contract in the minted application. Once the product owns a domain and can add its SPF and DKIM records, run only the individual Resend command below with that explicit domain; do not rerun the full setup after Neon or Blob already exists. The product chooses its sender addresses when it implements email flows.
-
-## Recovering from an interrupted setup
-
-If either project-link step fails, no provider resource command has run. Correct the failed link and run setup again.
-
-If Neon or a requested Resend installation fails, do not immediately rerun the complete setup. The failed command may have changed remote state before returning an error, while earlier service steps are known to have completed. Record the completed steps printed by the script, then inspect the named resources:
-
-```bash
-vercel integration list --all
-```
-
-If a named resource exists, do not recreate it; connect or finish configuring it from Vercel's Storage dashboard. If it does not exist, run only the failed creation command printed by the script, then finish the remaining provider operations individually. Rerun the full setup only after confirming that none of the resources named in its plan exists. Blob is outside the CLI plan and must be inspected separately in the `web` project's Storage dashboard.
+The sections below define each choice and its verification criteria. If setup is interrupted, inspect the live project and provider dashboards before continuing; do not create another resource with the same intended role merely because an earlier browser flow did not visibly finish.
 
 ## Local verification
 
@@ -90,7 +73,11 @@ Vercel Services deploy multiple runtimes atomically in one project and expose th
 
 ## Separate Vercel links for web and mkt
 
-**Cloud mutation / manual confirmation required.** Link each app directory to a different, already-confirmed Vercel project. These commands create ignored app-local `.vercel/project.json` metadata and can prompt to create or select a project; do not use unattended confirmation flags.
+**Cloud mutation / manual confirmation required.** Import the repository into Vercel twice. Create `<package-name>-web` with **Root Directory** set to `apps/web`, then create `<package-name>-mkt` with **Root Directory** set to `apps/mkt`. Keep both projects under the same intended Vercel team, but do not make either project own the repository root.
+
+Attach the authenticated product domain, such as `app.example.com`, only to `web`. Attach the public apex and `www` domains only to `mkt`. Confirm any redirect between the apex and `www` hostnames in Vercel's Domains screen rather than assuming one.
+
+After both remote projects exist, link each local app directory to its corresponding project. These commands create ignored app-local `.vercel/project.json` metadata; select the existing project and do not use unattended confirmation flags.
 
 ```bash
 (cd apps/web && vercel link)
@@ -103,25 +90,9 @@ Confirm the selected team and project name in each prompt before continuing. `we
 
 **Cloud mutation / billing and consent pause.** Connect one Neon resource to the `web` Vercel project only. Do not install or connect Neon for `mkt`.
 
-Name shared cloud resources `<provider>-<package-name>-apps`, matching the repository's `apps/` nomenclature. For ShareFits these are `neon-sharefits-apps`, `blob-sharefits-apps`, and `resend-sharefits-apps`.
-
-Use the Vercel/Neon integration flow only after confirming its billing, data-sharing, team, and project screens. The verified CLI shape is:
-
-```bash
-(cd apps/web && vercel integration add neon \
-  --name neon-<package-name>-apps \
-  --plan free_v3 \
-  --metadata region=iad1 \
-  --metadata auth=false \
-  --no-connect \
-  --scope <web-org-id>)
-```
-
-Choose the region intentionally rather than copying `iad1` when another deployment region is required. `--no-connect` also skips the automatic environment pull. After provisioning, connect Neon to `web` from the resource's **Projects** tab using the environment and branching settings below.
+From the `web` project's **Storage** page, choose **Create Database**, select Neon, and review the provider's plan, billing, data-sharing, team, and project screens. Name the resource `neon-<package-name>-apps`, use the free plan, and choose `iad1` unless the product requires another region. After creating the resource, open its **Projects** tab and connect only the `web` project using the environment and branching settings below.
 
 Keep Neon Auth disabled: this template owns authentication through Better Auth, and enabling Neon Auth provisions a separate auth system and extra environment variables. Neon Auth cannot be disabled on an existing resource through the current Vercel resource editor, so verify this choice before provisioning.
-
-The current Vercel CLI also installs Neon agent skills into the app as a provisioning side effect. Remove `apps/web/.agents/` and `apps/web/skills-lock.json` unless the minted product explicitly chooses to keep those optional skills; they are not template foundations.
 
 ## Development + Preview + Production selection
 
@@ -236,36 +207,37 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 
 4. Commit the reviewed schema and product migration. Apply it to an approved non-production target and prove the provider callback before any production mutation.
 
-## Blob and Resend on web only
+## Blob on web only
 
-The guided setup leaves Blob creation as an explicit dashboard step and installs the Resend marketplace integration only when `--resend-domain` is supplied. The dashboard flow exposes the connection's credential mode before creation; leave **Add a read-write token env var** unchecked so Vercel injects `BLOB_STORE_ID` and supplies the deployment's auto-rotating `VERCEL_OIDC_TOKEN`. `RESEND_API_KEY` is optional until Resend is provisioned, at which point Vercel injects it. None of these variables belongs in `mkt`.
+**Cloud mutation / billing and consent pause.** Create Blob through the `web` project's dashboard so the credential mode is explicit before provisioning. Do not create or connect Blob for `mkt`.
 
 Create Blob from the `web` project's **Storage** page:
 
 1. Choose **Create Database**, then **Blob**.
-2. Name the private store `blob-<package-name>-apps` and use the region printed by the setup command (`iad1` by default).
+2. Name the private store `blob-<package-name>-apps` and use `iad1` unless the product requires another region.
 3. Keep the environment-variable prefix as `BLOB` and leave **Add a read-write token env var** unchecked.
 4. After creation, open the store's **Projects** page and update the `web` connection to include Development, Preview, and Production.
 5. Confirm the connection lists `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY`, and that the project does not contain `BLOB_READ_WRITE_TOKEN`.
 
-The equivalent individual Resend command is:
+`BLOB_STORE_ID` is the stable application configuration validated by `apps/web/env.ts`. Vercel supplies short-lived OIDC identity to the Blob SDK at runtime; application code must not read or validate the raw `VERCEL_OIDC_TOKEN`. `BLOB_WEBHOOK_PUBLIC_KEY` does not belong in the application schema unless the product implements Blob webhook verification.
 
-```bash
-(cd apps/web && vercel integration add resend \
-  --name resend-<package-name>-apps \
-  --plan free \
-  --metadata domain=<sending-domain> \
-  --metadata region=us-east-1 \
-  --environment development \
-  --environment preview \
-  --environment production \
-  --no-env-pull \
-  --scope <web-org-id>)
-```
+`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct uploads. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths, authorization, and per-use-case upload limits to the caller.
 
-This command creates a resource. Use it during recovery only after the integration listing confirms that the corresponding name does not already exist.
+## Resend on web only
 
-`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct uploads. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths, authorization, and per-use-case upload limits to the caller. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
+**Cloud mutation / sending-domain pause.** Install Resend from the Vercel Marketplace only after the product owns a sending domain and can add its DNS records. A `<project>.vercel.app` hostname is not a sending identity, and a Vercel project may own several custom domains, so the correct domain cannot be inferred from the project link.
+
+During installation:
+
+1. Select the same team that owns `web` and connect only the `web` project.
+2. Name the integration `resend-<package-name>-apps`.
+3. Use the free plan and `us-east-1` unless the product requires another supported region.
+4. Enter the exact sending domain the product owns.
+5. Make the integration available to Development, Preview, and Production.
+6. Add the generated SPF and DKIM records to the domain's DNS, then confirm verification in Resend.
+7. Confirm `RESEND_API_KEY` is present in the connected `web` environments and absent from `mkt`.
+
+`RESEND_API_KEY` remains optional until Resend is installed. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows; the product chooses sender addresses when it implements those flows.
 
 ## Production gate
 
@@ -278,4 +250,4 @@ This command creates a resource. Use it during recovery only after the integrati
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
-Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization, explicit provider scoping through the linked `web` organization ID, and unconnected Neon creation in that organization. Its CLI-created private Blob store used the legacy read-write-token connection, so that creation path is no longer part of the guided setup. The replacement dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. The validation also confirmed that the current Resend CLI requires explicit `domain` and `region` metadata; Resend was not provisioned because the disposable app had no owned domain. It did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
+Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the replacement dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. Resend was not provisioned in that disposable project because it had no owned sending domain. The validation did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.

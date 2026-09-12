@@ -19,6 +19,5 @@ export const env = createEnv({
       .default("development"),
     OAUTH_PROXY_SECRET: z.string().min(32),
     RESEND_API_KEY: z.string().min(1).optional(),
-    VERCEL_OIDC_TOKEN: z.string().min(1),
   },
 });
