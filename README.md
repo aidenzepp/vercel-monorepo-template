@@ -74,7 +74,10 @@ Shared tsconfig bases (`base`, `nextjs`, `react-library`).
 
 Custom oxlint plugin: `tools/oxlint-plugin-workspace`
 
+- `workspace/no-app-button-variants`
 - `workspace/no-built-in-try-catch`
+- `workspace/prefer-ui-primitives`
+- `workspace/require-doc-comment`
 
 Built-in try/catch is allowlisted only in `packages/utils/src/result.ts`.
 
