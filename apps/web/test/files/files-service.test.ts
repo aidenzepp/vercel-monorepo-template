@@ -62,8 +62,7 @@ process.env.BLOB_READ_WRITE_TOKEN = "test-read-write-token";
  * File service loaded after its server-only and provider dependencies are
  * mocked.
  */
-const { FileService, fileService } =
-  await import("../../lib/files/files-service");
+const { FileService, files } = await import("../../lib/files/files-service");
 
 beforeEach(() => {
   setSystemTime(NOW);
@@ -79,7 +78,7 @@ afterAll(() => {
 describe("FileService", () => {
   test("mints a constrained direct-upload contract", async () => {
     const signal = AbortSignal.timeout(1000);
-    const upload = await fileService.signedUploadUrl(
+    const upload = await files.signedUploadUrl(
       "users/user_123/files/file_123",
       {
         contentType: "image/png",
@@ -117,12 +116,12 @@ describe("FileService", () => {
 
   test("forwards explicit OIDC credentials to signed downloads", async () => {
     const signal = AbortSignal.timeout(1000);
-    const files = new FileService({
+    const service = new FileService({
       access: "private",
       oidcToken: "oidc-token",
       storeId: "store_123",
     });
-    const url = await files.url("documents/report.pdf", {
+    const url = await service.url("documents/report.pdf", {
       expiresIn: 120,
       signal,
     });
@@ -151,7 +150,7 @@ describe("FileService", () => {
   });
 
   test("rejects signed-upload constraints Vercel cannot enforce", () => {
-    const upload = fileService.signedUploadUrl("empty.txt", {
+    const upload = files.signedUploadUrl("empty.txt", {
       expiresIn: 60,
       minSize: 1,
     });
@@ -166,7 +165,7 @@ describe("FileService", () => {
   });
 
   test("rejects download dispositions Vercel cannot enforce", () => {
-    const download = fileService.url("document.html", {
+    const download = files.url("document.html", {
       responseContentDisposition: "attachment",
     });
 

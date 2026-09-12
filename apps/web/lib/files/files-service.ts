@@ -19,6 +19,11 @@ type FileServiceOptions = Omit<
 >;
 
 /**
+ * The access mode shared by Vercel's delegation and presigning operations.
+ */
+type BlobAccess = NonNullable<VercelBlobAdapterOptions["access"]>;
+
+/**
  * Credentials forwarded to Vercel Blob signing operations.
  */
 type BlobCredentials = Pick<
@@ -68,6 +73,130 @@ const expiresAt = (expiresIn?: number): number =>
   Date.now() + (expiresIn ?? DEFAULT_URL_LIFETIME_IN_SECONDS) * 1000;
 
 /**
+ * Rejects signed-upload constraints that Vercel Blob cannot enforce.
+ *
+ * @param options - The Files SDK constraints requested for one direct upload.
+ * @throws {FilesError} When the caller requires a positive minimum file size.
+ */
+const assertSignedUploadSupported = (options: SignUploadOptions): void => {
+  if (options.minSize !== undefined && options.minSize > 0) {
+    throw new FilesError(
+      "Provider",
+      "vercel-blob: signedUploadUrl() cannot enforce minSize; omit it or pass 0.",
+      undefined,
+      { permanent: true }
+    );
+  }
+};
+
+/**
+ * Rejects download URL behavior that Vercel Blob cannot sign.
+ *
+ * @param options - The Files SDK options requested for one download URL.
+ * @throws {FilesError} When the caller requires a Content-Disposition override.
+ */
+const assertUrlSupported = (options?: UrlOptions): void => {
+  if (options?.responseContentDisposition !== undefined) {
+    throw new FilesError(
+      "Provider",
+      "vercel-blob: url() cannot override Content-Disposition.",
+      undefined,
+      { permanent: true }
+    );
+  }
+};
+
+/**
+ * Mints the Files SDK contract for a browser-direct Vercel Blob upload.
+ *
+ * @param access - The access mode assigned to the uploaded Blob.
+ * @param credentials - Optional provider credentials that override environment
+ *   lookup.
+ * @param key - The exact caller-owned object key to authorize.
+ * @param options - The lifetime and constraints bound to the upload capability.
+ * @returns The signed PUT request the browser can send directly to Vercel Blob.
+ * @throws {FilesError} When the requested constraints cannot be enforced.
+ * @see https://files-sdk.dev/docs/api/signed-upload-url
+ */
+const signedUploadUrl = async (
+  access: BlobAccess,
+  credentials: BlobCredentials,
+  key: string,
+  options: SignUploadOptions
+): Promise<SignedUpload> => {
+  assertSignedUploadSupported(options);
+
+  const validUntil = expiresAt(options.expiresIn);
+  const allowedContentTypes =
+    options.contentType === undefined ? undefined : [options.contentType];
+  const token = await issueSignedToken({
+    ...credentials,
+    abortSignal: options.signal,
+    allowedContentTypes,
+    maximumSizeInBytes: options.maxSize,
+    operations: ["put"],
+    pathname: key,
+    validUntil,
+  });
+  const signed = await presignUrl(token, {
+    access,
+    addRandomSuffix: false,
+    allowOverwrite: false,
+    allowedContentTypes,
+    maximumSizeInBytes: options.maxSize,
+    operation: "put",
+    pathname: key,
+    validUntil: token.validUntil,
+  });
+
+  return {
+    headers:
+      options.contentType === undefined
+        ? undefined
+        : { "Content-Type": options.contentType },
+    method: "PUT",
+    url: signed.presignedUrl,
+  };
+};
+
+/**
+ * Mints a temporary URL for reading one Vercel Blob object.
+ *
+ * @param access - The access mode of the stored Blob.
+ * @param credentials - Optional provider credentials that override environment
+ *   lookup.
+ * @param key - The exact caller-owned object key to authorize.
+ * @param options - Optional Files SDK lifetime and cancellation controls.
+ * @returns A temporary URL authorized to read only the requested object.
+ * @throws {FilesError} When the requested response behavior cannot be enforced.
+ */
+const url = async (
+  access: BlobAccess,
+  credentials: BlobCredentials,
+  key: string,
+  options?: UrlOptions
+): Promise<string> => {
+  assertUrlSupported(options);
+
+  const validUntil = expiresAt(options?.expiresIn);
+  const token = await issueSignedToken({
+    ...credentials,
+    abortSignal: options?.signal,
+    operations: ["get"],
+    pathname: key,
+    validUntil,
+  });
+  const signed = await presignUrl(token, {
+    access,
+    operation: "get",
+    pathname: key,
+    validUntil: token.validUntil,
+  });
+
+  return signed.presignedUrl;
+};
+
+/**
  * Adds Vercel's current signed URL primitives to the Files SDK adapter.
  *
  * The upstream adapter predates `issueSignedToken()` and `presignUrl()`. This
@@ -88,79 +217,11 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
 
   return {
     ...adapter,
-    async signedUploadUrl(
-      key: string,
-      upload: SignUploadOptions
-    ): Promise<SignedUpload> {
-      if (upload.minSize !== undefined && upload.minSize > 0) {
-        throw new FilesError(
-          "Provider",
-          "vercel-blob: signedUploadUrl() cannot enforce minSize; omit it or pass 0.",
-          undefined,
-          { permanent: true }
-        );
-      }
-
-      const validUntil = expiresAt(upload.expiresIn);
-      const allowedContentTypes =
-        upload.contentType === undefined ? undefined : [upload.contentType];
-      const token = await issueSignedToken({
-        ...credentials,
-        abortSignal: upload.signal,
-        allowedContentTypes,
-        maximumSizeInBytes: upload.maxSize,
-        operations: ["put"],
-        pathname: key,
-        validUntil,
-      });
-      const signed = await presignUrl(token, {
-        access,
-        addRandomSuffix: false,
-        allowOverwrite: false,
-        allowedContentTypes,
-        maximumSizeInBytes: upload.maxSize,
-        operation: "put",
-        pathname: key,
-        validUntil: token.validUntil,
-      });
-
-      return {
-        headers:
-          upload.contentType === undefined
-            ? undefined
-            : { "Content-Type": upload.contentType },
-        method: "PUT",
-        url: signed.presignedUrl,
-      };
-    },
+    signedUploadUrl: async (key, uploadOptions) =>
+      await signedUploadUrl(access, credentials, key, uploadOptions),
     signedUrl: { supported: true },
-    async url(key: string, request?: UrlOptions): Promise<string> {
-      if (request?.responseContentDisposition !== undefined) {
-        throw new FilesError(
-          "Provider",
-          "vercel-blob: url() cannot override Content-Disposition.",
-          undefined,
-          { permanent: true }
-        );
-      }
-
-      const validUntil = expiresAt(request?.expiresIn);
-      const token = await issueSignedToken({
-        ...credentials,
-        abortSignal: request?.signal,
-        operations: ["get"],
-        pathname: key,
-        validUntil,
-      });
-      const signed = await presignUrl(token, {
-        access,
-        operation: "get",
-        pathname: key,
-        validUntil: token.validUntil,
-      });
-
-      return signed.presignedUrl;
-    },
+    url: async (key, urlOptions) =>
+      await url(access, credentials, key, urlOptions),
   };
 };
 
@@ -186,9 +247,9 @@ class FileService extends Files<VercelBlobAdapter> {
 /**
  * Application FileService configured for the private Vercel Blob store.
  */
-const fileService = new FileService({
+const files = new FileService({
   access: "private",
 });
 
-export { FileService, fileService };
+export { FileService, files };
 export type { FileServiceOptions };
