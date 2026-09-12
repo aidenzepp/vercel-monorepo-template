@@ -410,7 +410,12 @@ const ProfileSaveAction = () => {
   } = useFormContext<ProfileSettingsFields, unknown, ProfileSettings>();
 
   return (
-    <Button disabled={!isDirty} loading={isSubmitting} type="submit">
+    <Button
+      data-cuelume-toggle="press"
+      disabled={!isDirty}
+      loading={isSubmitting}
+      type="submit"
+    >
       {isSubmitting ? "Saving…" : "Save changes"}
     </Button>
   );
