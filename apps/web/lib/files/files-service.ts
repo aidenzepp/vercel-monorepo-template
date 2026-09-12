@@ -11,12 +11,9 @@ import type {
 
 /**
  * Vercel Blob configuration callers may supply without changing the service's
- * deterministic, create-only object-key policy.
+ * deterministic object-key policy.
  */
-type FileServiceOptions = Omit<
-  VercelBlobAdapterOptions,
-  "addRandomSuffix" | "allowOverwrite"
->;
+type FileServiceOptions = Omit<VercelBlobAdapterOptions, "addRandomSuffix">;
 
 /**
  * The access mode shared by Vercel's delegation and presigning operations.
@@ -110,6 +107,7 @@ const assertUrlSupported = (options?: UrlOptions): void => {
  * Mints the Files SDK contract for a browser-direct Vercel Blob upload.
  *
  * @param access - The access mode assigned to the uploaded Blob.
+ * @param allowOverwrite - Whether the upload may replace an existing key.
  * @param credentials - Optional provider credentials that override environment
  *   lookup.
  * @param key - The exact caller-owned object key to authorize.
@@ -120,6 +118,7 @@ const assertUrlSupported = (options?: UrlOptions): void => {
  */
 const signedUploadUrl = async (
   access: BlobAccess,
+  allowOverwrite: boolean,
   credentials: BlobCredentials,
   key: string,
   options: SignUploadOptions
@@ -141,7 +140,7 @@ const signedUploadUrl = async (
   const signed = await presignUrl(token, {
     access,
     addRandomSuffix: false,
-    allowOverwrite: false,
+    allowOverwrite,
     allowedContentTypes,
     maximumSizeInBytes: options.maxSize,
     operation: "put",
@@ -208,17 +207,24 @@ const url = async (
  */
 const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   const access = options.access ?? "public";
+  const allowOverwrite = options.allowOverwrite ?? false;
   const credentials = getBlobCredentials(options);
   const adapter = vercelBlob({
     ...options,
     addRandomSuffix: false,
-    allowOverwrite: false,
+    allowOverwrite,
   });
 
   return {
     ...adapter,
     signedUploadUrl: async (key, uploadOptions) =>
-      await signedUploadUrl(access, credentials, key, uploadOptions),
+      await signedUploadUrl(
+        access,
+        allowOverwrite,
+        credentials,
+        key,
+        uploadOptions
+      ),
     signedUrl: { supported: true },
     url: async (key, urlOptions) =>
       await url(access, credentials, key, urlOptions),
@@ -232,9 +238,11 @@ class FileService extends Files<VercelBlobAdapter> {
   /**
    * Constructs a provider-neutral file client backed by Vercel Blob.
    *
-   * Object keys remain caller-owned and create-only. When credentials are
-   * omitted, the Blob SDK resolves auto-rotating Vercel OIDC credentials per
-   * operation before falling back to `BLOB_READ_WRITE_TOKEN`.
+   * Object keys remain caller-owned and deterministic. Existing keys are
+   * protected by default; pass `allowOverwrite: true` when stable-key
+   * replacement is intentional. When credentials are omitted, the Blob SDK
+   * resolves auto-rotating Vercel OIDC credentials per operation before
+   * falling back to `BLOB_READ_WRITE_TOKEN`.
    *
    * @param options - Optional Vercel Blob access and credential overrides.
    * @see https://files-sdk.dev/docs/adapters/vercel-blob

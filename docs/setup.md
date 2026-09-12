@@ -265,7 +265,7 @@ The equivalent individual creation commands are:
 
 These commands create resources. Use them during recovery only after the resource listings confirm that the corresponding name does not already exist.
 
-`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic, create-only keys, signed private reads, and constrained browser-direct uploads. It leaves product object paths, authorization, and per-use-case upload limits to the caller. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
+`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct uploads. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths, authorization, and per-use-case upload limits to the caller. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows.
 
 ## Production gate
 

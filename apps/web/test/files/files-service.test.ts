@@ -149,6 +149,29 @@ describe("FileService", () => {
     );
   });
 
+  test("allows callers to opt into stable-key replacement", async () => {
+    const service = new FileService({
+      access: "private",
+      allowOverwrite: true,
+    });
+
+    await service.signedUploadUrl("users/user_123/files/avatar", {
+      expiresIn: 60,
+      minSize: 0,
+    });
+
+    expect(presignUrl).toHaveBeenCalledWith(SIGNED_TOKEN, {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      allowedContentTypes: undefined,
+      maximumSizeInBytes: undefined,
+      operation: "put",
+      pathname: "users/user_123/files/avatar",
+      validUntil: NOW.getTime() + 60_000,
+    });
+  });
+
   test("rejects signed-upload constraints Vercel cannot enforce", () => {
     const upload = files.signedUploadUrl("empty.txt", {
       expiresIn: 60,
