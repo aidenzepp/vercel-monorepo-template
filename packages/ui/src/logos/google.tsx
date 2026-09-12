@@ -3,6 +3,13 @@ import type { ComponentProps } from "react";
 
 type GoogleLogoProps = ComponentProps<"svg">;
 
+/**
+ * Displays Google's official multicolor mark within an accessible parent label.
+ *
+ * @param props - Standard SVG presentation attributes.
+ * @param props.className - Adds contextual sizing or placement classes.
+ * @returns The decorative Google provider mark.
+ */
 const GoogleLogo = ({ className, ...props }: GoogleLogoProps) => (
   <svg
     aria-hidden="true"

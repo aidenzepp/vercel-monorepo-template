@@ -8,6 +8,10 @@ type Templ8WordmarkProps = ComponentProps<"svg">;
  *
  * The negative letterforms intentionally use the page background so the mark
  * stays legible when the theme changes without baking colors into the asset.
+ *
+ * @param props - Standard SVG presentation and accessibility attributes.
+ * @param props.className - Adds contextual sizing or placement classes.
+ * @returns The theme-aware templ8 wordmark.
  */
 const Templ8Wordmark = ({ className, ...props }: Templ8WordmarkProps) => (
   <svg

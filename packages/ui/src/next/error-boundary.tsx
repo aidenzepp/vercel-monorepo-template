@@ -6,22 +6,22 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 
 type ErrorBoundaryProps = Readonly<{
-  /**
-   * Content protected by this boundary.
-   */
   children: ReactNode;
-
-  /**
-   * Content displayed when a descendant fails during rendering.
-   *
-   * Next prepares server-rendered fallback content eagerly, even when no error
-   * occurs. Keep this content inexpensive and free of unnecessary data work.
-   */
   fallback: ReactNode;
 }>;
 
+/**
+ * Shares Next.js recovery only while an error fallback is being rendered.
+ */
 const RetryContext = createContext<ErrorInfo["retry"] | null>(null);
 
+/**
+ * Adapts Next.js rendering recovery to the shared fallback contract.
+ *
+ * @param props - The fallback rendered when a descendant fails.
+ * @param props.fallback - Supplies the active error presentation.
+ * @returns The fallback with its Next.js retry operation in context.
+ */
 const NextErrorBoundary = catchError(
   (
     { fallback }: Pick<ErrorBoundaryProps, "fallback">,
@@ -34,7 +34,14 @@ const NextErrorBoundary = catchError(
  *
  * This boundary does not catch errors from event handlers or arbitrary
  * asynchronous callbacks. Errors thrown by the fallback continue to the nearest
- * ancestor boundary.
+ * ancestor boundary. Next prepares server-rendered fallback content eagerly,
+ * so keep it inexpensive and free of unnecessary data work.
+ *
+ * @param props - The renderable region and its failure replacement.
+ * @param props.children - Supplies the content whose rendering may fail.
+ * @param props.fallback - Supplies the content shown after a rendering failure.
+ * @returns The content protected by a Next.js rendering boundary.
+ * @see https://nextjs.org/docs/app/getting-started/error-handling#handling-uncaught-exceptions
  */
 const ErrorBoundary = ({ children, fallback }: ErrorBoundaryProps) => (
   <NextErrorBoundary fallback={fallback}>{children}</NextErrorBoundary>
@@ -46,6 +53,9 @@ const ErrorBoundary = ({ children, fallback }: ErrorBoundaryProps) => (
  *
  * Retry refetches and rerenders the protected subtree using Next.js recovery
  * behavior. It should not be stored outside the fallback's lifetime.
+ *
+ * @returns The recovery operation supplied to the active fallback.
+ * @throws {Error} When called outside an active {@link ErrorBoundary} fallback.
  */
 const useErrorBoundaryRetry = (): ErrorInfo["retry"] => {
   const retry = useContext(RetryContext);

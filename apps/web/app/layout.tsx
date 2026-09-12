@@ -7,21 +7,37 @@ import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import "@workspace/ui/globals.css";
 import { Geist_Mono, Outfit, Roboto_Slab } from "next/font/google";
 
+/**
+ * Supplies the heading font variable shared by the web application.
+ */
 const robotoSlabHeading = Roboto_Slab({
   subsets: ["latin"],
   variable: "--font-heading",
 });
 
+/**
+ * Supplies the sans-serif font variable used by default application text.
+ */
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
+/**
+ * Supplies the monospace font variable used by code-oriented content.
+ */
 const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
 
+/**
+ * Mounts the web application's fonts, theme, notifications, and observability.
+ *
+ * @param props - The active web application route.
+ * @param props.children - Supplies the route rendered inside global providers.
+ * @returns The web application's root document.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
