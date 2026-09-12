@@ -1,23 +1,25 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { neonVercel, vercel } from "@t3-oss/env-nextjs/presets-zod";
+import { env as betterAuthEnv } from "@workspace/t3-env/config/better-auth";
+import { env as resendEnv } from "@workspace/t3-env/config/resend";
+import { env as vercelBlobEnv } from "@workspace/t3-env/config/vercel-blob";
 import { z } from "zod";
 
 /**
  * Validated server environment owned by the authenticated web application.
+ *
+ * Provider contracts stay composable so another application can adopt only
+ * the infrastructure it owns without copying schemas from this entry point.
+ *
+ * @see https://env.t3.gg/docs/customization#extending-presets
  */
 export const env = createEnv({
   emptyStringAsUndefined: true,
   experimental__runtimeEnv: process.env,
-  extends: [vercel(), neonVercel()],
+  extends: [vercel(), neonVercel(), betterAuthEnv, resendEnv, vercelBlobEnv],
   server: {
-    BETTER_AUTH_API_KEY: z.string().min(1),
-    BETTER_AUTH_SECRET: z.string().min(32),
-    BETTER_AUTH_URL: z.url(),
-    BLOB_STORE_ID: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    OAUTH_PROXY_SECRET: z.string().min(32),
-    RESEND_API_KEY: z.string().min(1).optional(),
   },
 });

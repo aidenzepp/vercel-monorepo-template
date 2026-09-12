@@ -11,6 +11,7 @@ It establishes shared presentation infrastructure while keeping product state in
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
 - TypeScript 7's native compiler
 - `packages/better-auth`: shared Better Auth configuration and error contracts
+- `packages/t3-env`: composable Better Auth, Resend, and Vercel Blob environment contracts
 - `packages/utils`: Result, Option, Zero, Pino logger
 - `packages/ui`: the complete shared Shadcn component set, styles, hooks, and Next.js providers
 - `apps/web`: authenticated full-stack product foundation
@@ -48,6 +49,7 @@ import { result } from "@workspace/utils/result";
 import { logger } from "@workspace/utils/logger";
 import { Button } from "@workspace/ui/components/button";
 import { usernameSchema } from "@workspace/better-auth/config/username";
+import { env as resendEnv } from "@workspace/t3-env/config/resend";
 ```
 
 `packages/ui` is shared presentation infrastructure. Keep application-specific data, routes, environment variables, and providers in the owning application.
@@ -59,6 +61,12 @@ import { usernameSchema } from "@workspace/better-auth/config/username";
 - provider-neutral validation and Better Auth configuration consumed by runtime and schema generation
 - version-matched Better Auth redirect error codes for application-owned recovery copy
 - no database, environment, framework, provider, or user-interface ownership
+
+### `@workspace/t3-env`
+
+- server environment contracts composed through T3 Env's `extends` option
+- direct config subpaths for Better Auth, Resend, and Vercel Blob
+- no duplicate Neon or Vercel schemas; applications use T3 Env's upstream presets
 
 ### `@workspace/utils`
 

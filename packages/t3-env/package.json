@@ -1,0 +1,24 @@
+{
+  "name": "@workspace/t3-env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config/better-auth": "./src/config/better-auth.ts",
+    "./config/resend": "./src/config/resend.ts",
+    "./config/vercel-blob": "./src/config/vercel-blob.ts"
+  },
+  "scripts": {
+    "format": "bun --cwd ../.. oxfmt --config oxfmt.config.ts --write packages/t3-env",
+    "lint": "bun --cwd ../.. oxlint --config oxlint.config.ts packages/t3-env",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

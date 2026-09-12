@@ -24,7 +24,10 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_API_KEY=local-verification-api-key
 BETTER_AUTH_SECRET=local-verification-secret-not-for-production-0001
 BLOB_STORE_ID=store_local-verification
+BLOB_WEBHOOK_PUBLIC_KEY=local-verification-webhook-public-key
 OAUTH_PROXY_SECRET=local-verification-secret-not-for-production-0002
+RESEND_API_KEY=re_local-verification
+RESEND_EMAIL_DOMAIN=example.com
 ```
 
 These placeholders support static checks and local builds only. They do not authorize database, Blob, email, or Better Auth Infrastructure operations.
@@ -219,7 +222,7 @@ Create Blob from the `web` project's **Storage** page:
 4. After creation, open the store's **Projects** page and update the `web` connection to include Development, Preview, and Production.
 5. Confirm the connection lists `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY`, and that the project does not contain `BLOB_READ_WRITE_TOKEN`.
 
-`BLOB_STORE_ID` is the stable application configuration validated by `apps/web/env.ts`. Vercel supplies short-lived OIDC identity to the Blob SDK at runtime; application code must not read or validate the raw `VERCEL_OIDC_TOKEN`. `BLOB_WEBHOOK_PUBLIC_KEY` does not belong in the application schema unless the product implements Blob webhook verification.
+`BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` are the stable connection values validated by the shared Blob environment contract. The public key is available for future webhook verification without coupling current file operations to a webhook implementation. `BLOB_READ_WRITE_TOKEN` is represented as an optional compatibility credential, but the default setup must leave it absent. Vercel supplies short-lived OIDC identity to the Blob SDK at runtime; application code must not read or validate the raw `VERCEL_OIDC_TOKEN`.
 
 `lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct uploads. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths, authorization, and per-use-case upload limits to the caller.
 
@@ -236,8 +239,9 @@ During installation:
 5. Make the integration available to Development, Preview, and Production.
 6. Add the generated SPF and DKIM records to the domain's DNS, then confirm verification in Resend.
 7. Confirm `RESEND_API_KEY` is present in the connected `web` environments and absent from `mkt`.
+8. Add `RESEND_EMAIL_DOMAIN` to the same `web` environments with the verified hostname only, such as `example.com`, not a URL.
 
-`RESEND_API_KEY` remains optional until Resend is installed. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows; the product chooses sender addresses when it implements those flows.
+The shared Resend environment contract requires both values because the API key authorizes delivery while the verified hostname defines valid sender addresses. `lib/email/resend.ts` exports the server-only Resend client without inventing an email-delivery abstraction. Better Auth Infrastructure's typed `sendEmail` API and hosted templates remain available for auth email flows; the product chooses the mailbox portion of sender addresses when it implements those flows.
 
 ## Production gate
 

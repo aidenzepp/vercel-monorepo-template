@@ -2,7 +2,7 @@
 
 `@workspace/web` is the authenticated full-stack product application. It is the only application that owns product state and its operational contracts:
 
-- environment validation in `env.ts`, using upstream `vercel()` and `neonVercel()` presets with no custom Neon prefix;
+- environment validation in `env.ts`, composing `@workspace/t3-env` provider contracts with upstream `vercel()` and `neonVercel()` presets and no custom Neon prefix;
 - Neon connection URLs, with the pooled URL used at runtime and the unpooled URL used by Drizzle Kit;
 - a provider-neutral `FileService` backed by private Vercel Blob storage, plus the Resend SDK for product-owned email flows;
 - Drizzle schema and product-owned migration commands under `db/`;
@@ -12,7 +12,7 @@ The auth server enables Username, Anonymous, Passkey, Two-Factor Authentication,
 
 The template does not choose credential-authentication or email-delivery policy. Better Auth background work is registered with Vercel `waitUntil`, and the generated schema includes the documented lookup indexes for the enabled plugins.
 
-`lib/files/files-service.ts` extends the Files SDK's Vercel Blob adapter with signed private downloads and browser-direct uploads. Callers own object keys and choose upload content types, size limits, and URL lifetimes per operation; the service keeps keys deterministic and rejects overwrites by default. Constructing a separate `FileService` with `allowOverwrite: true` enables intentional stable-key replacement. It deliberately does not define product paths, authorization rules, or upload UI. The application validates its stable `BLOB_STORE_ID`; Vercel's Blob SDK resolves short-lived OIDC identity at runtime, so no raw OIDC or long-lived Blob token belongs in the application environment contract.
+`lib/files/files-service.ts` extends the Files SDK's Vercel Blob adapter with signed private downloads and browser-direct uploads. Callers own object keys and choose upload content types, size limits, and URL lifetimes per operation; the service keeps keys deterministic and rejects overwrites by default. Constructing a separate `FileService` with `allowOverwrite: true` enables intentional stable-key replacement. It deliberately does not define product paths, authorization rules, or upload UI. The Blob contract requires the stable store identifier and webhook public key. Its long-lived read-write token remains optional and absent from the default setup because Vercel's Blob SDK resolves short-lived OIDC identity at runtime; application code does not read or validate the raw OIDC token.
 
 Do not move these concerns into `packages/ui` or `apps/mkt`. `packages/ui` is presentation-only; `mkt` stays public and database-free.
 
