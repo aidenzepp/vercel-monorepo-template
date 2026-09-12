@@ -7,6 +7,8 @@ import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import "@workspace/ui/globals.css";
 import { Geist_Mono, Outfit, Roboto_Slab } from "next/font/google";
 
+import { SoundEffectsProvider } from "@/lib/sound-effects/sound-effects";
+
 /**
  * Supplies the heading font variable shared by the web application.
  */
@@ -57,8 +59,10 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          {children}
-          <Toaster />
+          <SoundEffectsProvider>
+            {children}
+            <Toaster />
+          </SoundEffectsProvider>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

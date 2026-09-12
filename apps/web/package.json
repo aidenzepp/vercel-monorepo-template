@@ -33,6 +33,7 @@
     "@workspace/t3-env": "workspace:*",
     "@workspace/ui": "workspace:*",
     "better-auth": "^1.7.2",
+    "cuelume": "0.2.2",
     "drizzle-orm": "^0.45.2",
     "files-sdk": "2.4.1",
     "lucide-react": "^1.44.0",
@@ -52,6 +53,7 @@
     "@workspace/typescript-config": "workspace:*",
     "auth": "^1.7.2",
     "drizzle-kit": "^0.31.10",
+    "happy-dom": "^20.11.6",
     "typescript": "^7.0.2"
   }
 }
