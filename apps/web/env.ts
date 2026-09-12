@@ -13,11 +13,12 @@ export const env = createEnv({
     BETTER_AUTH_API_KEY: z.string().min(1),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
-    BLOB_READ_WRITE_TOKEN: z.string().min(1),
+    BLOB_STORE_ID: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
     OAUTH_PROXY_SECRET: z.string().min(32),
     RESEND_API_KEY: z.string().min(1).optional(),
+    VERCEL_OIDC_TOKEN: z.string().min(1),
   },
 });

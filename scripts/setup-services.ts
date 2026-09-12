@@ -8,7 +8,7 @@ import { z } from "zod";
 import packageJson from "../package.json" with { type: "json" };
 
 /**
- * Neon regions accepted by both the Neon integration and Vercel Blob setup.
+ * Neon regions accepted by the guided Vercel integration setup.
  */
 const neonRegions = [
   "cle1",
@@ -125,7 +125,7 @@ type ParsedOptions =
   | Readonly<{ error: string; ok: false }>;
 
 /**
- * Deterministic cross-application names for every provisioned provider.
+ * Deterministic cross-application names for every planned provider resource.
  */
 type ResourceNames = Readonly<{
   blob: string;
@@ -319,12 +319,15 @@ const createLinkPlan = (): SetupStep[] => [
 ];
 
 /**
- * Creates the provider-provisioning plan for the verified Vercel scope.
+ * Creates the CLI-safe provider plan for the verified Vercel scope.
  *
- * @param names - Deterministic names for the resources being created.
+ * Blob is deliberately absent because Vercel's dashboard is the only verified
+ * creation flow that exposes the OIDC connection choice before provisioning.
+ *
+ * @param names - Deterministic names for the CLI-provisioned resources.
  * @param options - Validated region and optional Resend domain.
  * @param scope - Vercel organization that owns the linked applications.
- * @returns Serial provider steps, with Resend omitted when no domain was given.
+ * @returns Neon and optional Resend steps, with Blob left to the dashboard.
  */
 const createServicePlan = (
   names: ResourceNames,
@@ -352,23 +355,6 @@ const createServicePlan = (
       directory: webDirectory,
       label: "Provision Neon for the apps",
       resourceName: names.neon,
-    },
-    {
-      arguments: [
-        "blob",
-        "create-store",
-        names.blob,
-        "--access",
-        "private",
-        "--region",
-        options.region,
-        ...environmentArguments,
-        "--scope",
-        scope,
-      ],
-      directory: webDirectory,
-      label: "Provision and connect a private Blob store",
-      resourceName: names.blob,
     },
   ];
 
@@ -614,13 +600,15 @@ const printServiceFailure = (
 /**
  * Prints the remaining manual connections and required application variables.
  *
- * @param names - Names of the provisioned provider resources.
+ * @param names - Names of the planned provider resources.
  * @param webProject - Authenticated Vercel project that owns the services.
+ * @param region - Opinionated default region selected for the services.
  * @param resendProvisioned - Whether this run included Resend provisioning.
  */
 const printNextSteps = (
   names: ResourceNames,
   webProject: ProjectLink,
+  region: SetupOptions["region"],
   resendProvisioned: boolean
 ): void => {
   const resendStatus = resendProvisioned
@@ -628,12 +616,25 @@ const printNextSteps = (
     : "deferred — rerun only the documented Resend command after acquiring a sending domain";
 
   console.log(`
-Service provisioning completed for ${webProject.projectName}. Neon is not connected yet.
+Service provisioning completed for ${webProject.projectName}. Neon and Blob still require dashboard configuration.
 
 Service status:
   • Neon: ${names.neon}
-  • Blob: ${names.blob}
+  • Blob: manual setup required as ${names.blob}
   • Resend: ${resendStatus}
+
+Create Blob from the web project's Storage page:
+  Vercel Dashboard → ${webProject.projectName} → Storage → Create Database → Blob
+  • Store name: ${names.blob}
+  • Access: Private
+  • Region: ${region}
+  • Environment-variable prefix: BLOB
+  • Leave "Add a read-write token env var" unchecked
+
+After creation, update the ${webProject.projectName} connection:
+  • Environments: Development, Preview, and Production
+  • Confirm the connection creates BLOB_STORE_ID and BLOB_WEBHOOK_PUBLIC_KEY
+  • Confirm BLOB_READ_WRITE_TOKEN is absent
 
 Connect Neon to the web project:
   Vercel Dashboard → Storage → ${names.neon} → Connect Project
@@ -735,7 +736,7 @@ const main = async (arguments_: string[]): Promise<number> => {
     projects.value.web.orgId
   );
   printPlan(
-    `Provisioning the apps' resources in ${options.value.region}.`,
+    `Provisioning Neon in ${options.value.region} and any requested integrations.`,
     servicePlan
   );
 
@@ -752,6 +753,7 @@ const main = async (arguments_: string[]): Promise<number> => {
   printNextSteps(
     names,
     projects.value.web,
+    options.value.region,
     options.value.resendDomain !== undefined
   );
   return 0;

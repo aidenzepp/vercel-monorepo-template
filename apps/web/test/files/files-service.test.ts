@@ -52,11 +52,17 @@ await mock.module("server-only", () => ({}));
 await mock.module("@vercel/blob", () => ({ issueSignedToken, presignUrl }));
 
 /**
- * Credential state restored after the adapter's eager configuration check.
+ * Blob store state restored after the adapter's eager configuration check.
  */
-const ORIGINAL_BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+const ORIGINAL_BLOB_STORE_ID = process.env.BLOB_STORE_ID;
 
-process.env.BLOB_READ_WRITE_TOKEN = "test-read-write-token";
+/**
+ * OIDC token state restored after the adapter's eager configuration check.
+ */
+const ORIGINAL_VERCEL_OIDC_TOKEN = process.env.VERCEL_OIDC_TOKEN;
+
+process.env.BLOB_STORE_ID = "store_test";
+process.env.VERCEL_OIDC_TOKEN = "test-oidc-token";
 
 /**
  * File service loaded after its server-only and provider dependencies are
@@ -72,7 +78,8 @@ beforeEach(() => {
 
 afterAll(() => {
   setSystemTime();
-  process.env.BLOB_READ_WRITE_TOKEN = ORIGINAL_BLOB_READ_WRITE_TOKEN;
+  process.env.BLOB_STORE_ID = ORIGINAL_BLOB_STORE_ID;
+  process.env.VERCEL_OIDC_TOKEN = ORIGINAL_VERCEL_OIDC_TOKEN;
 });
 
 describe("FileService", () => {
