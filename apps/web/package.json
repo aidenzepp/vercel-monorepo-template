@@ -54,7 +54,6 @@
     "@workspace/typescript-config": "workspace:*",
     "auth": "^1.7.2",
     "drizzle-kit": "^0.31.10",
-    "happy-dom": "^20.11.6",
     "typescript": "^7.0.2"
   }
 }

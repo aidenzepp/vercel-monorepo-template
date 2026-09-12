@@ -23,6 +23,9 @@ const SoundEffectsProbe = () => {
 };
 
 test("provides hydration-safe opt-in defaults during server rendering", () => {
+  window.localStorage.setItem("sound-effects-enabled", "true");
+  window.localStorage.setItem("sound-effects-volume", "40");
+
   const markup = renderToStaticMarkup(
     createElement(SoundEffectsProvider, null, createElement(SoundEffectsProbe))
   );

@@ -17,6 +17,7 @@
     "fix": "ultracite fix --type-aware"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "20.14.3",
     "@types/bun": "latest",
     "@workspace/typescript-config": "workspace:*",
     "oxfmt": "^0.63.0",
