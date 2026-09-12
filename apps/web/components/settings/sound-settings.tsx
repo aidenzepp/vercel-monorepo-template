@@ -152,6 +152,22 @@ const SoundSettingsBoundary = () => {
   const soundEffects = useSoundEffects();
 
   /**
+   * Plays the toggle cue on the audible side of each preference transition.
+   *
+   * @param enabled - Whether future interface sounds may play.
+   */
+  const changeEnabled = (enabled: boolean) => {
+    if (enabled) {
+      soundEffects.setEnabled(true);
+      soundEffects.play("toggle");
+      return;
+    }
+
+    soundEffects.play("toggle");
+    soundEffects.setEnabled(false);
+  };
+
+  /**
    * Applies one selected volume and previews it with Cuelume's tick sound.
    *
    * @param volume - The five-point integer percentage selected by the user.
@@ -164,7 +180,7 @@ const SoundSettingsBoundary = () => {
   return (
     <SoundSettings
       enabled={soundEffects.enabled}
-      onEnabledChange={soundEffects.setEnabled}
+      onEnabledChange={changeEnabled}
       onVolumeChange={changeVolume}
       volume={soundEffects.volume}
     />

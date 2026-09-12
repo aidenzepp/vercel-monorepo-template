@@ -172,7 +172,9 @@ const UserMenuIdentity = ({
  * @returns The sidebar button that opens account actions.
  */
 const UserMenuTrigger = ({ user }: UserMenuTriggerProps) => (
-  <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
+  <DropdownMenuTrigger
+    render={<SidebarMenuButton data-cuelume-toggle="press" size="lg" />}
+  >
     <UserMenuAvatar
       image={user.image}
       isAnonymous={user.isAnonymous === true}
@@ -191,7 +193,9 @@ const UserMenuTrigger = ({ user }: UserMenuTriggerProps) => (
  * @returns The settings navigation item.
  */
 const SettingsMenuItem = () => (
-  <DropdownMenuItem render={<Link href="/settings" />}>
+  <DropdownMenuItem
+    render={<Link data-cuelume-toggle="press" href="/settings" />}
+  >
     <Settings aria-hidden="true" />
     Settings
   </DropdownMenuItem>
@@ -236,6 +240,7 @@ const SignOutMenuItem = ({ onSignOut }: SignOutMenuItemProps) => {
       <DropdownMenuItem
         aria-busy={pending || undefined}
         closeOnClick={false}
+        data-cuelume-toggle="press"
         disabled={pending}
         onClick={signOut}
         variant="destructive"

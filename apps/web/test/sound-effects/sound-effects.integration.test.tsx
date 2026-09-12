@@ -1,13 +1,17 @@
 import { afterAll, afterEach, beforeAll, expect, spyOn, test } from "bun:test";
 
+import type * as SidebarModule from "@workspace/ui/components/sidebar";
 import * as cuelume from "cuelume";
 import { Window } from "happy-dom";
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
 import type * as SoundSettingsModule from "../../components/settings/sound-settings";
+import type * as SidebarUserMenuModule from "../../components/sidebar/sidebar-user-menu";
 import type * as SoundEffectsModule from "../../lib/sound-effects/sound-effects";
 
+let SidebarProvider: typeof SidebarModule.SidebarProvider;
+let SidebarUserMenu: typeof SidebarUserMenuModule.SidebarUserMenu;
 let SoundSettingsBoundary: typeof SoundSettingsModule.SoundSettingsBoundary;
 let SoundEffectsProvider: typeof SoundEffectsModule.SoundEffectsProvider;
 let useSoundEffects: typeof SoundEffectsModule.useSoundEffects;
@@ -132,6 +136,9 @@ const restoreBrowserGlobals = () => {
 
 beforeAll(async () => {
   installBrowserGlobals();
+  ({ SidebarProvider } = await import("@workspace/ui/components/sidebar"));
+  ({ SidebarUserMenu } =
+    await import("../../components/sidebar/sidebar-user-menu"));
   ({ SoundSettingsBoundary } =
     await import("../../components/settings/sound-settings"));
   ({ SoundEffectsProvider, useSoundEffects } =
@@ -269,6 +276,7 @@ test("connects the production Sound card to immediate persisted preferences", as
   expect(soundSwitch.getAttribute("aria-checked")).toBe("true");
   expect(volumeSlider.disabled).toBe(false);
   expect(window.localStorage.getItem("sound-effects-enabled")).toBe("true");
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual(["toggle"]);
 
   Object.defineProperty(sliderControl, "getBoundingClientRect", {
     configurable: true,
@@ -311,13 +319,103 @@ test("connects the production Sound card to immediate persisted preferences", as
 
   expect(volumeValue.textContent).toBe("40%");
   expect(window.localStorage.getItem("sound-effects-volume")).toBe("85");
-  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual(["tick"]);
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual([
+    "toggle",
+    "tick",
+  ]);
 
   await act(async () => {
     await Bun.sleep(250);
   });
 
   expect(window.localStorage.getItem("sound-effects-volume")).toBe("40");
+
+  act(() => {
+    soundSwitch.click();
+  });
+
+  expect(soundSwitch.getAttribute("aria-checked")).toBe("false");
+  expect(window.localStorage.getItem("sound-effects-enabled")).toBe("false");
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual([
+    "toggle",
+    "tick",
+    "toggle",
+  ]);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+  playSound.mockRestore();
+});
+
+test("plays press cues only for the named sidebar account actions", () => {
+  window.localStorage.setItem("sound-effects-enabled", "true");
+  const { promise: pendingSignOut } = Promise.withResolvers<string | null>();
+  const playSound = spyOn(cuelume, "play").mockImplementation(
+    ignoreAudioPlayback
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <SoundEffectsProvider>
+        <SidebarProvider>
+          <SidebarUserMenu
+            onSignOut={async () => await pendingSignOut}
+            user={{
+              id: "user-1",
+              image: null,
+              isAnonymous: false,
+              name: "Aiden Zepp",
+              username: "aiden",
+            }}
+          />
+        </SidebarProvider>
+      </SoundEffectsProvider>
+    );
+  });
+
+  const menuTrigger = container.querySelector<HTMLButtonElement>(
+    '[data-slot="dropdown-menu-trigger"]'
+  );
+
+  if (menuTrigger === null) {
+    throw new Error("The sidebar account trigger should be mounted.");
+  }
+
+  expect(menuTrigger.dataset.cuelumeToggle).toBe("press");
+
+  act(() => {
+    menuTrigger.click();
+  });
+
+  const settingsItem = document.body.querySelector<HTMLAnchorElement>(
+    'a[href="/settings"]'
+  );
+  const signOutItem = [
+    ...document.body.querySelectorAll<HTMLElement>(
+      '[data-slot="dropdown-menu-item"]'
+    ),
+  ].find((item) => item.textContent?.includes("Sign out"));
+
+  if (settingsItem === null || signOutItem === undefined) {
+    throw new Error("The open account menu should expose both actions.");
+  }
+
+  expect(settingsItem.dataset.cuelumeToggle).toBe("press");
+  expect(signOutItem.dataset.cuelumeToggle).toBe("press");
+
+  act(() => {
+    signOutItem.click();
+  });
+
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual([
+    "press",
+    "press",
+  ]);
 
   act(() => {
     root.unmount();
