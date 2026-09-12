@@ -39,6 +39,7 @@ import { z } from "zod";
 import { useSession } from "@/components/auth/session-provider";
 import type { Session } from "@/components/auth/session-provider";
 import { authClient } from "@/lib/auth/auth-client";
+import { playSoundEffect } from "@/lib/sound-effects/sound-effects";
 
 /**
  * Accepts an unset username while preserving the shared Better Auth contract
@@ -101,6 +102,14 @@ interface SaveProfileOptions {
   canEditUsername: boolean;
   settings: ProfileSettings;
   userId: string;
+}
+
+/**
+ * The profile persistence operation and result-sound capability.
+ */
+interface SaveProfileWithOutcomeSoundOptions {
+  playSound: (sound: "error" | "success") => void;
+  save: () => Promise<ProfileSettingsIssue | null>;
 }
 
 /**
@@ -235,6 +244,25 @@ const saveProfile = async ({
   });
 
   return null;
+};
+
+/**
+ * Announces a profile save outcome after persistence settles.
+ *
+ * @param options - The save operation and scoped sound capability.
+ * @param options.playSound - Plays the successful or failed outcome cue.
+ * @param options.save - Performs the existing profile persistence operation.
+ * @returns The original repairable save result after outcome feedback.
+ */
+const saveProfileWithOutcomeSound = async ({
+  playSound,
+  save,
+}: SaveProfileWithOutcomeSoundOptions): Promise<ProfileSettingsIssue | null> => {
+  const issue = await save();
+
+  playSound(issue === null ? "success" : "error");
+
+  return issue;
 };
 
 /**
@@ -521,7 +549,11 @@ const ProfileSettingsFormBoundary = () => {
     <ProfileSettingsForm
       canEditUsername={canEditUsername}
       onSave={async (settings) =>
-        await saveProfile({ canEditUsername, settings, userId: user.id })
+        await saveProfileWithOutcomeSound({
+          playSound: playSoundEffect,
+          save: async () =>
+            await saveProfile({ canEditUsername, settings, userId: user.id }),
+        })
       }
       user={{ name: user.name, username: user.username }}
     />
@@ -534,4 +566,5 @@ export {
   ProfileSettingsForm,
   ProfileSettingsFormBoundary,
   ProfileUsernameInput,
+  saveProfileWithOutcomeSound,
 };

@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   createProfileUpdate,
   ProfileSettingsForm,
+  saveProfileWithOutcomeSound,
 } from "../../components/settings/profile-settings-form";
 
 /**
@@ -49,6 +50,45 @@ test("profile form actions opt into press sounds", () => {
   expect(markup).toMatch(
     /<button(?=[^>]*data-cuelume-toggle="press")[^>]*>Save changes<\/button>/u
   );
+});
+
+test("plays success only after a profile save succeeds", async () => {
+  const sounds: string[] = [];
+  const { promise: saveResult, resolve: resolveSave } =
+    Promise.withResolvers<null>();
+  const saving = saveProfileWithOutcomeSound({
+    playSound: (sound) => {
+      sounds.push(sound);
+    },
+    save: async () => await saveResult,
+  });
+
+  expect(sounds).toEqual([]);
+
+  resolveSave(null);
+
+  expect(await saving).toBeNull();
+  expect(sounds).toEqual(["success"]);
+});
+
+test("plays error after a profile save returns a repairable issue", async () => {
+  const sounds: string[] = [];
+  const issue = await saveProfileWithOutcomeSound({
+    playSound: (sound) => {
+      sounds.push(sound);
+    },
+    save: async () =>
+      await Promise.resolve({
+        field: "root",
+        message: "The profile could not be saved.",
+      }),
+  });
+
+  expect(issue).toEqual({
+    field: "root",
+    message: "The profile could not be saved.",
+  });
+  expect(sounds).toEqual(["error"]);
 });
 
 test("anonymous profile updates omit the username", () => {
