@@ -1,6 +1,7 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { neonVercel, vercel } from "@t3-oss/env-nextjs/presets-zod";
 import { betterAuth } from "@workspace/t3-env/config/better-auth";
+import { google } from "@workspace/t3-env/config/google";
 import { resend } from "@workspace/t3-env/config/resend";
 import { vercelBlob } from "@workspace/t3-env/config/vercel-blob";
 import { z } from "zod";
@@ -16,7 +17,14 @@ import { z } from "zod";
 export const env = createEnv({
   emptyStringAsUndefined: true,
   experimental__runtimeEnv: process.env,
-  extends: [vercel(), neonVercel(), betterAuth(), resend(), vercelBlob()],
+  extends: [
+    vercel(),
+    neonVercel(),
+    betterAuth(),
+    google(),
+    resend(),
+    vercelBlob(),
+  ],
   server: {
     NODE_ENV: z
       .enum(["development", "production", "test"])

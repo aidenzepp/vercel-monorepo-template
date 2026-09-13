@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./config/better-auth": "./src/config/better-auth.ts",
+    "./config/google": "./src/config/google.ts",
     "./config/resend": "./src/config/resend.ts",
     "./config/vercel-blob": "./src/config/vercel-blob.ts"
   },
