@@ -2,6 +2,7 @@ import { expect, mock, spyOn, test } from "bun:test";
 
 import { nameSchema } from "@workspace/better-auth/config/name";
 import { usernameSchema } from "@workspace/better-auth/config/username";
+import { result } from "@workspace/utils/result";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -121,6 +122,17 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   const firstAvatar = new File(["first"], "first.png", {
     type: "image/png",
   });
+  let selectedFileWasCleared = false;
+  Object.defineProperty(input, "value", {
+    configurable: true,
+    get: () =>
+      selectedFileWasCleared ? "" : String.raw`C:\fakepath\first.png`,
+    set: (value: string) => {
+      if (value === "") {
+        selectedFileWasCleared = true;
+      }
+    },
+  });
   Object.defineProperty(input, "files", {
     configurable: true,
     value: {
@@ -137,6 +149,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(
     container.querySelector<HTMLImageElement>('[data-slot="avatar-image"]')?.src
   ).toBe("blob:https://templ8.test/first-preview");
+  expect(selectedFileWasCleared).toBe(false);
 
   act(() => {
     reset.click();
@@ -148,6 +161,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(revokeObjectURL).toHaveBeenCalledWith(
     "blob:https://templ8.test/first-preview"
   );
+  expect(selectedFileWasCleared).toBe(true);
 
   const secondAvatar = new File(["second"], "second.png", {
     type: "image/png",
@@ -191,6 +205,81 @@ test("profile avatar changes move through preview, reset, and saved states", asy
     configurable: true,
     value: NativeImage,
   });
+});
+
+test("profile avatar selection does not depend on File constructor identity", async () => {
+  const createObjectURL = spyOn(URL, "createObjectURL").mockReturnValue(
+    "blob:https://templ8.test/cross-realm-preview"
+  );
+  const revokeObjectURL = spyOn(URL, "revokeObjectURL").mockImplementation(
+    () => {}
+  );
+  const submission: AvatarSubmission = { avatar: null };
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <ProfileSettingsForm
+        canEditUsername
+        onSave={async (settings) => {
+          await Promise.resolve();
+          submission.avatar =
+            settings.avatar.kind === "selected" ? settings.avatar.file : null;
+          return { avatar: profile.image, issue: null };
+        }}
+        user={profile}
+      />
+    );
+  });
+
+  const form = container.querySelector<HTMLFormElement>("form");
+  const input = container.querySelector<HTMLInputElement>("#settings-avatar");
+
+  if (form === null || input === null) {
+    throw new Error("The mounted profile form should expose avatar editing.");
+  }
+
+  // SAFETY: This Blob supplies every browser File field the form reads while
+  // deliberately preserving a different constructor identity.
+  const selectedAvatar = Object.assign(
+    new Blob(["avatar"], { type: "image/png" }),
+    {
+      lastModified: 0,
+      name: "avatar.png",
+      webkitRelativePath: "",
+    }
+  ) as File;
+  expect(selectedAvatar).not.toBeInstanceOf(File);
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: {
+      0: selectedAvatar,
+      item: (index: number) => (index === 0 ? selectedAvatar : null),
+      length: 1,
+    },
+  });
+
+  act(() => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  await act(async () => {
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+    await Promise.resolve();
+  });
+
+  expect(submission.avatar).toBe(selectedAvatar);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+  createObjectURL.mockRestore();
+  revokeObjectURL.mockRestore();
 });
 
 test("anonymous profile forms disable the username field", () => {
@@ -256,34 +345,24 @@ test("regular profile updates include a selected username", () => {
   });
 });
 
-test("profile updates include a newly uploaded avatar URL", () => {
-  expect(
-    createProfileUpdate(
-      {
-        avatar: { kind: "persisted", url: null },
-        name: nameSchema.parse("Aiden Zepp"),
-        username: usernameSchema.parse("aiden"),
-      },
-      true,
-      "https://assets.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png"
-    )
-  ).toEqual({
-    image:
-      "https://assets.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png",
-    name: nameSchema.parse("Aiden Zepp"),
-    username: usernameSchema.parse("aiden"),
-  });
-});
-
 test("profile saves upload a selected avatar and persist its URL", async () => {
   const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
   const avatarUrl =
     "https://assets.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png";
+  const operations: string[] = [];
+  const updates: {
+    image?: string;
+    name?: string;
+    username?: string;
+  }[] = [];
   const uploadAvatar = mock(async (_formData: FormData) => {
+    operations.push("upload");
     await Promise.resolve();
-    return { ok: true as const, url: avatarUrl };
+    return result.pass({ url: avatarUrl });
   });
-  const updateUser = mock(async () => {
+  const updateUser = mock(async (update: (typeof updates)[number]) => {
+    operations.push("update");
+    updates.push(update);
     await Promise.resolve();
     return { data: null, error: null };
   });
@@ -305,13 +384,53 @@ test("profile saves upload a selected avatar and persist its URL", async () => {
   });
 
   expect(saved).toEqual({ avatar: avatarUrl, issue: null });
-  expect(uploadAvatar).toHaveBeenCalledTimes(1);
+  expect(operations).toEqual(["update", "upload", "update"]);
+  expect(updates).toEqual([
+    {
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    },
+    { image: avatarUrl },
+  ]);
   expect(uploadAvatar.mock.calls[0]?.[0].get("avatar")).toBe(avatar);
-  expect(updateUser).toHaveBeenCalledWith({
-    image: avatarUrl,
-    name: nameSchema.parse("Aiden Zepp"),
-    username: usernameSchema.parse("aiden"),
+});
+
+test("profile saves reject a username before uploading its avatar", async () => {
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+  const uploadAvatar = mock(() => {
+    throw new Error("A rejected username must make zero upload requests.");
   });
+  const updateUser = mock(async () => {
+    await Promise.resolve();
+    return {
+      data: null,
+      error: { code: "USERNAME_IS_ALREADY_TAKEN", status: 422 },
+    };
+  });
+
+  const saved = await saveProfile({
+    canEditUsername: true,
+    settings: {
+      avatar: {
+        file: avatar,
+        kind: "selected",
+        previewUrl: "blob:https://templ8.test/avatar-preview",
+      },
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("already.taken"),
+    },
+    updateUser,
+    uploadAvatar,
+    userId: "user_123",
+  });
+
+  expect(saved).toEqual({
+    issue: {
+      field: "username",
+      message: "That username is already taken. Choose another.",
+    },
+  });
+  expect(uploadAvatar).not.toHaveBeenCalled();
 });
 
 test("profile saves keep avatar validation failures with the file field", async () => {
@@ -320,13 +439,13 @@ test("profile saves keep avatar validation failures with the file field", async 
   });
   const uploadAvatar = mock(async (_formData: FormData) => {
     await Promise.resolve();
-    return {
-      message: "Choose a JPEG, PNG, or WebP image.",
-      ok: false as const,
-    };
+    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
   });
-  const updateUser = mock(() => {
-    throw new Error("Invalid avatars must stop the profile update.");
+  const updates: { name?: string; username?: string }[] = [];
+  const updateUser = mock(async (update: (typeof updates)[number]) => {
+    updates.push(update);
+    await Promise.resolve();
+    return { data: null, error: null };
   });
 
   const saved = await saveProfile({
@@ -351,5 +470,10 @@ test("profile saves keep avatar validation failures with the file field", async 
       message: "Choose a JPEG, PNG, or WebP image.",
     },
   });
-  expect(updateUser).not.toHaveBeenCalled();
+  expect(updates).toEqual([
+    {
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    },
+  ]);
 });

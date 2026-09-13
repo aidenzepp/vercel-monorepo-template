@@ -21,29 +21,37 @@ const uploadProfileAvatar = async (
   const file = formData.get("avatar");
 
   if (!(file instanceof File)) {
-    return { message: "Choose an image to upload.", ok: false };
+    return result.fail(new Error("Choose an image to upload."));
   }
 
-  const uploaded = await result.trycatch(
-    async () => await uploadProfileAvatarFile({ file, files, userId: user.id })
-  );
+  const uploaded = await uploadProfileAvatarFile({
+    file,
+    files,
+    userId: user.id,
+  });
 
   if (!uploaded.ok) {
+    const providerError = uploaded.error.cause;
+
     logger.error(
       {
-        err: uploaded.error,
+        errorMessage:
+          providerError instanceof Error
+            ? providerError.message
+            : uploaded.error.message,
+        errorName:
+          providerError instanceof Error
+            ? providerError.name
+            : uploaded.error.name,
         operation: "profile.avatar.upload",
         userId: user.id,
       },
       "Profile avatar upload failed"
     );
-    return {
-      message: "We couldn’t upload that image. Try again.",
-      ok: false,
-    };
+    return result.fail(new Error(uploaded.error.message));
   }
 
-  return uploaded.value;
+  return uploaded;
 };
 
 export { uploadProfileAvatar };

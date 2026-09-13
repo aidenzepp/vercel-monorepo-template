@@ -40,9 +40,9 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import {
   FormProvider,
+  useController,
   useForm,
   useFormContext,
-  useWatch,
 } from "react-hook-form";
 import { z } from "zod";
 
@@ -59,7 +59,7 @@ const profileSettingsSchema = z.object({
   avatar: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("persisted"), url: z.string().nullable() }),
     z.object({
-      file: z.instanceof(File),
+      file: z.custom<File>(),
       kind: z.literal("selected"),
       previewUrl: z.string(),
     }),
@@ -92,6 +92,15 @@ type ProfileSettingsUser = Pick<Session["user"], "image" | "name" | "username">;
 interface ProfileSettingsIssue {
   field: "avatar" | "root" | "username";
   message: string;
+}
+
+/**
+ * Better Auth user fields changed by the profile save operation.
+ */
+interface ProfileUserUpdate {
+  image?: string;
+  name?: string;
+  username?: string;
 }
 
 /**
@@ -131,7 +140,7 @@ interface SaveProfileOptions {
   canEditUsername: boolean;
   settings: ProfileSettings;
   updateUser: (
-    update: ReturnType<typeof createProfileUpdate>
+    update: ProfileUserUpdate
   ) => Promise<{ error: { code?: string; status?: number } | null }>;
   uploadAvatar: (formData: FormData) => Promise<ProfileAvatarUploadResult>;
   userId: string;
@@ -145,21 +154,15 @@ interface SaveProfileOptions {
  *
  * @param settings - The validated values submitted by the profile form.
  * @param canEditUsername - Whether the current account may change its username.
- * @param image - The newly uploaded avatar URL, when the selection changed.
  * @returns The fields permitted in the Better Auth update request.
  */
 const createProfileUpdate = (
   settings: ProfileSettings,
-  canEditUsername: boolean,
-  image?: string
-) => {
-  const identity =
-    !canEditUsername || settings.username.length === 0
-      ? { name: settings.name }
-      : { name: settings.name, username: settings.username };
-
-  return image === undefined ? identity : { ...identity, image };
-};
+  canEditUsername: boolean
+): ProfileUserUpdate =>
+  !canEditUsername || settings.username.length === 0
+    ? { name: settings.name }
+    : { name: settings.name, username: settings.username };
 
 /**
  * Maps a Better Auth failure to the field and repair message the form owns.
@@ -237,7 +240,41 @@ const saveProfile = async ({
 }: SaveProfileOptions): Promise<ProfileSettingsSaveResult> => {
   let avatar =
     settings.avatar.kind === "persisted" ? settings.avatar.url : null;
-  let uploadedAvatar: string | undefined;
+  const identityUpdate = createProfileUpdate(settings, canEditUsername);
+  const identityResponse = await result.trycatch(
+    async () => await updateUser(identityUpdate)
+  );
+
+  if (!identityResponse.ok) {
+    logger.error(
+      {
+        err: identityResponse.error,
+        operation: "profile.identity.request",
+        userId,
+      },
+      "Profile identity request failed before Better Auth responded"
+    );
+    return {
+      issue: {
+        field: "root",
+        message:
+          "We couldn’t save your changes. Your edits are still here. Try again.",
+      },
+    };
+  }
+
+  if (identityResponse.value.error !== null) {
+    logger.warn(
+      {
+        code: identityResponse.value.error.code,
+        operation: "profile.identity.response",
+        status: identityResponse.value.error.status,
+        userId,
+      },
+      "Better Auth rejected the profile identity update"
+    );
+    return { issue: getProfileUpdateIssue(identityResponse.value.error) };
+  }
 
   if (settings.avatar.kind === "selected") {
     const formData = new FormData();
@@ -258,53 +295,59 @@ const saveProfile = async ({
       return {
         issue: {
           field: "avatar",
-          message: "We couldn’t upload that image. Try again.",
+          message:
+            "The upload request didn’t reach storage. Your other profile changes were saved, and the selected image is still here. Check your connection, then save again.",
         },
       };
     }
 
     if (!uploaded.value.ok) {
       return {
-        issue: { field: "avatar", message: uploaded.value.message },
+        issue: { field: "avatar", message: uploaded.value.error.message },
       };
     }
 
-    avatar = uploaded.value.url;
-    uploadedAvatar = uploaded.value.url;
-  }
-
-  const update = createProfileUpdate(settings, canEditUsername, uploadedAvatar);
-  const response = await result.trycatch(async () => await updateUser(update));
-
-  if (!response.ok) {
-    logger.error(
-      {
-        err: response.error,
-        operation: "profile.update.request",
-        userId,
-      },
-      "Profile update request failed before Better Auth responded"
+    avatar = uploaded.value.value.url;
+    const avatarResponse = await result.trycatch(
+      async () => await updateUser({ image: avatar ?? undefined })
     );
-    return {
-      issue: {
-        field: "root",
-        message:
-          "We couldn’t save your changes. Your edits are still here. Try again.",
-      },
-    };
-  }
 
-  if (response.value.error !== null) {
-    logger.warn(
-      {
-        code: response.value.error.code,
-        operation: "profile.update.response",
-        status: response.value.error.status,
-        userId,
-      },
-      "Better Auth rejected the profile update"
-    );
-    return { issue: getProfileUpdateIssue(response.value.error) };
+    if (!avatarResponse.ok) {
+      logger.error(
+        {
+          err: avatarResponse.error,
+          operation: "profile.avatar.update.request",
+          userId,
+        },
+        "Profile avatar update failed before Better Auth responded"
+      );
+      return {
+        issue: {
+          field: "avatar",
+          message:
+            "The image reached storage, but we couldn’t attach it to your profile. Your other profile changes were saved, and the selected image is still here. Save again to retry.",
+        },
+      };
+    }
+
+    if (avatarResponse.value.error !== null) {
+      logger.warn(
+        {
+          code: avatarResponse.value.error.code,
+          operation: "profile.avatar.update.response",
+          status: avatarResponse.value.error.status,
+          userId,
+        },
+        "Better Auth rejected the profile avatar update"
+      );
+      return {
+        issue: {
+          field: "avatar",
+          message:
+            "The image reached storage, but we couldn’t attach it to your profile. Your other profile changes were saved, and the selected image is still here. Save again to retry.",
+        },
+      };
+    }
   }
 
   toast.add({
@@ -354,14 +397,10 @@ const ProfileFormRow = ({
  */
 const ProfileAvatarInput = () => {
   const {
-    formState: { errors },
-    register,
-    setValue,
-  } = useFormContext<ProfileSettingsFields, unknown, ProfileSettings>();
-  const avatar = useWatch<ProfileSettingsFields, "avatar">({ name: "avatar" });
-  const { name, onBlur, ref: inputRef } = register("avatar");
+    field: { name, onBlur, onChange, ref: inputRef, value: avatar },
+    fieldState: { error },
+  } = useController<ProfileSettingsFields, "avatar">({ name: "avatar" });
   const controlId = "settings-avatar";
-  const error = errors.avatar;
   const avatarUrl =
     avatar.kind === "selected" ? avatar.previewUrl : (avatar.url ?? undefined);
   const previewUrl = avatar.kind === "selected" ? avatar.previewUrl : null;
@@ -389,22 +428,18 @@ const ProfileAvatarInput = () => {
             aria-invalid={error !== undefined}
             id={controlId}
             name={name}
-            onBlur={(event) => {
-              void onBlur(event);
+            onBlur={() => {
+              onBlur();
             }}
             onChange={(event) => {
               const file = event.currentTarget.files?.item(0);
 
               if (file !== null && file !== undefined) {
-                setValue(
-                  "avatar",
-                  {
-                    file,
-                    kind: "selected",
-                    previewUrl: URL.createObjectURL(file),
-                  },
-                  { shouldDirty: true, shouldValidate: true }
-                );
+                onChange({
+                  file,
+                  kind: "selected",
+                  previewUrl: URL.createObjectURL(file),
+                });
               }
             }}
             ref={inputRef}
@@ -540,8 +575,7 @@ const ProfileSaveError = () => {
  */
 const ProfileResetAction = () => {
   const {
-    formState: { defaultValues, isDirty, isSubmitting },
-    reset,
+    formState: { isDirty, isSubmitting },
   } = useFormContext<ProfileSettingsFields, unknown, ProfileSettings>();
 
   return (
@@ -549,10 +583,7 @@ const ProfileResetAction = () => {
       color="neutral"
       data-cuelume-toggle="press"
       disabled={!isDirty || isSubmitting}
-      onClick={() => {
-        reset(defaultValues, { keepDirtyValues: false });
-      }}
-      type="button"
+      type="reset"
       variant="outline"
     >
       Reset
@@ -647,6 +678,18 @@ const ProfileSettingsForm = ({
       <FormProvider {...form}>
         <form
           noValidate
+          onReset={(event) => {
+            const avatarInput =
+              event.currentTarget.elements.namedItem("avatar");
+
+            if (avatarInput instanceof HTMLInputElement) {
+              avatarInput.value = "";
+            }
+
+            form.reset(form.formState.defaultValues, {
+              keepDirtyValues: false,
+            });
+          }}
           onSubmit={(event) => {
             void form.handleSubmit(submitProfile)(event);
           }}

@@ -36,7 +36,7 @@ test("uploads an avatar to a user-scoped object and returns its public URL", asy
     throw new Error("A valid avatar should return its uploaded URL.");
   }
 
-  expect(uploaded.url).toMatch(
+  expect(uploaded.value.url).toMatch(
     /^https:\/\/assets\.public\.blob\.vercel-storage\.com\/users\/user_123\/avatars\/[0-9a-f-]+\.png$/u
   );
   expect(uploads).toHaveLength(1);
@@ -66,10 +66,13 @@ test("rejects unsupported avatar formats before storage", async () => {
     userId: "user_123",
   });
 
-  expect(uploaded).toEqual({
-    message: "Choose a JPEG, PNG, or WebP image.",
-    ok: false,
-  });
+  expect(uploaded.ok).toBe(false);
+
+  if (uploaded.ok) {
+    throw new Error("An unsupported avatar should return a validation error.");
+  }
+
+  expect(uploaded.error.message).toBe("Choose a JPEG, PNG, or WebP image.");
 });
 
 test("rejects avatars larger than five mebibytes before storage", async () => {
@@ -91,8 +94,45 @@ test("rejects avatars larger than five mebibytes before storage", async () => {
     userId: "user_123",
   });
 
-  expect(uploaded).toEqual({
-    message: "Choose an image that’s 5 MB or smaller.",
-    ok: false,
+  expect(uploaded.ok).toBe(false);
+
+  if (uploaded.ok) {
+    throw new Error("An oversized avatar should return a validation error.");
+  }
+
+  expect(uploaded.error.message).toBe(
+    "Choose an image that’s 5 MB or smaller."
+  );
+});
+
+test("preserves the storage failure behind useful profile repair guidance", async () => {
+  const providerError = new Error(
+    "Vercel Blob: Access denied, please provide a valid token for this resource."
+  );
+  const store: ProfileAvatarFileStore = {
+    upload: async () => {
+      await Promise.resolve();
+      throw providerError;
+    },
+    url: () => {
+      throw new Error("A failed upload has no public URL.");
+    },
+  };
+
+  const uploaded = await uploadProfileAvatarFile({
+    file: new File(["avatar"], "portrait.png", { type: "image/png" }),
+    files: store,
+    userId: "user_123",
   });
+
+  expect(uploaded.ok).toBe(false);
+
+  if (uploaded.ok) {
+    throw new Error("A provider failure should return repair guidance.");
+  }
+
+  expect(uploaded.error.message).toBe(
+    "Avatar uploads are unavailable right now. Your other profile changes were saved, and the selected image is still here."
+  );
+  expect(uploaded.error.cause).toBe(providerError);
 });

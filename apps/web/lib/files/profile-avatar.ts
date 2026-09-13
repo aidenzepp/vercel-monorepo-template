@@ -1,3 +1,6 @@
+import { result } from "@workspace/utils/result";
+import type { Result } from "@workspace/utils/result";
+
 /**
  * The largest avatar accepted by both profile validation and Blob storage.
  */
@@ -40,11 +43,9 @@ interface UploadProfileAvatarFileOptions {
 }
 
 /**
- * The result of validating and storing a selected profile avatar.
+ * The typed outcome of validating and storing a selected profile avatar.
  */
-type ProfileAvatarUploadResult =
-  | { message: string; ok: false }
-  | { ok: true; url: string };
+type ProfileAvatarUploadResult = Result<{ url: string }>;
 
 /**
  * Maps an accepted avatar media type to its canonical filename extension.
@@ -84,25 +85,44 @@ const uploadProfileAvatarFile = async (
   const extension = getAvatarFileExtension(options.file.type);
 
   if (extension === null) {
-    return {
-      message: "Choose a JPEG, PNG, or WebP image.",
-      ok: false,
-    };
+    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
   }
 
   if (options.file.size > MAX_AVATAR_SIZE_IN_BYTES) {
-    return {
-      message: "Choose an image that’s 5 MB or smaller.",
-      ok: false,
-    };
+    return result.fail(new Error("Choose an image that’s 5 MB or smaller."));
   }
 
   const key = `users/${options.userId}/avatars/${crypto.randomUUID()}.${extension}`;
-  const uploaded = await options.files.upload(key, options.file, {
-    contentType: options.file.type,
-  });
+  const uploaded = await result.trycatch(
+    async () =>
+      await options.files.upload(key, options.file, {
+        contentType: options.file.type,
+      })
+  );
 
-  return { ok: true, url: await options.files.url(uploaded.key) };
+  if (!uploaded.ok) {
+    return result.fail(
+      new Error(
+        "Avatar uploads are unavailable right now. Your other profile changes were saved, and the selected image is still here.",
+        { cause: uploaded.error }
+      )
+    );
+  }
+
+  const avatarUrl = await result.trycatch(
+    async () => await options.files.url(uploaded.value.key)
+  );
+
+  if (!avatarUrl.ok) {
+    return result.fail(
+      new Error(
+        "The image uploaded, but we couldn’t attach it to your profile. Your other profile changes were saved, and the selected image is still here.",
+        { cause: avatarUrl.error }
+      )
+    );
+  }
+
+  return result.pass({ url: avatarUrl.value });
 };
 
 export { uploadProfileAvatarFile };
