@@ -1,3 +1,4 @@
+import { AppearanceSettingsBoundary } from "@/components/settings/appearance-settings";
 import { ProfileSettingsFormBoundary } from "@/components/settings/profile-settings-form";
 import { SoundSettingsBoundary } from "@/components/settings/sound-settings";
 
@@ -18,14 +19,16 @@ const SettingsHeader = () => (
 );
 
 /**
- * Displays profile and browser sound preferences inside the protected layout.
+ * Displays appearance, profile, and sound preferences inside the protected
+ * layout.
  *
- * @returns The settings page with profile and sound controls.
+ * @returns The settings page with appearance, profile, and sound controls.
  */
 export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-8">
       <SettingsHeader />
+      <AppearanceSettingsBoundary />
       <ProfileSettingsFormBoundary />
       <SoundSettingsBoundary />
     </div>

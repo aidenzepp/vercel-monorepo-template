@@ -5,26 +5,22 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ThemeSettingsBoundary } from "../../components/debug/theme-settings";
+import { AppearanceSettingsBoundary } from "../../components/settings/appearance-settings";
 
 /**
- * Finds radios through the visible or visually hidden text that labels them.
+ * Finds one appearance radio through its accessible name.
  *
- * @param container - The mounted theme prototype controls.
- * @param label - The option name exposed by each enclosing label.
- * @returns Every treatment's radio for the named theme option.
+ * @param container - The mounted Appearance settings card.
+ * @param label - The theme preference exposed to assistive technology.
+ * @returns The named radio, when the card rendered it.
  */
-const findThemeRadios = (
+const findThemeRadio = (
   container: HTMLElement,
   label: string
-): HTMLElement[] =>
-  [...container.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
-    (radio) =>
-      radio.getAttribute("aria-label") === label ||
-      radio.closest("label")?.textContent?.trim().startsWith(label) === true
-  );
+): HTMLElement | null =>
+  container.querySelector(`[role="radio"][aria-label="${label}"]`);
 
-test("renders the segmented treatment as button-backed radios on the right", () => {
+test("renders button-backed theme radios on the right", () => {
   window.localStorage.setItem("theme", "light");
   const container = document.createElement("div");
   document.body.append(container);
@@ -33,13 +29,13 @@ test("renders the segmented treatment as button-backed radios on the right", () 
   act(() => {
     root.render(
       <ThemeProvider>
-        <ThemeSettingsBoundary treatment="segmented" />
+        <AppearanceSettingsBoundary />
       </ThemeProvider>
     );
   });
 
   const group = container.querySelector<HTMLElement>(
-    '[role="radiogroup"][aria-labelledby="theme-segmented-label"]'
+    '[role="radiogroup"][aria-labelledby="appearance-theme-label"]'
   );
   const field = group?.closest<HTMLElement>('[data-slot="field"]');
   const buttonRadios = group?.querySelectorAll(
@@ -64,7 +60,7 @@ test("keeps browser-derived theme state out of server markup", () => {
 
   const markup = renderToStaticMarkup(
     <ThemeProvider>
-      <ThemeSettingsBoundary treatment="segmented" />
+      <AppearanceSettingsBoundary />
     </ThemeProvider>
   );
 
@@ -72,7 +68,7 @@ test("keeps browser-derived theme state out of server markup", () => {
   expect(markup).not.toContain('aria-checked="true"');
 });
 
-test("applies each theme preference immediately from either treatment", () => {
+test("persists each theme preference immediately", () => {
   window.localStorage.setItem("theme", "light");
   const container = document.createElement("div");
   document.body.append(container);
@@ -81,46 +77,32 @@ test("applies each theme preference immediately from either treatment", () => {
   act(() => {
     root.render(
       <ThemeProvider>
-        <ThemeSettingsBoundary treatment="radio" />
-        <ThemeSettingsBoundary treatment="segmented" />
+        <AppearanceSettingsBoundary />
       </ThemeProvider>
     );
   });
 
-  const systemRadios = findThemeRadios(container, "System");
-  const lightRadios = findThemeRadios(container, "Light");
-  const darkRadios = findThemeRadios(container, "Dark");
-
-  expect(systemRadios).toHaveLength(2);
-  expect(lightRadios).toHaveLength(2);
-  expect(darkRadios).toHaveLength(2);
+  const systemRadio = findThemeRadio(container, "System");
+  const lightRadio = findThemeRadio(container, "Light");
+  const darkRadio = findThemeRadio(container, "Dark");
 
   act(() => {
-    systemRadios[0]?.click();
+    systemRadio?.click();
   });
-
   expect(window.localStorage.getItem("theme")).toBe("system");
-  expect(
-    [...systemRadios].map((radio) => radio.getAttribute("aria-checked"))
-  ).toEqual(["true", "true"]);
+  expect(systemRadio?.getAttribute("aria-checked")).toBe("true");
 
   act(() => {
-    darkRadios[1]?.click();
+    darkRadio?.click();
   });
-
   expect(window.localStorage.getItem("theme")).toBe("dark");
-  expect(
-    [...darkRadios].map((radio) => radio.getAttribute("aria-checked"))
-  ).toEqual(["true", "true"]);
+  expect(darkRadio?.getAttribute("aria-checked")).toBe("true");
 
   act(() => {
-    lightRadios[0]?.click();
+    lightRadio?.click();
   });
-
   expect(window.localStorage.getItem("theme")).toBe("light");
-  expect(
-    [...lightRadios].map((radio) => radio.getAttribute("aria-checked"))
-  ).toEqual(["true", "true"]);
+  expect(lightRadio?.getAttribute("aria-checked")).toBe("true");
 
   act(() => {
     root.unmount();
@@ -128,7 +110,7 @@ test("applies each theme preference immediately from either treatment", () => {
   container.remove();
 });
 
-test("keeps both treatments synchronized with the unmodified D shortcut", () => {
+test("keeps the selected preference synchronized with the D shortcut", () => {
   window.localStorage.setItem("theme", "light");
   const container = document.createElement("div");
   document.body.append(container);
@@ -137,26 +119,56 @@ test("keeps both treatments synchronized with the unmodified D shortcut", () => 
   act(() => {
     root.render(
       <ThemeProvider>
-        <ThemeSettingsBoundary treatment="radio" />
-        <ThemeSettingsBoundary treatment="segmented" />
+        <AppearanceSettingsBoundary />
       </ThemeProvider>
     );
   });
 
-  const darkRadios = findThemeRadios(container, "Dark");
+  const darkRadio = findThemeRadio(container, "Dark");
 
-  expect(
-    [...darkRadios].map((radio) => radio.getAttribute("aria-checked"))
-  ).toEqual(["false", "false"]);
+  expect(darkRadio?.getAttribute("aria-checked")).toBe("false");
 
   act(() => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
   });
 
   expect(window.localStorage.getItem("theme")).toBe("dark");
-  expect(
-    [...darkRadios].map((radio) => radio.getAttribute("aria-checked"))
-  ).toEqual(["true", "true"]);
+  expect(darkRadio?.getAttribute("aria-checked")).toBe("true");
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
+test("moves and selects within the radio group with arrow keys", async () => {
+  window.localStorage.setItem("theme", "system");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <ThemeProvider>
+        <AppearanceSettingsBoundary />
+      </ThemeProvider>
+    );
+  });
+
+  const systemRadio = findThemeRadio(container, "System");
+  const lightRadio = findThemeRadio(container, "Light");
+
+  await act(async () => {
+    systemRadio?.focus();
+    systemRadio?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" })
+    );
+    await Promise.resolve();
+  });
+
+  expect(document.activeElement?.getAttribute("aria-label")).toBe("Light");
+  expect(lightRadio?.getAttribute("aria-checked")).toBe("true");
+  expect(window.localStorage.getItem("theme")).toBe("light");
 
   act(() => {
     root.unmount();
