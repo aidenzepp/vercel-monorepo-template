@@ -199,8 +199,9 @@ const url = async (
  * Adds Vercel's current signed URL primitives to the Files SDK adapter.
  *
  * The upstream adapter predates `issueSignedToken()` and `presignUrl()`. This
- * adapter preserves its storage behavior while supplying signed private reads
- * and direct client uploads through the standard Files interface.
+ * adapter preserves its storage behavior while supplying permanent public or
+ * signed private reads and direct client uploads through the standard Files
+ * interface.
  *
  * @param options - Storage, access, and credential options for the adapter.
  * @returns A Vercel Blob adapter with signed upload and download support.
@@ -229,8 +230,14 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
         uploadOptions
       ),
     signedUrl: { supported: true },
-    url: async (key, urlOptions) =>
-      await url(access, credentials, key, urlOptions),
+    url:
+      access === "public"
+        ? async (key, urlOptions) => {
+            assertUrlSupported(urlOptions);
+            return await adapter.url(key, urlOptions);
+          }
+        : async (key, urlOptions) =>
+            await url(access, credentials, key, urlOptions),
   };
 };
 
@@ -256,10 +263,10 @@ class FileService extends Files<VercelBlobAdapter> {
 }
 
 /**
- * Application FileService configured for the private Vercel Blob store.
+ * Application FileService configured for permanent public Blob URLs.
  */
 const files = new FileService({
-  access: "private",
+  access: "public",
 });
 
 export { FileService, files };

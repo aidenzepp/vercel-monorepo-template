@@ -61,7 +61,7 @@ const ORIGINAL_BLOB_STORE_ID = process.env.BLOB_STORE_ID;
  */
 const ORIGINAL_VERCEL_OIDC_TOKEN = process.env.VERCEL_OIDC_TOKEN;
 
-process.env.BLOB_STORE_ID = "store_test";
+process.env.BLOB_STORE_ID = "store_test1234";
 process.env.VERCEL_OIDC_TOKEN = "test-oidc-token";
 
 /**
@@ -110,7 +110,7 @@ describe("FileService", () => {
       validUntil: NOW.getTime() + 60_000,
     });
     expect(presignUrl).toHaveBeenCalledWith(SIGNED_TOKEN, {
-      access: "private",
+      access: "public",
       addRandomSuffix: false,
       allowOverwrite: false,
       allowedContentTypes: ["image/png"],
@@ -154,6 +154,30 @@ describe("FileService", () => {
         validUntil: NOW.getTime() + 120_000,
       }
     );
+  });
+
+  test("returns permanent URLs for public avatar storage", async () => {
+    const service = new FileService({
+      access: "public",
+      oidcToken: "oidc-token",
+      storeId: "store_12345678",
+    });
+    const avatarUrl = await service.url("users/user_123/avatars/avatar.png");
+
+    expect(avatarUrl).toBe(
+      "https://12345678.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png"
+    );
+    expect(issueSignedToken).not.toHaveBeenCalled();
+    expect(presignUrl).not.toHaveBeenCalled();
+  });
+
+  test("configures the application file service for public URLs", async () => {
+    const avatarUrl = await files.url("users/user_123/avatars/avatar.png");
+
+    expect(avatarUrl).toBe(
+      "https://test1234.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png"
+    );
+    expect(issueSignedToken).not.toHaveBeenCalled();
   });
 
   test("allows callers to opt into stable-key replacement", async () => {
