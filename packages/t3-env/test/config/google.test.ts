@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 
-import { google } from "../../src/config/google";
+import { google } from "../../src/config/google.js";
 
 /**
  * Captures the original client ID so each test can restore the process
