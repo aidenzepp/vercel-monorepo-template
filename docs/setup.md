@@ -146,6 +146,22 @@ openssl rand -base64 48
 
 Confirm the canonical production origin, Better Auth Infrastructure project, provider callback requirements, sending domain, data-sharing implications, and target environments before saving secrets.
 
+## Google OAuth
+
+**Cloud mutation / secret-management pause.** Google OAuth is owned by `web`; `mkt` remains public and receives no Google or auth variables. Follow this sequence for each minted product:
+
+1. Under the confirmed Google account, create a Google Cloud project named `<package-name>-web`. Let Google choose the immutable project ID. Identity-only OAuth does not require a billing account.
+2. In Google Auth Platform, configure branding with the product name, set the audience to **External**, keep the publishing status **Testing**, add approved test users, and request only the OpenID, email, and profile identity scopes. For the current `templ8` contract, the display name is `templ8-web`, the consent-screen app name is `templ8`, and both the user-support and developer-contact address is `aiden.zepp@gmail.com`; the same account is the initial test user.
+3. Create one OAuth client of type **Web application**, named `<package-name>-web`.
+4. Register exactly `https://<canonical-production-origin>/api/auth/callback/google`. The final client has no Preview callback and no local callback. Development and Preview normally reach this production callback through Better Auth's existing OAuth Proxy.
+5. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to the `web` Vercel project only, across Development, Preview, and Production. Keep one dedicated `OAUTH_PROXY_SECRET` identical across those environments; `BETTER_AUTH_SECRET` remains independent per environment.
+6. For a direct pre-production canary only, temporarily register a localhost callback and set local `BETTER_AUTH_URL=http://localhost:3000` so the local server bypasses the proxy. Remove the localhost callback immediately after the canary. Production must run the Google provider before Preview or local proxy verification can succeed.
+7. Require three proofs before treating the integration as verified: a production Google sign-in proof, one isolated Preview proof through the OAuth Proxy, and a local proxy proof. Record the endpoint, environment, and observed result for each proof without recording credentials.
+
+Testing status admits only listed testers, including at the production endpoint; it is not a public-launch configuration. Never print, log, or commit `GOOGLE_CLIENT_SECRET` (or any other client secret). There is no `GOOGLE_PROJECT_ID` variable, Google SDK, billing setup, schema migration, or extra scope in this implementation.
+
+For `templ8`, the final and sole authorized redirect URI is exactly `https://app.templ8.dev/api/auth/callback/google`. The intended Google Cloud project and Vercel values above remain a setup contract until the product-specific proofs are recorded; do not infer a project ID or secret from this document.
+
 ## Root .env.local pull
 
 **External command that writes local secrets.** After linking `web` and configuring all required `web` variables above, pull Development values into the repository-root `.env.local`; do not create an app-local environment file.
@@ -255,3 +271,5 @@ The shared Resend environment contract requires both values because the API key 
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
 Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the replacement dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. Resend was not provisioned in that disposable project because it had no owned sending domain. The validation did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
+
+The Google OAuth implementation is locally checked in, but this repository does not claim Google Cloud creation, Vercel secret propagation, deployment, or successful OAuth until the product-specific production, Preview, and local proofs above are recorded.
