@@ -1,8 +1,11 @@
-import { Button } from "@workspace/ui/components/button";
 import { FieldGroup, FieldSeparator } from "@workspace/ui/components/field";
-import { GoogleLogo } from "@workspace/ui/logos/google";
 
 import { AnonymousSignInFormBoundary } from "@/components/auth/anonymous-sign-in-form";
+import { GoogleSignInFormBoundary } from "@/components/auth/google-sign-in-form";
+
+interface SignInFormProps {
+  googleSignInErrorMessage: string | null;
+}
 
 /**
  * Displays the purpose and available-method guidance for sign-in.
@@ -19,35 +22,18 @@ const SignInHeader = () => (
 );
 
 /**
- * Displays the unavailable Google authentication method without enabling it.
- *
- * @returns The disabled Google sign-in action.
- */
-const GoogleSignInAction = () => (
-  <Button
-    className="w-full"
-    color="neutral"
-    disabled
-    size="lg"
-    title="Google sign-in is not configured"
-    variant="outline"
-  >
-    <GoogleLogo className="size-4" />
-    Continue with Google
-  </Button>
-);
-
-/**
  * Composes the authentication methods available on the sign-in page.
  *
- * @returns The sign-in heading, temporary-account flow, and Google placeholder.
+ * @param props - The validated provider callback state.
+ * @param props.googleSignInErrorMessage - Reports a prior Google failure.
+ * @returns The sign-in heading, temporary-account flow, and Google flow.
  */
-const SignInForm = () => (
+const SignInForm = ({ googleSignInErrorMessage }: SignInFormProps) => (
   <FieldGroup>
     <SignInHeader />
     <AnonymousSignInFormBoundary />
     <FieldSeparator>Or continue with</FieldSeparator>
-    <GoogleSignInAction />
+    <GoogleSignInFormBoundary redirectErrorMessage={googleSignInErrorMessage} />
   </FieldGroup>
 );
 
