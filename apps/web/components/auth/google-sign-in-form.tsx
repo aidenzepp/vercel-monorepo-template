@@ -50,10 +50,21 @@ const GoogleSignInAction = ({ pending }: { pending: boolean }) => (
 );
 
 /**
+ * Displays the Google sign-in failure associated with the current action.
+ *
+ * @param props - The latest Google sign-in result.
+ * @param props.message - Supplies callback or request repair guidance.
+ * @returns The failure alert, or no content when Google sign-in is clear.
+ */
+const GoogleSignInError = ({ message }: { message: string | null }) =>
+  message === null ? null : <FieldError>{message}</FieldError>;
+
+/**
  * Displays Google authentication with localized progress and failure copy.
  *
  * @param props - The Google authentication capability and callback state.
- * @param props.onSignIn - Starts the provider redirect.
+ * @param props.onSignIn - Starts the provider redirect and resolves to `null`
+ *   after it begins or to a recoverable failure message when it cannot begin.
  * @param props.redirectErrorMessage - Reports a prior callback failure.
  * @returns The Google sign-in form.
  */
@@ -72,7 +83,7 @@ const GoogleSignInForm = ({
       <Form action={action}>
         <GoogleSignInAction pending={pending} />
       </Form>
-      {errorMessage === null ? null : <FieldError>{errorMessage}</FieldError>}
+      <GoogleSignInError message={errorMessage} />
     </Field>
   );
 };

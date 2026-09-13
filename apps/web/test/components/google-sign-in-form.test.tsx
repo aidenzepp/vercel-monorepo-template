@@ -29,8 +29,9 @@ test("shows an OAuth callback error before a retry", () => {
   container.remove();
 });
 
-test("disables repeat submission and renders an action failure", async () => {
-  const pending = Promise.withResolvers<string | null>();
+test("recovers Google sign-in after a failed request", async () => {
+  const failedRequest = Promise.withResolvers<string | null>();
+  const retryRequest = Promise.withResolvers<string | null>();
   let requestCount = 0;
   const container = document.createElement("div");
   document.body.append(container);
@@ -41,7 +42,9 @@ test("disables repeat submission and renders an action failure", async () => {
       <GoogleSignInForm
         onSignIn={async () => {
           requestCount += 1;
-          return await pending.promise;
+          return await (requestCount === 1
+            ? failedRequest.promise
+            : retryRequest.promise);
         }}
         redirectErrorMessage={null}
       />
@@ -69,11 +72,34 @@ test("disables repeat submission and renders an action failure", async () => {
   expect(requestCount).toBe(1);
 
   await act(async () => {
-    pending.resolve("Google sign-in couldn’t be opened. Try again.");
-    await pending.promise;
+    failedRequest.resolve("Google sign-in couldn’t be opened. Try again.");
+    await failedRequest.promise;
   });
 
   expect(container.textContent).toContain(
+    "Google sign-in couldn’t be opened. Try again."
+  );
+  expect(button.disabled).toBe(false);
+  expect(button.getAttribute("aria-busy")).toBeNull();
+  expect(button.textContent).toContain("Continue with Google");
+
+  await act(async () => {
+    button.click();
+    await Promise.resolve();
+  });
+
+  expect(requestCount).toBe(2);
+  expect(button.disabled).toBe(true);
+
+  await act(async () => {
+    retryRequest.resolve(null);
+    await retryRequest.promise;
+  });
+
+  expect(button.disabled).toBe(false);
+  expect(button.getAttribute("aria-busy")).toBeNull();
+  expect(button.textContent).toContain("Continue with Google");
+  expect(container.textContent).not.toContain(
     "Google sign-in couldn’t be opened. Try again."
   );
 
