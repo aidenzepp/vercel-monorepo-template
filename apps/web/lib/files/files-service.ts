@@ -209,8 +209,8 @@ const url = async (
 const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   // Resolve policy once so the inherited adapter methods and our signed URL
   // methods cannot apply different defaults. Files SDK defaults access to
-  // public and overwrites to true; this service preserves public access but
-  // rejects overwrites unless the caller explicitly opts in.
+  // public and overwrites to true; this service preserves the selected access
+  // mode but rejects overwrites unless the caller explicitly opts in.
   const { access = "public", allowOverwrite = false } = options;
   const credentials = getBlobCredentials(options);
   const adapter = vercelBlob({
@@ -263,10 +263,10 @@ class FileService extends Files<VercelBlobAdapter> {
 }
 
 /**
- * Application FileService configured for permanent public Blob URLs.
+ * Application FileService configured for access-controlled private objects.
  */
 const files = new FileService({
-  access: "public",
+  access: "private",
 });
 
 export { FileService, files };

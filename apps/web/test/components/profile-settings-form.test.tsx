@@ -17,7 +17,8 @@ import {
  * The profile values shared by regular and anonymous form cases.
  */
 const profile = {
-  image: "https://blob.example/users/user-1/avatar.png",
+  image:
+    "/api/files?op=download&key=avatars%2F01234567-89ab-4cde-8fab-0123456789ab.png",
   name: "Temporary user",
   username: null,
 };
@@ -53,7 +54,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
     () => {}
   );
   const savedAvatar =
-    "https://assets.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png";
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
   const submission: AvatarSubmission = { avatar: null };
   const container = document.createElement("div");
   document.body.append(container);
@@ -67,7 +68,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   act(() => {
     root.render(
       <ProfileSettingsForm
-        canEditUsername
+        canEditProfile
         onSave={async (settings) => {
           await Promise.resolve();
           submission.avatar =
@@ -115,7 +116,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(fieldColumn?.nextElementSibling).toBe(avatarDisplay);
   expect(
     container.querySelector<HTMLImageElement>('[data-slot="avatar-image"]')?.src
-  ).toBe(profile.image);
+  ).toBe(new URL(profile.image, window.location.href).href);
   expect(input.type).toBe("file");
   expect(input.accept).toBe("image/jpeg,image/png,image/webp");
 
@@ -157,7 +158,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
 
   expect(
     container.querySelector<HTMLImageElement>('[data-slot="avatar-image"]')?.src
-  ).toBe(profile.image);
+  ).toBe(new URL(profile.image, window.location.href).href);
   expect(revokeObjectURL).toHaveBeenCalledWith(
     "blob:https://templ8.test/first-preview"
   );
@@ -190,7 +191,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(submission.avatar).toBe(secondAvatar);
   expect(
     container.querySelector<HTMLImageElement>('[data-slot="avatar-image"]')?.src
-  ).toBe(savedAvatar);
+  ).toBe(new URL(savedAvatar, window.location.href).href);
   expect(revokeObjectURL).toHaveBeenCalledWith(
     "blob:https://templ8.test/second-preview"
   );
@@ -222,7 +223,7 @@ test("profile avatar selection does not depend on File constructor identity", as
   act(() => {
     root.render(
       <ProfileSettingsForm
-        canEditUsername
+        canEditProfile
         onSave={async (settings) => {
           await Promise.resolve();
           submission.avatar =
@@ -282,10 +283,10 @@ test("profile avatar selection does not depend on File constructor identity", as
   revokeObjectURL.mockRestore();
 });
 
-test("anonymous profile forms disable the username field", () => {
+test("anonymous profile forms disable the complete profile fieldset", () => {
   const markup = renderToStaticMarkup(
     <ProfileSettingsForm
-      canEditUsername={false}
+      canEditProfile={false}
       onSave={() => {
         throw new Error("Static form rendering must not submit profile data.");
       }}
@@ -293,14 +294,16 @@ test("anonymous profile forms disable the username field", () => {
     />
   );
 
+  expect(markup).toMatch(/<fieldset[^>]*disabled=""/u);
+  expect(markup).toContain('id="settings-avatar"');
+  expect(markup).toContain('id="settings-name"');
   expect(markup).toContain('id="settings-username"');
-  expect(markup).toContain('id="settings-username" disabled=""');
 });
 
 test("profile form actions opt into press sounds", () => {
   const markup = renderToStaticMarkup(
     <ProfileSettingsForm
-      canEditUsername={false}
+      canEditProfile={false}
       onSave={() => {
         throw new Error("Static form rendering must not submit profile data.");
       }}
@@ -316,29 +319,54 @@ test("profile form actions opt into press sounds", () => {
   );
 });
 
-test("anonymous profile updates omit the username", () => {
-  expect(
-    createProfileUpdate(
-      {
-        avatar: { kind: "persisted", url: null },
-        name: nameSchema.parse("Guest author"),
-        username: usernameSchema.parse("claimed_name"),
+test("anonymous profile saves stop before identity and avatar operations", async () => {
+  let identityRequests = 0;
+  let uploadRequests = 0;
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+
+  const saved = await saveProfile({
+    canEditProfile: false,
+    settings: {
+      avatar: {
+        file: avatar,
+        kind: "selected",
+        previewUrl: "blob:https://templ8.test/avatar-preview",
       },
-      false
-    )
-  ).toEqual({ name: nameSchema.parse("Guest author") });
+      name: nameSchema.parse("Guest author"),
+      username: usernameSchema.parse("claimed_name"),
+    },
+    updateUser: async () => {
+      identityRequests += 1;
+      await Promise.resolve();
+      return { error: null };
+    },
+    uploadAvatar: async () => {
+      uploadRequests += 1;
+      await Promise.resolve();
+      return result.pass({
+        url: "/api/files?op=download&key=avatars%2Favatar.png",
+      });
+    },
+    userId: "anonymous_123",
+  });
+
+  expect(saved).toEqual({
+    issue: {
+      field: "root",
+      message: "Temporary accounts cannot change profile settings.",
+    },
+  });
+  expect(identityRequests).toBe(0);
+  expect(uploadRequests).toBe(0);
 });
 
 test("regular profile updates include a selected username", () => {
   expect(
-    createProfileUpdate(
-      {
-        avatar: { kind: "persisted", url: null },
-        name: nameSchema.parse("Aiden Zepp"),
-        username: usernameSchema.parse("aiden"),
-      },
-      true
-    )
+    createProfileUpdate({
+      avatar: { kind: "persisted", url: null },
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    })
   ).toEqual({
     name: nameSchema.parse("Aiden Zepp"),
     username: usernameSchema.parse("aiden"),
@@ -348,7 +376,7 @@ test("regular profile updates include a selected username", () => {
 test("profile saves upload a selected avatar and persist its URL", async () => {
   const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
   const avatarUrl =
-    "https://assets.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png";
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
   const operations: string[] = [];
   const updates: {
     image?: string;
@@ -368,7 +396,7 @@ test("profile saves upload a selected avatar and persist its URL", async () => {
   });
 
   const saved = await saveProfile({
-    canEditUsername: true,
+    canEditProfile: true,
     settings: {
       avatar: {
         file: avatar,
@@ -409,7 +437,7 @@ test("profile saves reject a username before uploading its avatar", async () => 
   });
 
   const saved = await saveProfile({
-    canEditUsername: true,
+    canEditProfile: true,
     settings: {
       avatar: {
         file: avatar,
@@ -449,7 +477,7 @@ test("profile saves keep avatar validation failures with the file field", async 
   });
 
   const saved = await saveProfile({
-    canEditUsername: true,
+    canEditProfile: true,
     settings: {
       avatar: {
         file: avatar,

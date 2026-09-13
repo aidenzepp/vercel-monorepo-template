@@ -124,7 +124,7 @@ interface ProfileUsernameInputProps {
 }
 
 interface ProfileSettingsFormProps {
-  canEditUsername: boolean;
+  canEditProfile: boolean;
   onSave: (settings: ProfileSettings) => Promise<ProfileSettingsSaveResult>;
   user: ProfileSettingsUser;
 }
@@ -137,7 +137,7 @@ interface ProfileSettingsFormBoundaryProps {
  * Validated profile values and account policy required by the save operation.
  */
 interface SaveProfileOptions {
-  canEditUsername: boolean;
+  canEditProfile: boolean;
   settings: ProfileSettings;
   updateUser: (
     update: ProfileUserUpdate
@@ -147,20 +147,16 @@ interface SaveProfileOptions {
 }
 
 /**
- * Creates the Better Auth update allowed for the current account type.
+ * Creates the Better Auth identity update for an editable profile.
  *
- * Empty and anonymous usernames are omitted so profile-name changes do not
- * accidentally claim or clear an identifier.
+ * Empty usernames are omitted so a name change cannot accidentally clear an
+ * existing identifier.
  *
  * @param settings - The validated values submitted by the profile form.
- * @param canEditUsername - Whether the current account may change its username.
- * @returns The fields permitted in the Better Auth update request.
+ * @returns The fields included in the Better Auth update request.
  */
-const createProfileUpdate = (
-  settings: ProfileSettings,
-  canEditUsername: boolean
-): ProfileUserUpdate =>
-  !canEditUsername || settings.username.length === 0
+const createProfileUpdate = (settings: ProfileSettings): ProfileUserUpdate =>
+  settings.username.length === 0
     ? { name: settings.name }
     : { name: settings.name, username: settings.username };
 
@@ -223,8 +219,8 @@ const getProfileUpdateIssue = (error: {
  *
  * @param options - The account capability, submitted values, and logging
  *   identity.
- * @param options.canEditUsername - Whether the current account may change its
- *   username.
+ * @param options.canEditProfile - Whether the current account may change any
+ *   profile fields.
  * @param options.settings - The validated values submitted by the profile form.
  * @param options.updateUser - Persists the Better Auth user fields.
  * @param options.uploadAvatar - Stores a newly selected avatar when present.
@@ -232,15 +228,24 @@ const getProfileUpdateIssue = (error: {
  * @returns A repairable issue or the avatar state saved with the profile.
  */
 const saveProfile = async ({
-  canEditUsername,
+  canEditProfile,
   settings,
   updateUser,
   uploadAvatar,
   userId,
 }: SaveProfileOptions): Promise<ProfileSettingsSaveResult> => {
+  if (!canEditProfile) {
+    return {
+      issue: {
+        field: "root",
+        message: "Temporary accounts cannot change profile settings.",
+      },
+    };
+  }
+
   let avatar =
     settings.avatar.kind === "persisted" ? settings.avatar.url : null;
-  const identityUpdate = createProfileUpdate(settings, canEditUsername);
+  const identityUpdate = createProfileUpdate(settings);
   const identityResponse = await result.trycatch(
     async () => await updateUser(identityUpdate)
   );
@@ -620,7 +625,7 @@ const ProfileSaveAction = () => {
  * progress.
  *
  * @param props - The account capability, current identity, and save operation.
- * @param props.canEditUsername - Whether the username control accepts changes.
+ * @param props.canEditProfile - Whether the account may change profile fields.
  * @param props.onSave - Persists validated values and returns any repairable
  *   failure.
  * @param props.user - Supplies the latest session-backed profile values.
@@ -628,7 +633,7 @@ const ProfileSaveAction = () => {
  * @see https://react-hook-form.com/docs/useform#values
  */
 const ProfileSettingsForm = ({
-  canEditUsername,
+  canEditProfile,
   onSave,
   user,
 }: ProfileSettingsFormProps) => {
@@ -695,7 +700,7 @@ const ProfileSettingsForm = ({
           }}
         >
           <CardContent>
-            <FieldSet disabled={form.formState.isSubmitting}>
+            <FieldSet disabled={!canEditProfile || form.formState.isSubmitting}>
               <FieldLegend className="sr-only">Profile</FieldLegend>
               <ProfileSaveError />
 
@@ -703,7 +708,7 @@ const ProfileSettingsForm = ({
                 <ProfileAvatarInput />
                 <ProfileNameInput placeholder="Your name" />
                 <ProfileUsernameInput
-                  disabled={!canEditUsername}
+                  disabled={!canEditProfile}
                   placeholder="username"
                 />
               </FieldGroup>
@@ -731,14 +736,14 @@ const ProfileSettingsFormBoundary = ({
   onUploadAvatar,
 }: ProfileSettingsFormBoundaryProps) => {
   const { user } = useSession();
-  const canEditUsername = user.isAnonymous !== true;
+  const canEditProfile = user.isAnonymous !== true;
 
   return (
     <ProfileSettingsForm
-      canEditUsername={canEditUsername}
+      canEditProfile={canEditProfile}
       onSave={async (settings) =>
         await saveProfile({
-          canEditUsername,
+          canEditProfile,
           settings,
           updateUser: async (update) => await authClient.updateUser(update),
           uploadAvatar: onUploadAvatar,

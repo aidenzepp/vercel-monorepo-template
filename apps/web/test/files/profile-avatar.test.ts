@@ -3,21 +3,20 @@ import { expect, test } from "bun:test";
 import { uploadProfileAvatarFile } from "../../lib/files/profile-avatar";
 import type { ProfileAvatarFileStore } from "../../lib/files/profile-avatar";
 
-test("uploads an avatar to a user-scoped object and returns its public URL", async () => {
+test("uploads an avatar to a user-scoped object and returns its private gateway URL", async () => {
   const uploads: {
     body: File;
     contentType: string;
     key: string;
   }[] = [];
-  const store: ProfileAvatarFileStore = {
+  const store: ProfileAvatarFileStore & { url: () => never } = {
     upload: async (key, body, options) => {
       await Promise.resolve();
       uploads.push({ body, contentType: options.contentType, key });
       return { key };
     },
-    url: async (key) => {
-      await Promise.resolve();
-      return `https://assets.public.blob.vercel-storage.com/${key}`;
+    url: () => {
+      throw new Error("Private avatar uploads must not mint a Blob URL.");
     },
   };
   const avatar = new File(["avatar"], "portrait.png", {
@@ -27,6 +26,7 @@ test("uploads an avatar to a user-scoped object and returns its public URL", asy
   const uploaded = await uploadProfileAvatarFile({
     file: avatar,
     files: store,
+    isAnonymous: false,
     userId: "user_123",
   });
 
@@ -37,7 +37,7 @@ test("uploads an avatar to a user-scoped object and returns its public URL", asy
   }
 
   expect(uploaded.value.url).toMatch(
-    /^https:\/\/assets\.public\.blob\.vercel-storage\.com\/users\/user_123\/avatars\/[0-9a-f-]+\.png$/u
+    /^\/api\/files\?op=download&key=avatars%2F[0-9a-f-]+\.png$/u
   );
   expect(uploads).toHaveLength(1);
   expect(uploads[0]?.body).toBe(avatar);
@@ -47,13 +47,41 @@ test("uploads an avatar to a user-scoped object and returns its public URL", asy
   );
 });
 
+test("rejects avatar uploads for anonymous users before storage", async () => {
+  const store = {
+    upload: () => {
+      throw new Error("Anonymous avatars must not reach Blob storage.");
+    },
+    url: () => {
+      throw new Error("Anonymous avatars have no read URL.");
+    },
+  };
+  const options = {
+    file: new File(["avatar"], "portrait.png", { type: "image/png" }),
+    files: store,
+    isAnonymous: true,
+    userId: "anonymous_123",
+  };
+
+  const uploaded = await uploadProfileAvatarFile(options);
+
+  expect(uploaded.ok).toBe(false);
+
+  if (uploaded.ok) {
+    throw new Error(
+      "An anonymous avatar should return an authorization error."
+    );
+  }
+
+  expect(uploaded.error.message).toBe(
+    "Temporary accounts cannot upload an avatar."
+  );
+});
+
 test("rejects unsupported avatar formats before storage", async () => {
   const store: ProfileAvatarFileStore = {
     upload: () => {
       throw new Error("Invalid avatars must not reach Blob storage.");
-    },
-    url: () => {
-      throw new Error("Invalid avatars have no public URL.");
     },
   };
   const avatar = new File(["avatar"], "portrait.svg", {
@@ -63,6 +91,7 @@ test("rejects unsupported avatar formats before storage", async () => {
   const uploaded = await uploadProfileAvatarFile({
     file: avatar,
     files: store,
+    isAnonymous: false,
     userId: "user_123",
   });
 
@@ -80,9 +109,6 @@ test("rejects avatars larger than five mebibytes before storage", async () => {
     upload: () => {
       throw new Error("Oversized avatars must not reach Blob storage.");
     },
-    url: () => {
-      throw new Error("Oversized avatars have no public URL.");
-    },
   };
   const avatar = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "large.png", {
     type: "image/png",
@@ -91,6 +117,7 @@ test("rejects avatars larger than five mebibytes before storage", async () => {
   const uploaded = await uploadProfileAvatarFile({
     file: avatar,
     files: store,
+    isAnonymous: false,
     userId: "user_123",
   });
 
@@ -114,14 +141,12 @@ test("preserves the storage failure behind useful profile repair guidance", asyn
       await Promise.resolve();
       throw providerError;
     },
-    url: () => {
-      throw new Error("A failed upload has no public URL.");
-    },
   };
 
   const uploaded = await uploadProfileAvatarFile({
     file: new File(["avatar"], "portrait.png", { type: "image/png" }),
     files: store,
+    isAnonymous: false,
     userId: "user_123",
   });
 

@@ -110,7 +110,7 @@ describe("FileService", () => {
       validUntil: NOW.getTime() + 60_000,
     });
     expect(presignUrl).toHaveBeenCalledWith(SIGNED_TOKEN, {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
       allowOverwrite: false,
       allowedContentTypes: ["image/png"],
@@ -171,13 +171,27 @@ describe("FileService", () => {
     expect(presignUrl).not.toHaveBeenCalled();
   });
 
-  test("configures the application file service for public URLs", async () => {
+  test("configures the application file service for private signed URLs", async () => {
     const avatarUrl = await files.url("users/user_123/avatars/avatar.png");
 
-    expect(avatarUrl).toBe(
-      "https://test1234.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png"
+    expect(avatarUrl).toBe("https://blob.example/signed");
+    expect(issueSignedToken).toHaveBeenCalledWith({
+      operations: ["get"],
+      pathname: "users/user_123/avatars/avatar.png",
+      validUntil: NOW.getTime() + 5 * 60_000,
+    });
+    expect(presignUrl).toHaveBeenCalledWith(
+      {
+        ...SIGNED_TOKEN,
+        validUntil: NOW.getTime() + 5 * 60_000,
+      },
+      {
+        access: "private",
+        operation: "get",
+        pathname: "users/user_123/avatars/avatar.png",
+        validUntil: NOW.getTime() + 5 * 60_000,
+      }
     );
-    expect(issueSignedToken).not.toHaveBeenCalled();
   });
 
   test("allows callers to opt into stable-key replacement", async () => {

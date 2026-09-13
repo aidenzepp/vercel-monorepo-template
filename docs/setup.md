@@ -1,6 +1,6 @@
 # Default web foundation setup
 
-This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, Better Auth, public Blob storage, and Resend; `mkt` is public marketing and remains free of those dependencies. The repository steps below are current local contracts. Cloud sections distinguish configuration verified through the live Vercel/Neon setup from behavior that still requires a real deployment.
+This runbook establishes the two-project deployment shape without blurring ownership: `web` is the authenticated product and owns Neon, Drizzle, Better Auth, private Blob storage, and Resend; `mkt` is public marketing and remains free of those dependencies. The repository steps below are current local contracts. Cloud sections distinguish configuration verified through the live Vercel/Neon setup from behavior that still requires a real deployment.
 
 ## Prerequisites and Bun install
 
@@ -46,7 +46,7 @@ Use `iad1` as the default Neon and Blob region unless the product's deployment o
 
 1. Create separate Vercel projects for `apps/web` and `apps/mkt`, then link each local app to its project.
 2. Create and connect Neon only to `web`, with Neon Auth disabled and Preview branching enabled.
-3. Create and connect a public Blob store only to `web`, using OIDC without a read-write token.
+3. Create and connect a private Blob store only to `web`, using OIDC without a read-write token.
 4. Install Resend only after the product owns a sending domain and can verify its DNS records.
 5. Add the application-owned Better Auth variables to `web`.
 6. Pull the completed Development environment into the repository-root `.env.local`.
@@ -217,14 +217,16 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 Create Blob from the `web` project's **Storage** page:
 
 1. Choose **Create Database**, then **Blob**.
-2. Name the public store `blob-<package-name>-apps` and use `iad1` unless the product requires another region. Blob access cannot be changed after creation, so replace an existing private store rather than reusing it for this contract.
+2. Name the private store `blob-<package-name>-apps` and use `iad1` unless the product requires another region. Blob access cannot be changed after creation, so do not create a public store for this contract.
 3. Keep the environment-variable prefix as `BLOB` and leave **Add a read-write token env var** unchecked.
 4. After creation, open the store's **Projects** page and update the `web` connection to include Development, Preview, and Production.
 5. Confirm the connection lists `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY`, and that the project does not contain `BLOB_READ_WRITE_TOKEN`.
 
 `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` are the stable connection values validated by the shared Blob environment contract. The public key is available for future webhook verification without coupling current file operations to a webhook implementation. `BLOB_READ_WRITE_TOKEN` is represented as an optional compatibility credential, but the default setup must leave it absent. Vercel supplies short-lived OIDC identity to the Blob SDK at runtime; application code must not read or validate the raw `VERCEL_OIDC_TOKEN`.
 
-`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, permanent public reads, and constrained browser-direct uploads. Public Blob URLs are unlisted rather than access-controlled, so callers must use this default only for non-sensitive product media such as profile avatars. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths and per-use-case upload limits to the caller.
+`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct upload capabilities. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths and per-use-case upload limits to the caller.
+
+Private user media is read through the authenticated `app/api/files/route.ts` gateway. Its current contract exports only `GET`, permits only the Files SDK `download` operation, scopes keys under `users/<current-user-id>/`, and proxies bytes through `web` so the provider URL never reaches the browser. Each new product namespace must add its own key parser and authorization policy before the gateway will serve it. Writes should use a separately authorized workflow; profile avatar uploads intentionally stay behind the save action so username validation runs before storage changes.
 
 ## Resend on web only
 
@@ -254,4 +256,4 @@ The shared Resend environment contract requires both values because the API key 
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
-Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. The template now requires a public store, so that access choice remains unproven in the disposable project. Resend was not provisioned there because it had no owned sending domain. The validation did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
+Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. Resend was not provisioned there because it had no owned sending domain. The validation did not exercise the authenticated files proxy, connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.

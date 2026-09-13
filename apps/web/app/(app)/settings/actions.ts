@@ -27,6 +27,7 @@ const uploadProfileAvatar = async (
   const uploaded = await uploadProfileAvatarFile({
     file,
     files,
+    isAnonymous: user.isAnonymous === true,
     userId: user.id,
   });
 
