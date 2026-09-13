@@ -18,6 +18,7 @@ import {
 } from "@workspace/ui/components/field";
 import {
   RadioGroup,
+  RadioGroupButton,
   RadioGroupItem,
 } from "@workspace/ui/components/radio-group";
 import { useTheme } from "@workspace/ui/next/theme-provider";
@@ -210,7 +211,7 @@ const ThemeRadioControl = ({
  * @param props.icon - Identifies the theme choice visually.
  * @param props.label - Names the icon-only radio for assistive technology.
  * @param props.value - Supplies the persisted next-themes preference.
- * @returns One labeled icon segment with native radio semantics.
+ * @returns One shared icon button with native radio semantics.
  */
 const ThemeSegmentedOption = ({
   description,
@@ -218,14 +219,13 @@ const ThemeSegmentedOption = ({
   label,
   value,
 }: ThemeOption) => (
-  <FieldLabel
-    className="text-muted-foreground hover:text-foreground has-data-checked:bg-muted has-data-checked:text-foreground has-[:focus-visible]:ring-ring/50 relative size-11 cursor-pointer items-center justify-center rounded-full transition-colors has-[:focus-visible]:ring-3"
+  <RadioGroupButton
+    aria-label={label}
     title={`${label}: ${description}`}
+    value={value}
   >
-    <RadioGroupItem className="sr-only after:hidden" value={value} />
     <Icon aria-hidden="true" className="size-5" strokeWidth={2.25} />
-    <span className="sr-only">{label}</span>
-  </FieldLabel>
+  </RadioGroupButton>
 );
 
 /**
@@ -244,16 +244,18 @@ const ThemeSegmentedControl = ({
   onThemeChange,
   theme,
 }: ThemeControlProps) => (
-  <FieldSet>
-    <FieldLegend id="theme-segmented-label">Theme</FieldLegend>
-    <FieldDescription id="theme-segmented-description">
-      Changes apply immediately and stay with this browser.
-    </FieldDescription>
+  <Field orientation="horizontal">
+    <FieldContent>
+      <FieldTitle id="theme-segmented-label">Theme</FieldTitle>
+      <FieldDescription id="theme-segmented-description">
+        Changes apply immediately and stay with this browser.
+      </FieldDescription>
+    </FieldContent>
     <RadioGroup
       aria-busy={disabled}
       aria-describedby="theme-segmented-description"
       aria-labelledby="theme-segmented-label"
-      className="border-border bg-background mt-1 flex w-fit gap-1 rounded-full border p-1 shadow-xs disabled:opacity-60"
+      className="border-border bg-background flex w-fit shrink-0 gap-1 rounded-full border p-1 shadow-xs data-disabled:opacity-60"
       disabled={disabled}
       onValueChange={onThemeChange}
       value={theme}
@@ -262,7 +264,7 @@ const ThemeSegmentedControl = ({
         <ThemeSegmentedOption key={option.value} {...option} />
       ))}
     </RadioGroup>
-  </FieldSet>
+  </Field>
 );
 
 /**

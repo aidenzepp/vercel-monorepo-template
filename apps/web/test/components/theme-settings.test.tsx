@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { ThemeSettingsBoundary } from "../../components/debug/theme-settings";
 
@@ -19,8 +20,57 @@ const findThemeRadios = (
 ): HTMLElement[] =>
   [...container.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
     (radio) =>
+      radio.getAttribute("aria-label") === label ||
       radio.closest("label")?.textContent?.trim().startsWith(label) === true
   );
+
+test("renders the segmented treatment as button-backed radios on the right", () => {
+  window.localStorage.setItem("theme", "light");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <ThemeProvider>
+        <ThemeSettingsBoundary treatment="segmented" />
+      </ThemeProvider>
+    );
+  });
+
+  const group = container.querySelector<HTMLElement>(
+    '[role="radiogroup"][aria-labelledby="theme-segmented-label"]'
+  );
+  const field = group?.closest<HTMLElement>('[data-slot="field"]');
+  const buttonRadios = group?.querySelectorAll(
+    'button[data-slot="button"][role="radio"]'
+  );
+  const nativeRadios = group?.querySelectorAll('input[type="radio"]');
+
+  expect(field?.dataset.orientation).toBe("horizontal");
+  expect(field?.querySelector('[data-slot="field-content"]')).not.toBeNull();
+  expect(field?.lastElementChild).toBe(group ?? null);
+  expect(buttonRadios).toHaveLength(3);
+  expect(nativeRadios).toHaveLength(3);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
+test("keeps browser-derived theme state out of server markup", () => {
+  window.localStorage.setItem("theme", "dark");
+
+  const markup = renderToStaticMarkup(
+    <ThemeProvider>
+      <ThemeSettingsBoundary treatment="segmented" />
+    </ThemeProvider>
+  );
+
+  expect(markup).toContain('aria-busy="true"');
+  expect(markup).not.toContain('aria-checked="true"');
+});
 
 test("applies each theme preference immediately from either treatment", () => {
   window.localStorage.setItem("theme", "light");
