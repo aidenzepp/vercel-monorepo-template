@@ -1,7 +1,8 @@
 import { ProfileSettingsFormBoundary } from "@/components/settings/profile-settings-form";
+import { SoundSettingsBoundary } from "@/components/settings/sound-settings";
 
 /**
- * Displays the stable heading for account settings.
+ * Displays the stable heading for application settings.
  *
  * @returns The settings title and purpose.
  */
@@ -11,22 +12,22 @@ const SettingsHeader = () => (
       Settings
     </h1>
     <p className="text-muted-foreground text-sm">
-      Manage your profile and account.
+      Manage your profile and preferences.
     </p>
   </header>
 );
 
 /**
- * Displays account settings from the session already owned by the protected
- * layout.
+ * Displays profile and browser sound preferences inside the protected layout.
  *
- * @returns The settings page with its profile form.
+ * @returns The settings page with profile and sound controls.
  */
 export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-8">
       <SettingsHeader />
       <ProfileSettingsFormBoundary />
+      <SoundSettingsBoundary />
     </div>
   );
 }

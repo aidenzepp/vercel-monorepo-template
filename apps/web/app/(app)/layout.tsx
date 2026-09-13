@@ -21,7 +21,12 @@ import { requireSession } from "@/lib/auth/session-server";
  */
 const SidebarBrand = () => (
   <SidebarHeader className="h-16 items-center justify-center px-2">
-    <Link aria-label="templ8 home" className="flex w-fit items-center" href="/">
+    <Link
+      aria-label="templ8 home"
+      className="flex w-fit items-center"
+      data-cuelume-toggle="press"
+      href="/"
+    >
       <Templ8Wordmark aria-hidden="true" className="h-8 w-auto" />
     </Link>
   </SidebarHeader>

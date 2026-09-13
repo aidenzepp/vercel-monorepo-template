@@ -32,6 +32,25 @@ test("anonymous profile forms disable the username field", () => {
   expect(markup).toContain('id="settings-username" disabled=""');
 });
 
+test("profile form actions opt into press sounds", () => {
+  const markup = renderToStaticMarkup(
+    <ProfileSettingsForm
+      canEditUsername={false}
+      onSave={() => {
+        throw new Error("Static form rendering must not submit profile data.");
+      }}
+      user={profile}
+    />
+  );
+
+  expect(markup).toMatch(
+    /<button(?=[^>]*data-cuelume-toggle="press")[^>]*>Reset<\/button>/u
+  );
+  expect(markup).toMatch(
+    /<button(?=[^>]*data-cuelume-toggle="press")[^>]*>Save changes<\/button>/u
+  );
+});
+
 test("anonymous profile updates omit the username", () => {
   expect(
     createProfileUpdate(

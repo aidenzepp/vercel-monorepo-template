@@ -260,6 +260,7 @@ function SidebarTrigger({
   return (
     <Button
       color="neutral"
+      data-cuelume-toggle="toggle"
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
       variant="ghost"

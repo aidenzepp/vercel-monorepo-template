@@ -42,6 +42,16 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
       data-slot="toast"
       className={cn(
         "group/toast bg-popover text-popover-foreground focus-visible:border-ring focus-visible:ring-ring/50 pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl! border shadow-lg will-change-transform outline-none select-none focus-visible:ring-[3px]",
+        // Mirrors Sonner v2.0.7's rich-colors status palette:
+        // https://github.com/emilkowalski/sonner/blob/v2.0.7/src/styles.css
+        "data-[type=success]:border-[hsl(145_92%_87%)] data-[type=success]:bg-[hsl(143_85%_96%)] data-[type=success]:text-[hsl(140_100%_27%)]",
+        "data-[type=info]:border-[hsl(221_91%_93%)] data-[type=info]:bg-[hsl(208_100%_97%)] data-[type=info]:text-[hsl(210_92%_45%)]",
+        "data-[type=warning]:border-[hsl(49_91%_84%)] data-[type=warning]:bg-[hsl(49_100%_97%)] data-[type=warning]:text-[hsl(31_92%_45%)]",
+        "data-[type=error]:border-[hsl(359_100%_94%)] data-[type=error]:bg-[hsl(359_100%_97%)] data-[type=error]:text-[hsl(360_100%_45%)]",
+        "dark:data-[type=success]:border-[hsl(147_100%_12%)] dark:data-[type=success]:bg-[hsl(150_100%_6%)] dark:data-[type=success]:text-[hsl(150_86%_65%)]",
+        "dark:data-[type=info]:border-[hsl(223_43%_17%)] dark:data-[type=info]:bg-[hsl(215_100%_6%)] dark:data-[type=info]:text-[hsl(216_87%_65%)]",
+        "dark:data-[type=warning]:border-[hsl(60_100%_9%)] dark:data-[type=warning]:bg-[hsl(64_100%_6%)] dark:data-[type=warning]:text-[hsl(46_87%_65%)]",
+        "dark:data-[type=error]:border-[hsl(357_89%_16%)] dark:data-[type=error]:bg-[hsl(358_76%_10%)] dark:data-[type=error]:text-[hsl(358_100%_81%)]",
         "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
         "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
         "after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
@@ -93,7 +103,10 @@ function ToastDescription({
   return (
     <ToastPrimitive.Description
       data-slot="toast-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn(
+        "text-muted-foreground text-sm group-data-[type=error]/toast:text-inherit group-data-[type=info]/toast:text-inherit group-data-[type=success]/toast:text-inherit group-data-[type=warning]/toast:text-inherit",
+        className
+      )}
       {...props}
     />
   );
@@ -152,7 +165,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   }
 
   if (type === "error") {
-    icon = <OctagonXIcon className="text-destructive" aria-hidden="true" />;
+    icon = <OctagonXIcon aria-hidden="true" />;
   }
 
   if (type === "loading") {
