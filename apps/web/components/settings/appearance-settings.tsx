@@ -158,10 +158,10 @@ const AppearanceSettings = ({
           aria-busy={disabled}
           aria-describedby="appearance-theme-description"
           aria-labelledby="appearance-theme-label"
-          className="border-border bg-background flex w-fit shrink-0 gap-1 rounded-full border p-1 shadow-xs data-disabled:opacity-60"
           disabled={disabled}
           onValueChange={onThemeChange}
           value={theme}
+          variant="segmented"
         >
           {THEME_OPTIONS.map((option) => (
             <ThemePreferenceButton key={option.value} {...option} />

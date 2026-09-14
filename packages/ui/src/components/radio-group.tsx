@@ -4,6 +4,26 @@ import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
+import { cva, type VariantProps } from "class-variance-authority";
+
+/**
+ * The intrinsic presentation variants supported by the shared radio group.
+ */
+const radioGroupVariants = cva("grid w-full gap-3", {
+  variants: {
+    variant: {
+      default: "",
+      segmented:
+        "border-border bg-background flex w-fit shrink-0 gap-1 rounded-full border p-1 shadow-xs data-disabled:opacity-60",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+type RadioGroupProps = RadioGroupPrimitive.Props &
+  VariantProps<typeof radioGroupVariants>;
 
 type RadioGroupButtonProps = Omit<
   RadioPrimitive.Root.Props,
@@ -12,11 +32,25 @@ type RadioGroupButtonProps = Omit<
   className?: string;
 };
 
-function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+/**
+ * Displays a Base UI radio group with a reusable presentation treatment.
+ *
+ * @param props - The radio-group behavior and presentation selection.
+ * @param props.className - Adds contextual layout without redefining the
+ *   treatment.
+ * @param props.variant - Selects the shared default or segmented appearance.
+ * @returns The semantic group containing one mutually exclusive selection.
+ */
+function RadioGroup({
+  className,
+  variant = "default",
+  ...props
+}: RadioGroupProps) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
-      className={cn("grid w-full gap-3", className)}
+      data-variant={variant}
+      className={cn(radioGroupVariants({ className, variant }))}
       {...props}
     />
   );

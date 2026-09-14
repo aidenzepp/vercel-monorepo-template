@@ -44,6 +44,7 @@ test("renders button-backed theme radios on the right", () => {
   const nativeRadios = group?.querySelectorAll('input[type="radio"]');
 
   expect(field?.dataset.orientation).toBe("horizontal");
+  expect(group?.dataset.variant).toBe("segmented");
   expect(field?.querySelector('[data-slot="field-content"]')).not.toBeNull();
   expect(field?.lastElementChild).toBe(group ?? null);
   expect(buttonRadios).toHaveLength(3);
