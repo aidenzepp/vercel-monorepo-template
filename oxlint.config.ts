@@ -39,7 +39,7 @@ export default defineConfig({
   // Anti-slop uses a JavaScript plugin and can make linting roughly 60% slower.
   extends: [core, antiSlop],
   ignorePatterns,
-  jsPlugins: [workspaceOxlintPlugin],
+  jsPlugins: [workspaceOxlintPlugin, "@shadcn/lint"],
   options: {
     typeAware: true,
   },
@@ -104,7 +104,34 @@ export default defineConfig({
     "jsdoc/require-param-description": "error",
     "jsdoc/require-returns": "error",
     "jsdoc/require-returns-description": "error",
+    "shadcn/no-restyle": [
+      "error",
+      {
+        allow: ["layout"],
+        contracts: [
+          {
+            allow: ["layout"],
+            message: {
+              default:
+                '"{{className}}" is not allowed on <Button>: use color (default, neutral, destructive, success, warning) and variant (primary, outline, secondary, ghost, soft, link). Add a reusable option in {{file|packages/ui/src/components/button.tsx}} only when the design system needs one.',
+              spacing:
+                '"{{className}}" is not allowed on <Button>: use a size ({{sizes|default, xs, sm, lg, icon, icon-xs, icon-sm, icon-lg}}) for internal spacing. Put surrounding space on the parent; add a size in {{file|packages/ui/src/components/button.tsx}} only when the design system needs one.',
+            },
+            pattern: "^Button$",
+          },
+          {
+            allow: ["layout", "gap-*"],
+            pattern: "^(CardFooter|Field|FieldContent|FieldGroup|FieldSet)$",
+          },
+        ],
+      },
+    ],
     "workspace/no-built-in-try-catch": "error",
     "workspace/require-doc-comment": "error",
+  },
+  settings: {
+    shadcn: {
+      ui: "@workspace/ui/components",
+    },
   },
 });

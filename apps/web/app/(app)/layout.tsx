@@ -20,7 +20,7 @@ import { requireSession } from "@/lib/auth/session-server";
  * @returns The theme-aware templ8 wordmark link.
  */
 const SidebarBrand = () => (
-  <SidebarHeader className="h-16 items-center justify-center px-2">
+  <SidebarHeader className="h-16 items-center justify-center">
     <Link
       aria-label="templ8 home"
       className="flex w-fit items-center"
@@ -41,7 +41,7 @@ const AppSidebar = () => (
   <Sidebar collapsible="offcanvas" variant="inset">
     <SidebarBrand />
     <SidebarContent />
-    <SidebarFooter className="p-2">
+    <SidebarFooter>
       <SidebarUserMenuBoundary />
     </SidebarFooter>
   </Sidebar>
