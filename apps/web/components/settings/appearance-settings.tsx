@@ -185,7 +185,7 @@ const AppearanceSettingsBoundary = () => {
 
   return (
     <AppearanceSettings
-      disabled={currentTheme === ""}
+      disabled={!hydrated}
       onThemeChange={setTheme}
       theme={currentTheme}
     />

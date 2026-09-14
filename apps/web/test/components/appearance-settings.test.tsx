@@ -68,6 +68,35 @@ test("keeps browser-derived theme state out of server markup", () => {
   expect(markup).not.toContain('aria-checked="true"');
 });
 
+test("keeps theme choices usable after an unsupported stored preference", () => {
+  window.localStorage.setItem("theme", "legacy");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <ThemeProvider>
+        <AppearanceSettingsBoundary />
+      </ThemeProvider>
+    );
+  });
+
+  const darkRadio = findThemeRadio(container, "Dark");
+
+  act(() => {
+    darkRadio?.click();
+  });
+
+  expect(window.localStorage.getItem("theme")).toBe("dark");
+  expect(darkRadio?.getAttribute("aria-checked")).toBe("true");
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
 test("persists each theme preference immediately", () => {
   window.localStorage.setItem("theme", "light");
   const container = document.createElement("div");
