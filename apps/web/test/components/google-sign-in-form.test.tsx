@@ -1,9 +1,17 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 
-import { GoogleSignInForm } from "../../components/auth/google-sign-in-form";
+import {
+  GoogleSignInForm,
+  GoogleSignInFormBoundary,
+} from "../../components/auth/google-sign-in-form";
+
+afterEach(() => {
+  Reflect.deleteProperty(document, "cookie");
+});
 
 test("shows an OAuth callback error before a retry", () => {
   const container = document.createElement("div");
@@ -102,6 +110,55 @@ test("recovers Google sign-in after a failed request", async () => {
   expect(container.textContent).not.toContain(
     "Google sign-in couldn’t be opened. Try again."
   );
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
+test("marks Google from Better Auth's remembered login method", () => {
+  Object.defineProperty(document, "cookie", {
+    configurable: true,
+    value: "better-auth.last_used_login_method=google",
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(<GoogleSignInFormBoundary redirectErrorMessage={null} />);
+  });
+
+  expect(container.textContent).toContain("Last Used");
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
+test("restores Google's remembered marker after server hydration", async () => {
+  const container = document.createElement("div");
+  container.innerHTML = renderToString(
+    <GoogleSignInFormBoundary redirectErrorMessage={null} />
+  );
+  document.body.append(container);
+  Object.defineProperty(document, "cookie", {
+    configurable: true,
+    value: "better-auth.last_used_login_method=google",
+  });
+
+  const root = hydrateRoot(
+    container,
+    <GoogleSignInFormBoundary redirectErrorMessage={null} />
+  );
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(container.textContent).toContain("Last Used");
 
   act(() => {
     root.unmount();

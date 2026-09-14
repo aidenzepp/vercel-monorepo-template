@@ -1,11 +1,11 @@
 "use client";
 
-import { Button } from "@workspace/ui/components/button";
 import { Field, FieldError } from "@workspace/ui/components/field";
 import { GoogleLogo } from "@workspace/ui/logos/google";
 import Form from "next/form";
 import { useActionState } from "react";
 
+import { SignInMethodButtonBoundary } from "@/components/auth/sign-in-method-button";
 import { authClient } from "@/lib/auth/auth-client";
 import { requestGoogleSignIn } from "@/lib/auth/google-sign-in";
 
@@ -36,17 +36,10 @@ const signInWithGoogle = async (): Promise<string | null> =>
  * @returns The Google sign-in submission button.
  */
 const GoogleSignInAction = ({ pending }: { pending: boolean }) => (
-  <Button
-    className="w-full"
-    color="neutral"
-    loading={pending}
-    size="lg"
-    type="submit"
-    variant="outline"
-  >
+  <SignInMethodButtonBoundary loading={pending} method="google">
     <GoogleLogo className="size-4" />
     {pending ? "Opening Google…" : "Continue with Google"}
-  </Button>
+  </SignInMethodButtonBoundary>
 );
 
 /**
