@@ -210,7 +210,7 @@ const SettingsMenuItem = () => (
  */
 const SignOutMenuError = ({ message }: { message: string | null }) =>
   message === null ? null : (
-    <FieldError className="px-2 py-1">{message}</FieldError>
+    <FieldError className="mx-2 my-1">{message}</FieldError>
   );
 
 /**

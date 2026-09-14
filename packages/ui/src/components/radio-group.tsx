@@ -12,6 +12,13 @@ type RadioGroupButtonProps = Omit<
   className?: string;
 };
 
+/**
+ * Displays a Base UI radio group with caller-owned contextual layout.
+ *
+ * @param props - The radio-group behavior and contextual layout.
+ * @param props.className - Adds layout appropriate to the consuming feature.
+ * @returns The semantic group containing one mutually exclusive selection.
+ */
 function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (
     <RadioGroupPrimitive

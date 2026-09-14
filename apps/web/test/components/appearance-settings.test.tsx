@@ -20,7 +20,7 @@ const findThemeRadio = (
 ): HTMLElement | null =>
   container.querySelector(`[role="radio"][aria-label="${label}"]`);
 
-test("renders button-backed theme radios on the right", () => {
+test("renders feature-owned chrome around button-backed theme radios", () => {
   window.localStorage.setItem("theme", "light");
   const container = document.createElement("div");
   document.body.append(container);
@@ -37,6 +37,7 @@ test("renders button-backed theme radios on the right", () => {
   const group = container.querySelector<HTMLElement>(
     '[role="radiogroup"][aria-labelledby="appearance-theme-label"]'
   );
+  const control = group?.parentElement;
   const field = group?.closest<HTMLElement>('[data-slot="field"]');
   const buttonRadios = group?.querySelectorAll(
     'button[data-slot="button"][role="radio"]'
@@ -44,8 +45,14 @@ test("renders button-backed theme radios on the right", () => {
   const nativeRadios = group?.querySelectorAll('input[type="radio"]');
 
   expect(field?.dataset.orientation).toBe("horizontal");
+  expect(control?.dataset.slot).toBe("theme-preference-control");
+  expect(control?.classList.contains("rounded-full")).toBe(true);
+  expect(control?.classList.contains("shadow-xs")).toBe(true);
+  expect(group?.classList.contains("flex")).toBe(true);
+  expect(group?.classList.contains("gap-1")).toBe(true);
+  expect(group?.dataset.variant).toBeUndefined();
   expect(field?.querySelector('[data-slot="field-content"]')).not.toBeNull();
-  expect(field?.lastElementChild).toBe(group ?? null);
+  expect(field?.lastElementChild).toBe(control ?? null);
   expect(buttonRadios).toHaveLength(3);
   expect(nativeRadios).toHaveLength(3);
 

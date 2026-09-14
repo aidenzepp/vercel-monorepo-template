@@ -126,6 +126,43 @@ const ThemePreferenceButton = ({
 );
 
 /**
+ * Displays the feature-specific chrome around the semantic theme radio group.
+ *
+ * @param props - The current theme state and immediate change intent.
+ * @param props.disabled - Prevents interaction before browser theme state is
+ *   ready.
+ * @param props.onThemeChange - Applies a selected next-themes preference.
+ * @param props.theme - Supplies the persisted preference or no hydration-time
+ *   selection.
+ * @returns The compact theme preference control used by Appearance settings.
+ */
+const ThemePreferenceControl = ({
+  disabled,
+  onThemeChange,
+  theme,
+}: AppearanceSettingsProps) => (
+  <div
+    className="border-border bg-background w-fit shrink-0 rounded-full border p-1 shadow-xs data-disabled:opacity-60"
+    data-disabled={disabled || undefined}
+    data-slot="theme-preference-control"
+  >
+    <RadioGroup
+      aria-busy={disabled}
+      aria-describedby="appearance-theme-description"
+      aria-labelledby="appearance-theme-label"
+      className="flex w-fit gap-1"
+      disabled={disabled}
+      onValueChange={onThemeChange}
+      value={theme}
+    >
+      {THEME_OPTIONS.map((option) => (
+        <ThemePreferenceButton key={option.value} {...option} />
+      ))}
+    </RadioGroup>
+  </div>
+);
+
+/**
  * Displays the application's browser-local appearance preference.
  *
  * @param props - The current theme state and immediate change intent.
@@ -154,19 +191,11 @@ const AppearanceSettings = ({
             Changes apply immediately and stay with this browser.
           </FieldDescription>
         </FieldContent>
-        <RadioGroup
-          aria-busy={disabled}
-          aria-describedby="appearance-theme-description"
-          aria-labelledby="appearance-theme-label"
-          className="border-border bg-background flex w-fit shrink-0 gap-1 rounded-full border p-1 shadow-xs data-disabled:opacity-60"
+        <ThemePreferenceControl
           disabled={disabled}
-          onValueChange={onThemeChange}
-          value={theme}
-        >
-          {THEME_OPTIONS.map((option) => (
-            <ThemePreferenceButton key={option.value} {...option} />
-          ))}
-        </RadioGroup>
+          onThemeChange={onThemeChange}
+          theme={theme}
+        />
       </Field>
     </CardContent>
   </Card>
