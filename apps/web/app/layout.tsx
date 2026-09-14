@@ -36,9 +36,14 @@ const fontMono = Geist_Mono({
 /**
  * Mounts the web application's fonts, theme, notifications, and observability.
  *
+ * The document root owns the viewport scroll boundary. Painting that boundary
+ * with the themed surface and consuming its overscroll keeps browser boundary
+ * effects inside the application.
+ *
  * @param props - The active web application route.
  * @param props.children - Supplies the route rendered inside global providers.
  * @returns The web application's root document.
+ * @see https://drafts.csswg.org/css-overscroll-1/#overscroll-behavior-properties
  */
 export default function RootLayout({
   children,
@@ -49,9 +54,11 @@ export default function RootLayout({
     <html
       className={cn(
         "antialiased",
+        "bg-background",
         fontMono.variable,
         "font-sans",
         outfit.variable,
+        "overscroll-none",
         robotoSlabHeading.variable
       )}
       lang="en"
