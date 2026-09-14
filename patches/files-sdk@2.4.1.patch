@@ -17,3 +17,26 @@ index 4fba2554f9896cfa31e2e9896f2424043d5528bb..bd86af725e1de062c8a56684fc5cac94
 +
  // src/internal/content-disposition.ts
  var isAttachmentDisposition = (value) => value !== undefined && /^\s*attachment\b/iu.test(value);
+@@ -479,16 +481,12 @@ var handlePresign = async (cfg, files, requestedExpiresIn, scope, unscope) => {
+     }, cfg.secret);
+     let target;
+     if (caps.signedUrl.supported) {
+-      try {
+-        target = await cfg.files.signedUploadUrl(key, {
+-          contentType: file.type || undefined,
+-          expiresIn: expires,
+-          minSize: 0,
+-          ...cfg.maxUploadSize && { maxSize: cfg.maxUploadSize }
+-        });
+-      } catch {
+-        target = proxyTarget(cfg, id, file.type);
+-      }
++      target = await cfg.files.signedUploadUrl(key, {
++        contentType: file.type || undefined,
++        expiresIn: expires,
++        minSize: 0,
++        ...cfg.maxUploadSize && { maxSize: cfg.maxUploadSize }
++      });
+     } else {
+       target = proxyTarget(cfg, id, file.type);
+     }

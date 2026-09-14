@@ -30,13 +30,15 @@ interface SignedUploadRequest {
  * Constructs a private user-files gateway backed by deterministic memory data.
  *
  * @param user - The optional authenticated user exposed to authorization.
+ * @param gatewayOptions - Optional provider failures injected by a test.
  * @returns The gateway and underlying file service used to observe requests.
  */
 const createTestGateway = (
   user: {
     id: string;
     isAnonymous: boolean;
-  } | null
+  } | null,
+  gatewayOptions: { signedUploadError?: Error } = {}
 ) => {
   const signedUploads: SignedUploadRequest[] = [];
   const adapter = memory({
@@ -50,11 +52,16 @@ const createTestGateway = (
   const files = new Files({
     adapter: {
       ...adapter,
-      signedUploadUrl: async (key, options) => {
+      signedUploadUrl: async (key, uploadOptions) => {
         await Promise.resolve();
-        signedUploads.push({ key, options });
+
+        if (gatewayOptions.signedUploadError !== undefined) {
+          throw gatewayOptions.signedUploadError;
+        }
+
+        signedUploads.push({ key, options: uploadOptions });
         return {
-          headers: { "Content-Type": options.contentType ?? "" },
+          headers: { "Content-Type": uploadOptions.contentType ?? "" },
           method: "PUT" as const,
           url: `https://blob.example/upload/${encodeURIComponent(key)}`,
         };
@@ -260,6 +267,49 @@ test("uploads an avatar directly under the authenticated user's avatar prefix", 
   );
 });
 
+test("does not fall back to an application upload when signing fails", async () => {
+  const { router, signedUploads } = createTestGateway(
+    { id: "user_123", isAnonymous: false },
+    { signedUploadError: new Error("signed target exploded") }
+  );
+
+  const response = await router.handle(
+    createAvatarPresignRequest({
+      name: "avatar.png",
+      size: 1024,
+      type: "image/png",
+    })
+  );
+
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({
+    error: { code: "Provider", message: "signed target exploded" },
+  });
+  expect(signedUploads).toHaveLength(0);
+});
+
+test("lets an owner reconcile metadata for a canonical avatar key", async () => {
+  const { router } = createTestGateway({
+    id: "user_123",
+    isAnonymous: false,
+  });
+  const request = new Request("http://localhost/api/files?namespace=avatars", {
+    body: JSON.stringify({ key: AVATAR_KEY, op: "head" }),
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+    },
+    method: "POST",
+  });
+
+  const response = await router.handle(request);
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    file: { key: AVATAR_KEY, size: 12, type: "image/png" },
+  });
+});
+
 test("rejects unsupported avatar metadata before signing storage access", async () => {
   const { router, signedUploads } = createTestGateway({
     id: "user_123",
@@ -278,8 +328,12 @@ test("rejects unsupported avatar metadata before signing storage access", async 
   expect(await response.json()).toEqual({
     error: {
       code: "Validation",
+      details: {
+        acceptedTypes: ["image/jpeg", "image/png", "image/webp"],
+        actualType: "image/svg+xml",
+      },
       message: "Choose a JPEG, PNG, or WebP image.",
-      reason: "type",
+      reason: "unsupported_type",
     },
   });
   expect(signedUploads).toHaveLength(0);
@@ -303,8 +357,38 @@ test("rejects oversized avatar metadata before signing storage access", async ()
   expect(await response.json()).toEqual({
     error: {
       code: "Validation",
-      message: "Choose an image that’s 5 MB or smaller.",
-      reason: "size",
+      details: {
+        actualBytes: 5 * 1024 * 1024 + 1,
+        maxBytes: 5 * 1024 * 1024,
+      },
+      message: "Choose an image that’s 5 MiB or smaller.",
+      reason: "too_large",
+    },
+  });
+  expect(signedUploads).toHaveLength(0);
+});
+
+test("identifies a filename and media-type mismatch before signing", async () => {
+  const { router, signedUploads } = createTestGateway({
+    id: "user_123",
+    isAnonymous: false,
+  });
+
+  const response = await router.handle(
+    createAvatarPresignRequest({
+      name: "profile.jpg",
+      size: 1024,
+      type: "image/png",
+    })
+  );
+
+  expect(response.status).toBe(422);
+  expect(await response.json()).toEqual({
+    error: {
+      code: "Validation",
+      details: { actualName: "profile.jpg", expectedExtension: "png" },
+      message: "The image filename does not match its selected format.",
+      reason: "filename_type_mismatch",
     },
   });
   expect(signedUploads).toHaveLength(0);

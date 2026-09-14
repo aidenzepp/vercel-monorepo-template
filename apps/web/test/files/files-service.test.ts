@@ -232,6 +232,31 @@ describe("FileService", () => {
     expect(issueSignedToken).not.toHaveBeenCalled();
   });
 
+  test("normalizes signed-target provider failures without exposing credentials", () => {
+    const providerError = new Error(
+      "Vercel Blob token secret-token-value was rejected"
+    );
+    issueSignedToken.mockImplementationOnce(() => {
+      throw providerError;
+    });
+
+    const upload = files.signedUploadUrl(
+      "users/user_123/avatars/12345678-9abc-4def-8abc-123456789abc.png",
+      {
+        contentType: "image/png",
+        expiresIn: 60,
+        maxSize: 5 * 1024 * 1024,
+        minSize: 0,
+      }
+    );
+
+    expect(upload).rejects.toMatchObject({
+      cause: providerError,
+      code: "Provider",
+      message: "Direct file uploads are temporarily unavailable.",
+    });
+  });
+
   test("rejects download dispositions Vercel cannot enforce", () => {
     const download = files.url("document.html", {
       responseContentDisposition: "attachment",

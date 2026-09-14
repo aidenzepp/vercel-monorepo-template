@@ -1,6 +1,8 @@
 import "server-only";
 import { issueSignedToken, presignUrl } from "@vercel/blob";
 import type { IssueSignedTokenOptions } from "@vercel/blob";
+import { logger } from "@workspace/utils/logger";
+import { result } from "@workspace/utils/result";
 import { Files, FilesError } from "files-sdk";
 import type { SignUploadOptions, SignedUpload, UrlOptions } from "files-sdk";
 import { vercelBlob } from "files-sdk/vercel-blob";
@@ -128,25 +130,64 @@ const signedUploadUrl = async (
   const validUntil = expiresAt(options.expiresIn);
   const allowedContentTypes =
     options.contentType === undefined ? undefined : [options.contentType];
-  const token = await issueSignedToken({
-    ...credentials,
-    abortSignal: options.signal,
-    allowedContentTypes,
-    maximumSizeInBytes: options.maxSize,
-    operations: ["put"],
-    pathname: key,
-    validUntil,
-  });
-  const signed = await presignUrl(token, {
-    access,
-    addRandomSuffix: false,
-    allowOverwrite,
-    allowedContentTypes,
-    maximumSizeInBytes: options.maxSize,
-    operation: "put",
-    pathname: key,
-    validUntil: token.validUntil,
-  });
+  const issued = await result.trycatch(
+    async () =>
+      await issueSignedToken({
+        ...credentials,
+        abortSignal: options.signal,
+        allowedContentTypes,
+        maximumSizeInBytes: options.maxSize,
+        operations: ["put"],
+        pathname: key,
+        validUntil,
+      })
+  );
+
+  if (!issued.ok) {
+    logger.error(
+      {
+        err: issued.error,
+        key,
+        operation: "files.vercel-blob.issue-upload-token",
+      },
+      "Direct file upload token creation failed"
+    );
+    throw new FilesError(
+      "Provider",
+      "Direct file uploads are temporarily unavailable.",
+      issued.error
+    );
+  }
+
+  const signed = await result.trycatch(
+    async () =>
+      await presignUrl(issued.value, {
+        access,
+        addRandomSuffix: false,
+        allowOverwrite,
+        allowedContentTypes,
+        maximumSizeInBytes: options.maxSize,
+        operation: "put",
+        pathname: key,
+        validUntil: issued.value.validUntil,
+      })
+  );
+
+  if (!signed.ok) {
+    logger.error(
+      {
+        err: signed.error,
+        key,
+        operation: "files.vercel-blob.presign-upload-url",
+      },
+      "Direct file upload URL creation failed"
+    );
+    throw new FilesError(
+      "Provider",
+      "Direct file uploads are temporarily unavailable.",
+      signed.error
+    );
+  }
 
   return {
     headers:
@@ -154,7 +195,7 @@ const signedUploadUrl = async (
         ? undefined
         : { "Content-Type": options.contentType },
     method: "PUT",
-    url: signed.presignedUrl,
+    url: signed.value.presignedUrl,
   };
 };
 

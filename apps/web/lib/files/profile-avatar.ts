@@ -7,6 +7,15 @@ import type { Result } from "@workspace/utils/result";
 const MAX_AVATAR_SIZE_IN_BYTES = 5 * 1024 * 1024;
 
 /**
+ * The media types accepted for private profile avatars.
+ */
+const ACCEPTED_PROFILE_AVATAR_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+/**
  * The caller-facing namespace reserved for private profile avatars.
  */
 const PROFILE_AVATAR_NAMESPACE = "avatars";
@@ -33,6 +42,94 @@ const PROFILE_AVATAR_KEY_PATTERN =
 type ProfileAvatarExtension = "jpg" | "png" | "webp";
 
 /**
+ * The repair category carried from validation or storage to the profile form.
+ */
+type ProfileAvatarErrorCode =
+  | "filename_type_mismatch"
+  | "invalid_uploaded_avatar_key"
+  | "session_expired"
+  | "too_large"
+  | "unsupported_type"
+  | "upload_unavailable"
+  | "upload_unconfirmed"
+  | "wrong_file_count";
+
+/**
+ * The stage at which avatar persistence stopped.
+ */
+type ProfileAvatarErrorPhase =
+  | "completion"
+  | "presign"
+  | "reconciliation"
+  | "transfer"
+  | "validation";
+
+/**
+ * What is known about storage after an avatar failure.
+ */
+type ProfileAvatarStorageState = "not_uploaded" | "unknown" | "uploaded";
+
+/**
+ * Safe diagnostic facts attached to a profile-avatar failure.
+ */
+interface ProfileAvatarErrorDetails {
+  acceptedTypes?: readonly string[];
+  actualBytes?: number;
+  actualName?: string;
+  actualType?: string;
+  expectedExtension?: string;
+  maxBytes?: number;
+}
+
+/**
+ * Structured avatar failure shared by the browser, form, and gateway.
+ */
+class ProfileAvatarError extends Error {
+  readonly code: ProfileAvatarErrorCode;
+  readonly details?: ProfileAvatarErrorDetails;
+  readonly pendingKey?: string;
+  readonly phase: ProfileAvatarErrorPhase;
+  readonly retryable: boolean;
+  readonly storageState: ProfileAvatarStorageState;
+
+  /**
+   * Creates one safe, repair-oriented avatar failure.
+   *
+   * @param message - Human-readable summary safe to display to the user.
+   * @param options - Machine-readable failure state and optional root cause.
+   * @param options.cause - Preserves an operator-facing failure privately.
+   * @param options.code - Identifies the repair path.
+   * @param options.details - Carries safe validation facts.
+   * @param options.pendingKey - Identifies an upload eligible for
+   *   reconciliation.
+   * @param options.phase - Identifies where persistence stopped.
+   * @param options.retryable - Whether a later attempt can make progress.
+   * @param options.storageState - Records whether image bytes may exist.
+   */
+  constructor(
+    message: string,
+    options: {
+      cause?: unknown;
+      code: ProfileAvatarErrorCode;
+      details?: ProfileAvatarErrorDetails;
+      pendingKey?: string;
+      phase: ProfileAvatarErrorPhase;
+      retryable: boolean;
+      storageState: ProfileAvatarStorageState;
+    }
+  ) {
+    super(message, { cause: options.cause });
+    this.name = "ProfileAvatarError";
+    this.code = options.code;
+    this.details = options.details;
+    this.pendingKey = options.pendingKey;
+    this.phase = options.phase;
+    this.retryable = options.retryable;
+    this.storageState = options.storageState;
+  }
+}
+
+/**
  * Browser-reported metadata checked before avatar upload authority is issued.
  */
 interface ProfileAvatarFileMetadata {
@@ -42,25 +139,46 @@ interface ProfileAvatarFileMetadata {
 }
 
 /**
+ * Metadata required to confirm a direct upload after its completion call fails.
+ */
+interface ReconciledProfileAvatar {
+  key: string;
+  size: number;
+  type: string;
+}
+
+/**
  * Uploads one avatar directly from the browser to its signed storage target.
- *
- * @param file - The validated image with a canonical extension.
- * @returns The unscoped key verified by the Files SDK completion handshake.
  */
 type UploadProfileAvatar = (file: File) => Promise<{ key: string }>;
+
+/**
+ * Looks up an owner-scoped avatar after an uncertain completion response.
+ */
+type ReconcileProfileAvatar = (key: string) => Promise<ReconciledProfileAvatar>;
 
 /**
  * Values required to upload one browser-selected profile avatar.
  */
 interface UploadProfileAvatarFileOptions {
   file: File;
+  reconcile?: ReconcileProfileAvatar;
   upload: UploadProfileAvatar;
+}
+
+/**
+ * Values required to reconcile a previously transferred profile avatar.
+ */
+interface ReconcileProfileAvatarFileOptions {
+  file: File;
+  key: string;
+  reconcile: ReconcileProfileAvatar;
 }
 
 /**
  * The typed outcome of validating and uploading a selected profile avatar.
  */
-type ProfileAvatarUploadResult = Result<{ url: string }>;
+type ProfileAvatarUploadResult = Result<{ url: string }, ProfileAvatarError>;
 
 /**
  * Maps an accepted avatar media type to its canonical filename extension.
@@ -91,15 +209,26 @@ const getAvatarFileExtension = (
  * Validates the media type and shared size limit for one avatar candidate.
  *
  * @param file - The untrusted metadata supplied by a browser upload request.
- * @returns The canonical extension or user-facing validation guidance.
+ * @returns The canonical extension or structured validation guidance.
  */
 const validateProfileAvatarFile = (
   file: ProfileAvatarFileMetadata
-): Result<{ extension: ProfileAvatarExtension }> => {
+): Result<{ extension: ProfileAvatarExtension }, ProfileAvatarError> => {
   const extension = getAvatarFileExtension(file.type);
 
   if (extension === null) {
-    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
+    return result.fail(
+      new ProfileAvatarError("Choose a JPEG, PNG, or WebP image.", {
+        code: "unsupported_type",
+        details: {
+          acceptedTypes: ACCEPTED_PROFILE_AVATAR_TYPES,
+          actualType: file.type,
+        },
+        phase: "validation",
+        retryable: false,
+        storageState: "not_uploaded",
+      })
+    );
   }
 
   if (
@@ -107,7 +236,18 @@ const validateProfileAvatarFile = (
     file.size < 0 ||
     file.size > MAX_AVATAR_SIZE_IN_BYTES
   ) {
-    return result.fail(new Error("Choose an image that’s 5 MB or smaller."));
+    return result.fail(
+      new ProfileAvatarError("Choose an image that’s 5 MiB or smaller.", {
+        code: "too_large",
+        details: {
+          actualBytes: file.size,
+          maxBytes: MAX_AVATAR_SIZE_IN_BYTES,
+        },
+        phase: "validation",
+        retryable: false,
+        storageState: "not_uploaded",
+      })
+    );
   }
 
   return result.pass({ extension });
@@ -117,11 +257,11 @@ const validateProfileAvatarFile = (
  * Validates metadata before the gateway signs a canonical avatar object key.
  *
  * @param file - The untrusted file metadata submitted to the Files SDK.
- * @returns The canonical extension or safe validation guidance.
+ * @returns The canonical extension or structured validation guidance.
  */
 const validateProfileAvatarUploadMetadata = (
   file: ProfileAvatarFileMetadata
-): Result<{ extension: ProfileAvatarExtension }> => {
+): Result<{ extension: ProfileAvatarExtension }, ProfileAvatarError> => {
   const validated = validateProfileAvatarFile(file);
 
   if (!validated.ok) {
@@ -130,7 +270,19 @@ const validateProfileAvatarUploadMetadata = (
 
   if (!file.name.toLowerCase().endsWith(`.${validated.value.extension}`)) {
     return result.fail(
-      new Error("The image filename does not match its selected format.")
+      new ProfileAvatarError(
+        "The image filename does not match its selected format.",
+        {
+          code: "filename_type_mismatch",
+          details: {
+            actualName: file.name,
+            expectedExtension: validated.value.extension,
+          },
+          phase: "validation",
+          retryable: false,
+          storageState: "not_uploaded",
+        }
+      )
     );
   }
 
@@ -176,13 +328,145 @@ const isProfileAvatarKey = (key: string): boolean =>
   PROFILE_AVATAR_KEY_PATTERN.test(key);
 
 /**
+ * Projects an SDK upload key into the caller-facing avatar namespace.
+ *
+ * @param key - The key returned by the namespaced upload endpoint.
+ * @returns The canonical caller-facing key.
+ */
+const createProfileAvatarKey = (key: string): string =>
+  key.startsWith(`${PROFILE_AVATAR_NAMESPACE}/`)
+    ? key
+    : `${PROFILE_AVATAR_NAMESPACE}/${key}`;
+
+/**
+ * Validates an uploaded key before it becomes durable profile state.
+ *
+ * @param key - The caller-facing key to validate.
+ * @param extension - The extension selected from the browser media type.
+ * @returns A stable private URL or a closed validation failure.
+ */
+const createValidatedProfileAvatarUrl = (
+  key: string,
+  extension: ProfileAvatarExtension
+): ProfileAvatarUploadResult => {
+  if (!isProfileAvatarKey(key) || !key.endsWith(`.${extension}`)) {
+    return result.fail(
+      new ProfileAvatarError(
+        "The upload returned an invalid avatar location.",
+        {
+          code: "invalid_uploaded_avatar_key",
+          phase: "completion",
+          retryable: false,
+          storageState: "uploaded",
+        }
+      )
+    );
+  }
+
+  return result.pass({ url: createProfileAvatarUrl(key) });
+};
+
+/**
+ * Confirms that an uncertain direct upload exists with the selected metadata.
+ *
+ * @param options - The selected file, canonical key, and owner-scoped lookup.
+ * @param options.file - Supplies the expected size and media type.
+ * @param options.key - Names the possible stored avatar.
+ * @param options.reconcile - Reads metadata through the authenticated gateway.
+ * @returns A stable private URL or a retryable reconciliation issue.
+ */
+const reconcileProfileAvatarFile = async (
+  options: ReconcileProfileAvatarFileOptions
+): Promise<ProfileAvatarUploadResult> => {
+  const validated = validateProfileAvatarFile(options.file);
+
+  if (!validated.ok) {
+    return validated;
+  }
+
+  const validatedUrl = createValidatedProfileAvatarUrl(
+    options.key,
+    validated.value.extension
+  );
+
+  if (!validatedUrl.ok) {
+    return validatedUrl;
+  }
+
+  const reconciled = await result.trycatch(
+    async () => await options.reconcile(options.key)
+  );
+
+  if (!reconciled.ok) {
+    return result.fail(
+      new ProfileAvatarError(
+        "We couldn’t confirm whether the image finished uploading.",
+        {
+          cause: reconciled.error,
+          code: "upload_unconfirmed",
+          pendingKey: options.key,
+          phase: "reconciliation",
+          retryable: true,
+          storageState: "unknown",
+        }
+      )
+    );
+  }
+
+  if (
+    reconciled.value.key !== options.key ||
+    reconciled.value.size !== options.file.size ||
+    reconciled.value.type !== options.file.type
+  ) {
+    return result.fail(
+      new ProfileAvatarError(
+        "The upload returned an invalid avatar location.",
+        {
+          code: "invalid_uploaded_avatar_key",
+          phase: "reconciliation",
+          retryable: false,
+          storageState: "uploaded",
+        }
+      )
+    );
+  }
+
+  return validatedUrl;
+};
+
+/**
+ * Converts an upload exception into a retained avatar-domain failure.
+ *
+ * @param error - The Files SDK error or raw upload rejection.
+ * @returns A structured avatar failure safe for the profile form.
+ */
+const getProfileAvatarUploadError = (error: Error): ProfileAvatarError => {
+  const domainError = result.is(error, ProfileAvatarError);
+
+  return (
+    domainError ??
+    new ProfileAvatarError(
+      "We couldn’t confirm whether the image reached storage.",
+      {
+        cause: error,
+        code: "upload_unconfirmed",
+        phase: "transfer",
+        retryable: true,
+        storageState: "unknown",
+      }
+    )
+  );
+};
+
+/**
  * Validates and uploads a selected avatar through a browser-direct capability.
  *
  * @param options - The image and direct Files SDK upload operation.
  * @param options.file - Supplies the browser-selected image.
- * @param options.upload - Sends bytes to the signed storage target and verifies
+ * @param options.reconcile - Confirms storage after an uncertain completion.
+ * @param options.upload - Sends bytes to the signed target and verifies
  *   completion.
- * @returns The stable private gateway URL or repair guidance for the image.
+ * @returns The stable private gateway URL or structured repair guidance.
  */
 const uploadProfileAvatarFile = async (
   options: UploadProfileAvatarFileOptions
@@ -202,40 +486,35 @@ const uploadProfileAvatarFile = async (
   );
 
   if (!uploaded.ok) {
-    return result.fail(
-      new Error(
-        "We couldn’t upload that image. Your other profile changes were saved, and the selected image is still here. Check your connection, then save again.",
-        { cause: uploaded.error }
-      )
-    );
+    const error = getProfileAvatarUploadError(uploaded.error);
+
+    if (error.pendingKey !== undefined && options.reconcile !== undefined) {
+      return await reconcileProfileAvatarFile({
+        file: options.file,
+        key: error.pendingKey,
+        reconcile: options.reconcile,
+      });
+    }
+
+    return result.fail(error);
   }
 
-  const key = `${PROFILE_AVATAR_NAMESPACE}/${uploaded.value.key}`;
-
-  if (
-    !isProfileAvatarKey(key) ||
-    !key.endsWith(`.${validated.value.extension}`)
-  ) {
-    return result.fail(
-      new Error(
-        "The image reached storage, but its saved location was invalid. The selected image is still here. Save again to retry."
-      )
-    );
-  }
-
-  return result.pass({ url: createProfileAvatarUrl(key) });
+  return createValidatedProfileAvatarUrl(
+    createProfileAvatarKey(uploaded.value.key),
+    validated.value.extension
+  );
 };
 
 export {
+  createProfileAvatarKey,
   isProfileAvatarKey,
   MAX_AVATAR_SIZE_IN_BYTES,
   PROFILE_AVATAR_NAMESPACE,
   PROFILE_AVATAR_UPLOAD_ENDPOINT,
+  ProfileAvatarError,
+  reconcileProfileAvatarFile,
   uploadProfileAvatarFile,
+  validateProfileAvatarFile,
   validateProfileAvatarUploadMetadata,
 };
-export type {
-  ProfileAvatarFileMetadata,
-  ProfileAvatarUploadResult,
-  UploadProfileAvatar,
-};
+export type { ProfileAvatarFileMetadata, ProfileAvatarUploadResult };

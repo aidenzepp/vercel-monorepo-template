@@ -1,8 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { nameSchema } from "@workspace/better-auth/config/name";
-import { usernameSchema } from "@workspace/better-auth/config/username";
 import {
   Avatar,
   AvatarFallback,
@@ -19,6 +17,7 @@ import {
 } from "@workspace/ui/components/card";
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -33,88 +32,37 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@workspace/ui/components/input-group";
-import { toast } from "@workspace/ui/components/toast";
-import { logger } from "@workspace/utils/logger";
-import { result } from "@workspace/utils/result";
 import { useFiles } from "files-sdk/react";
-import type { ReactNode } from "react";
-import { useEffect } from "react";
+import type { ReactNode, SyntheticEvent } from "react";
+import { useEffect, useMemo } from "react";
 import {
   FormProvider,
   useController,
   useForm,
   useFormContext,
 } from "react-hook-form";
-import { z } from "zod";
 
 import { useSession } from "@/components/auth/session-provider";
-import type { Session } from "@/components/auth/session-provider";
+import { profileSettingsSchema } from "@/components/settings/profile-settings-model";
+import type {
+  ProfileSettings,
+  ProfileSettingsFields,
+  ProfileSettingsUser,
+  ProfileUserUpdate,
+} from "@/components/settings/profile-settings-model";
+import { saveProfile } from "@/components/settings/profile-settings-save";
+import type { ProfileSettingsSaveResult } from "@/components/settings/profile-settings-save";
 import { authClient } from "@/lib/auth/auth-client";
 import {
-  PROFILE_AVATAR_UPLOAD_ENDPOINT,
+  reconcileProfileAvatarFile,
   uploadProfileAvatarFile,
 } from "@/lib/files/profile-avatar";
 import type { ProfileAvatarUploadResult } from "@/lib/files/profile-avatar";
+import { createProfileAvatarFilesOptions } from "@/lib/files/profile-avatar-client";
 
 /**
- * Accepts an unset username while preserving the shared Better Auth contract
- * for every non-empty value.
+ * Presentation and validation state shared by ordinary profile fields.
  */
-const profileSettingsSchema = z.object({
-  avatar: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("persisted"), url: z.string().nullable() }),
-    z.object({
-      file: z.custom<File>(),
-      kind: z.literal("selected"),
-      previewUrl: z.string(),
-    }),
-  ]),
-  name: nameSchema,
-  username: z
-    .union([usernameSchema, z.literal("")])
-    .optional()
-    .transform((username) => username ?? ""),
-});
-
-/**
- * The raw values React Hook Form may collect from profile controls.
- */
-type ProfileSettingsFields = z.input<typeof profileSettingsSchema>;
-
-/**
- * A validated profile submission with a normalized username representation.
- */
-type ProfileSettings = z.output<typeof profileSettingsSchema>;
-
-/**
- * The session fields required to initialize profile settings.
- */
-type ProfileSettingsUser = Pick<Session["user"], "image" | "name" | "username">;
-
-/**
- * A repairable profile-update failure owned by the settings form.
- */
-interface ProfileSettingsIssue {
-  field: "avatar" | "root" | "username";
-  message: string;
-}
-
-/**
- * Better Auth user fields changed by the profile save operation.
- */
-interface ProfileUserUpdate {
-  image?: string;
-  name?: string;
-  username?: string;
-}
-
-/**
- * The repair or persisted avatar state returned by a profile save.
- */
-type ProfileSettingsSaveResult =
-  | { issue: ProfileSettingsIssue }
-  | { avatar: string | null; issue: null };
-
 interface ProfileFormRowProps {
   children: ReactNode;
   controlId: string;
@@ -123,258 +71,31 @@ interface ProfileFormRowProps {
   label: string;
 }
 
+/**
+ * Presentation values accepted by the username control.
+ */
 interface ProfileUsernameInputProps {
-  disabled: boolean;
   placeholder?: string;
 }
 
+/**
+ * Values and persistence callbacks required by the prop-driven profile form.
+ */
 interface ProfileSettingsFormProps {
   canEditProfile: boolean;
-  onResetUpload?: () => void;
+  onReset?: () => void;
   onSave: (settings: ProfileSettings) => Promise<ProfileSettingsSaveResult>;
   user: ProfileSettingsUser;
 }
 
 /**
- * Validated profile values and account policy required by the save operation.
- */
-interface SaveProfileOptions {
-  canEditProfile: boolean;
-  settings: ProfileSettings;
-  updateUser: (
-    update: ProfileUserUpdate
-  ) => Promise<{ error: { code?: string; status?: number } | null }>;
-  uploadAvatar: (file: File) => Promise<ProfileAvatarUploadResult>;
-  userId: string;
-}
-
-/**
- * Creates the Better Auth identity update for an editable profile.
+ * Persists Better Auth user fields through the browser client.
  *
- * Empty usernames are omitted so a name change cannot accidentally clear an
- * existing identifier.
- *
- * @param settings - The validated values submitted by the profile form.
- * @returns The fields included in the Better Auth update request.
+ * @param update - The validated identity fields to change.
+ * @returns Better Auth's success or structured error response.
  */
-const createProfileUpdate = (settings: ProfileSettings): ProfileUserUpdate =>
-  settings.username.length === 0
-    ? { name: settings.name }
-    : { name: settings.name, username: settings.username };
-
-/**
- * Maps a Better Auth failure to the field and repair message the form owns.
- *
- * @param error - The provider response code and status for the rejected update.
- * @returns The field-level or form-level issue shown without discarding edits.
- * @see https://better-auth.com/docs/plugins/username
- */
-const getProfileUpdateIssue = (error: {
-  code?: string;
-  status?: number;
-}): ProfileSettingsIssue => {
-  switch (error.code ?? "") {
-    case "USERNAME_TOO_SHORT": {
-      return { field: "username", message: "Enter a username." };
-    }
-    case "USERNAME_TOO_LONG": {
-      return {
-        field: "username",
-        message: "That username is too long.",
-      };
-    }
-    case "INVALID_USERNAME": {
-      return {
-        field: "username",
-        message:
-          "Enter letters, numbers, underscores, or single periods between characters.",
-      };
-    }
-    case "USERNAME_IS_ALREADY_TAKEN": {
-      return {
-        field: "username",
-        message: "That username is already taken. Choose another.",
-      };
-    }
-    default: {
-      break;
-    }
-  }
-
-  if (error.status === 429) {
-    return {
-      field: "root",
-      message:
-        "You’ve made several changes in a short time. Wait a moment, then try again.",
-    };
-  }
-
-  return {
-    field: "root",
-    message:
-      "We couldn’t save your changes. Your edits are still here. Try again.",
-  };
-};
-
-/**
- * Persists a profile update and translates Better Auth failures for the form.
- *
- * @param options - The account capability, submitted values, and logging
- *   identity.
- * @param options.canEditProfile - Whether the current account may change any
- *   profile fields.
- * @param options.settings - The validated values submitted by the profile form.
- * @param options.updateUser - Persists the Better Auth user fields.
- * @param options.uploadAvatar - Stores a newly selected avatar when present.
- * @param options.userId - Identifies the affected user in operational logs.
- * @returns A repairable issue or the avatar state saved with the profile.
- */
-const saveProfile = async ({
-  canEditProfile,
-  settings,
-  updateUser,
-  uploadAvatar,
-  userId,
-}: SaveProfileOptions): Promise<ProfileSettingsSaveResult> => {
-  if (!canEditProfile) {
-    return {
-      issue: {
-        field: "root",
-        message: "Temporary accounts cannot change profile settings.",
-      },
-    };
-  }
-
-  let avatar =
-    settings.avatar.kind === "persisted" ? settings.avatar.url : null;
-  const identityUpdate = createProfileUpdate(settings);
-  const identityResponse = await result.trycatch(
-    async () => await updateUser(identityUpdate)
-  );
-
-  if (!identityResponse.ok) {
-    logger.error(
-      {
-        err: identityResponse.error,
-        operation: "profile.identity.request",
-        userId,
-      },
-      "Profile identity request failed before Better Auth responded"
-    );
-    return {
-      issue: {
-        field: "root",
-        message:
-          "We couldn’t save your changes. Your edits are still here. Try again.",
-      },
-    };
-  }
-
-  if (identityResponse.value.error !== null) {
-    logger.warn(
-      {
-        code: identityResponse.value.error.code,
-        operation: "profile.identity.response",
-        status: identityResponse.value.error.status,
-        userId,
-      },
-      "Better Auth rejected the profile identity update"
-    );
-    return { issue: getProfileUpdateIssue(identityResponse.value.error) };
-  }
-
-  if (settings.avatar.kind === "selected") {
-    const selectedAvatar = settings.avatar.file;
-    const uploaded = await result.trycatch(
-      async () => await uploadAvatar(selectedAvatar)
-    );
-
-    if (!uploaded.ok) {
-      logger.error(
-        {
-          err: uploaded.error,
-          operation: "profile.avatar.upload.request",
-          userId,
-        },
-        "Profile avatar upload failed before the client returned a result"
-      );
-      return {
-        issue: {
-          field: "avatar",
-          message:
-            "The upload request didn’t reach storage. Your other profile changes were saved, and the selected image is still here. Check your connection, then save again.",
-        },
-      };
-    }
-
-    if (!uploaded.value.ok) {
-      if (uploaded.value.error.cause !== undefined) {
-        logger.error(
-          {
-            err: uploaded.value.error.cause,
-            operation: "profile.avatar.upload.response",
-            userId,
-          },
-          "Profile avatar upload failed"
-        );
-      }
-
-      return {
-        issue: { field: "avatar", message: uploaded.value.error.message },
-      };
-    }
-
-    avatar = uploaded.value.value.url;
-    const avatarResponse = await result.trycatch(
-      async () => await updateUser({ image: avatar ?? undefined })
-    );
-
-    if (!avatarResponse.ok) {
-      logger.error(
-        {
-          err: avatarResponse.error,
-          operation: "profile.avatar.update.request",
-          userId,
-        },
-        "Profile avatar update failed before Better Auth responded"
-      );
-      return {
-        issue: {
-          field: "avatar",
-          message:
-            "The image reached storage, but we couldn’t attach it to your profile. Your other profile changes were saved, and the selected image is still here. Save again to retry.",
-        },
-      };
-    }
-
-    if (avatarResponse.value.error !== null) {
-      logger.warn(
-        {
-          code: avatarResponse.value.error.code,
-          operation: "profile.avatar.update.response",
-          status: avatarResponse.value.error.status,
-          userId,
-        },
-        "Better Auth rejected the profile avatar update"
-      );
-      return {
-        issue: {
-          field: "avatar",
-          message:
-            "The image reached storage, but we couldn’t attach it to your profile. Your other profile changes were saved, and the selected image is still here. Save again to retry.",
-        },
-      };
-    }
-  }
-
-  toast.add({
-    description: "Your changes are now reflected throughout templ8.",
-    title: "Profile updated",
-    type: "success",
-  });
-
-  return { avatar, issue: null };
-};
+const updateProfileUser = async (update: ProfileUserUpdate) =>
+  await authClient.updateUser(update);
 
 /**
  * Displays the shared accessible structure surrounding a profile control.
@@ -408,19 +129,33 @@ const ProfileFormRow = ({
 );
 
 /**
- * Displays the current profile avatar beside its replacement file control.
+ * Displays the current or locally selected profile avatar.
  *
- * @returns The avatar field registered by the surrounding profile form.
+ * @param props - The preview source resolved by the avatar field coordinator.
+ * @param props.src - The private gateway or local object URL to display.
+ * @returns The avatar preview occupying the field's right column.
  */
-const ProfileAvatarInput = () => {
+const ProfileAvatarPreview = ({ src }: { src?: string }) => (
+  <Avatar className="size-16 sm:size-20">
+    {src === undefined ? null : <AvatarImage alt="" src={src} />}
+    <AvatarFallback />
+  </Avatar>
+);
+
+/**
+ * Coordinates avatar state, file selection, preview lifetime, and field errors.
+ *
+ * @returns The two-column avatar field registered by the profile form.
+ */
+const ProfileAvatarField = () => {
   const {
     field: { name, onBlur, onChange, ref: inputRef, value: avatar },
     fieldState: { error },
   } = useController<ProfileSettingsFields, "avatar">({ name: "avatar" });
   const controlId = "settings-avatar";
   const avatarUrl =
-    avatar.kind === "selected" ? avatar.previewUrl : (avatar.url ?? undefined);
-  const previewUrl = avatar.kind === "selected" ? avatar.previewUrl : null;
+    avatar.kind === "persisted" ? (avatar.url ?? undefined) : avatar.previewUrl;
+  const previewUrl = avatar.kind === "persisted" ? null : avatar.previewUrl;
 
   useEffect(
     () => () => {
@@ -434,7 +169,7 @@ const ProfileAvatarInput = () => {
   return (
     <Field data-invalid={error !== undefined}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:gap-6">
-        <div className="flex min-w-0 flex-col gap-3">
+        <FieldContent className="min-w-0 gap-3">
           <FieldLabel htmlFor={controlId}>Avatar</FieldLabel>
           <Input
             accept="image/jpeg,image/png,image/webp"
@@ -463,19 +198,14 @@ const ProfileAvatarInput = () => {
             type="file"
           />
           <FieldDescription id={`${controlId}-description`}>
-            Choose a JPEG, PNG, or WebP image up to 5 MB.
+            Choose a JPEG, PNG, or WebP image up to 5 MiB.
           </FieldDescription>
           <FieldError
             errors={error === undefined ? [] : [error]}
             id={`${controlId}-error`}
           />
-        </div>
-        <Avatar className="size-16 sm:size-20">
-          {avatarUrl === undefined ? null : (
-            <AvatarImage alt="" src={avatarUrl} />
-          )}
-          <AvatarFallback />
-        </Avatar>
+        </FieldContent>
+        <ProfileAvatarPreview src={avatarUrl} />
       </div>
     </Field>
   );
@@ -520,16 +250,11 @@ const ProfileNameInput = ({ placeholder }: { placeholder?: string }) => {
 /**
  * Displays the username control registered by the surrounding profile form.
  *
- * @param props - The capability and presentation values for the username field.
- * @param props.disabled - Prevents temporary accounts from editing or
- *   submitting a username.
+ * @param props - The presentation values for the username field.
  * @param props.placeholder - Supplies the control's empty-state hint.
- * @returns The username field for the current account capability.
+ * @returns The username field governed by the parent fieldset.
  */
-const ProfileUsernameInput = ({
-  disabled,
-  placeholder,
-}: ProfileUsernameInputProps) => {
+const ProfileUsernameInput = ({ placeholder }: ProfileUsernameInputProps) => {
   const {
     formState: { errors },
     register,
@@ -539,15 +264,11 @@ const ProfileUsernameInput = ({
   return (
     <ProfileFormRow
       controlId={controlId}
-      description={
-        disabled
-          ? "Temporary accounts cannot claim a username."
-          : "A unique slug that identifies you throughout the application."
-      }
+      description="A unique slug that identifies you throughout the application."
       error={errors.username}
       label="Username"
     >
-      <InputGroup data-disabled={disabled || undefined}>
+      <InputGroup>
         <InputGroupAddon>
           <InputGroupText>@</InputGroupText>
         </InputGroupAddon>
@@ -560,7 +281,6 @@ const ProfileUsernameInput = ({
           aria-invalid={errors.username !== undefined}
           autoCapitalize="none"
           autoComplete="username"
-          disabled={disabled}
           id={controlId}
           placeholder={placeholder}
           spellCheck={false}
@@ -638,8 +358,7 @@ const ProfileSaveAction = () => {
  *
  * @param props - The account capability, current identity, and save operation.
  * @param props.canEditProfile - Whether the account may change profile fields.
- * @param props.onResetUpload - Clears state retained by the optional upload
- *   client.
+ * @param props.onReset - Clears external state when the form is restored.
  * @param props.onSave - Persists validated values and returns any repairable
  *   failure.
  * @param props.user - Supplies the latest session-backed profile values.
@@ -648,7 +367,7 @@ const ProfileSaveAction = () => {
  */
 const ProfileSettingsForm = ({
   canEditProfile,
-  onResetUpload,
+  onReset,
   onSave,
   user,
 }: ProfileSettingsFormProps) => {
@@ -666,24 +385,54 @@ const ProfileSettingsForm = ({
    * Applies a repairable persistence result without discarding entered values.
    *
    * @param settings - The profile values accepted by local validation.
-   * @returns A promise that resolves after the form reflects the persistence
-   *   result.
+   * @returns A promise that resolves after the form reflects the result.
    */
-  const submitProfile = async (settings: ProfileSettings) => {
+  const submitProfile = async (settings: ProfileSettings): Promise<void> => {
     const saved = await onSave(settings);
 
-    if (saved.issue !== null) {
-      form.setError(saved.issue.field, { message: saved.issue.message });
+    if (!saved.ok) {
+      if (saved.error.avatarState !== undefined) {
+        form.setValue("avatar", saved.error.avatarState, {
+          shouldDirty: true,
+        });
+      }
+
+      form.setError(saved.error.field, { message: saved.error.message });
       return;
     }
 
     form.reset(
       {
         ...settings,
-        avatar: { kind: "persisted", url: saved.avatar },
+        avatar: { kind: "persisted", url: saved.value.avatar },
       },
       { keepDirtyValues: false }
     );
+  };
+
+  /**
+   * Restores session-backed values and clears the native file control.
+   *
+   * @param event - The reset event carrying the form's native controls.
+   */
+  const resetProfile = (event: SyntheticEvent<HTMLFormElement>): void => {
+    const avatarInput = event.currentTarget.elements.namedItem("avatar");
+
+    if (avatarInput instanceof HTMLInputElement) {
+      avatarInput.value = "";
+    }
+
+    form.reset(form.formState.defaultValues, { keepDirtyValues: false });
+    onReset?.();
+  };
+
+  /**
+   * Runs React Hook Form validation before the async save coordinator.
+   *
+   * @param event - The profile form submission event.
+   */
+  const submitProfileForm = (event: SyntheticEvent<HTMLFormElement>): void => {
+    void form.handleSubmit(submitProfile)(event);
   };
 
   return (
@@ -691,50 +440,34 @@ const ProfileSettingsForm = ({
       <CardHeader>
         <CardTitle>Profile</CardTitle>
         <CardDescription>
-          Choose how your account appears throughout templ8.
+          {canEditProfile
+            ? "Choose how your account appears throughout templ8."
+            : "Temporary accounts cannot change profile settings."}
         </CardDescription>
       </CardHeader>
 
       <FormProvider {...form}>
-        <form
-          noValidate
-          onReset={(event) => {
-            const avatarInput =
-              event.currentTarget.elements.namedItem("avatar");
-
-            if (avatarInput instanceof HTMLInputElement) {
-              avatarInput.value = "";
-            }
-
-            form.reset(form.formState.defaultValues, {
-              keepDirtyValues: false,
-            });
-            onResetUpload?.();
-          }}
-          onSubmit={(event) => {
-            void form.handleSubmit(submitProfile)(event);
-          }}
-        >
-          <CardContent>
-            <FieldSet disabled={!canEditProfile || form.formState.isSubmitting}>
-              <FieldLegend className="sr-only">Profile</FieldLegend>
+        <form noValidate onReset={resetProfile} onSubmit={submitProfileForm}>
+          <FieldSet
+            className="gap-0"
+            disabled={!canEditProfile || form.formState.isSubmitting}
+          >
+            <FieldLegend className="sr-only">Profile</FieldLegend>
+            <CardContent>
               <ProfileSaveError />
 
               <FieldGroup className="gap-4">
-                <ProfileAvatarInput />
+                <ProfileAvatarField />
                 <ProfileNameInput placeholder="Your name" />
-                <ProfileUsernameInput
-                  disabled={!canEditProfile}
-                  placeholder="username"
-                />
+                <ProfileUsernameInput placeholder="username" />
               </FieldGroup>
-            </FieldSet>
-          </CardContent>
+            </CardContent>
 
-          <CardFooter className="mt-6 justify-end gap-2">
-            <ProfileResetAction />
-            <ProfileSaveAction />
-          </CardFooter>
+            <CardFooter className="mt-6 justify-end gap-2">
+              <ProfileResetAction />
+              <ProfileSaveAction />
+            </CardFooter>
+          </FieldSet>
         </form>
       </FormProvider>
     </Card>
@@ -742,49 +475,87 @@ const ProfileSettingsForm = ({
 };
 
 /**
- * Connects the prop-driven profile form to the current Better Auth session.
+ * Connects the prop-driven profile form to Better Auth and private user files.
  *
  * @returns The profile form with account-scoped values and persistence.
  */
 const ProfileSettingsFormBoundary = () => {
   const { user } = useSession();
-  const avatarFiles = useFiles({ endpoint: PROFILE_AVATAR_UPLOAD_ENDPOINT });
+  const avatarFilesOptions = useMemo(
+    () => createProfileAvatarFilesOptions(),
+    []
+  );
+  const avatarFiles = useFiles(avatarFilesOptions);
   const canEditProfile = user.isAnonymous !== true;
+
+  /**
+   * Uploads one selected avatar and reconciles uncertain completion in place.
+   *
+   * @param file - The browser-selected image to persist.
+   * @returns The stable private avatar URL or structured repair state.
+   */
+  const uploadAvatar = async (file: File): Promise<ProfileAvatarUploadResult> =>
+    await uploadProfileAvatarFile({
+      file,
+      reconcile: avatarFiles.head,
+      upload: avatarFiles.upload,
+    });
+
+  /**
+   * Rechecks an earlier direct upload without sending its bytes a second time.
+   *
+   * @param file - The selected image whose metadata must still match.
+   * @param key - The canonical owner-scoped avatar key to inspect.
+   * @returns The stable private avatar URL or a retryable lookup failure.
+   */
+  const reconcileAvatar = async (
+    file: File,
+    key: string
+  ): Promise<ProfileAvatarUploadResult> =>
+    await reconcileProfileAvatarFile({
+      file,
+      key,
+      reconcile: avatarFiles.head,
+    });
+
+  /**
+   * Connects form values to Better Auth and the private avatar file client.
+   *
+   * @param settings - The locally validated profile values to persist.
+   * @returns The saved avatar or repairable form issue.
+   */
+  const saveSettings = async (
+    settings: ProfileSettings
+  ): Promise<ProfileSettingsSaveResult> => {
+    const saved = await saveProfile({
+      canEditProfile,
+      reconcileAvatar,
+      settings,
+      updateUser: updateProfileUser,
+      uploadAvatar,
+      userId: user.id,
+    });
+
+    if (saved.ok) {
+      avatarFiles.reset();
+    }
+
+    return saved;
+  };
 
   return (
     <ProfileSettingsForm
       canEditProfile={canEditProfile}
-      onResetUpload={avatarFiles.reset}
-      onSave={async (settings) => {
-        const saved = await saveProfile({
-          canEditProfile,
-          settings,
-          updateUser: async (update) => await authClient.updateUser(update),
-          uploadAvatar: async (file) =>
-            await uploadProfileAvatarFile({
-              file,
-              upload: async (uploadFile) =>
-                await avatarFiles.upload(uploadFile),
-            }),
-          userId: user.id,
-        });
-
-        if (saved.issue === null) {
-          avatarFiles.reset();
-        }
-
-        return saved;
-      }}
+      onReset={avatarFiles.reset}
+      onSave={saveSettings}
       user={{ image: user.image, name: user.name, username: user.username }}
     />
   );
 };
 
 export {
-  createProfileUpdate,
   ProfileNameInput,
   ProfileSettingsForm,
   ProfileSettingsFormBoundary,
   ProfileUsernameInput,
-  saveProfile,
 };

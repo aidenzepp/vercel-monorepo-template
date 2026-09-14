@@ -5,15 +5,22 @@ import type { Result } from "@workspace/utils/result";
 import { FilesError } from "files-sdk";
 import type { Files } from "files-sdk";
 import { createFilesRouter } from "files-sdk/api";
-import type { Authorize, AuthorizeContext, FilesApi } from "files-sdk/api";
+import type {
+  Authorize,
+  AuthorizeContext,
+  AuthorizeResult,
+  FilesApi,
+} from "files-sdk/api";
 import { z } from "zod";
 
 import {
   isProfileAvatarKey,
   MAX_AVATAR_SIZE_IN_BYTES,
   PROFILE_AVATAR_NAMESPACE,
+  ProfileAvatarError,
   validateProfileAvatarUploadMetadata,
 } from "@/lib/files/profile-avatar";
+import type { ProfileAvatarFileMetadata } from "@/lib/files/profile-avatar";
 
 /**
  * The maximum lifetime granted to one browser-direct avatar upload.
@@ -102,16 +109,19 @@ const isProfileAvatarUploadRequest = (request: Request): boolean =>
 /**
  * Serializes one product validation failure in the Files SDK error envelope.
  *
- * @param message - The safe repair guidance shared with the avatar field.
- * @param reason - The machine-readable upload constraint that failed.
+ * @param issue - The machine-readable reason, guidance, and safe facts.
  * @returns A gateway validation response compatible with the Files SDK client.
  */
-const createUploadValidationResponse = (
-  message: string,
-  reason: "count" | "size" | "type"
-): Response =>
+const createUploadValidationResponse = (issue: ProfileAvatarError): Response =>
   Response.json(
-    { error: { code: "Validation", message, reason } },
+    {
+      error: {
+        code: "Validation",
+        details: issue.details,
+        message: issue.message,
+        reason: issue.code,
+      },
+    },
     { status: 422 }
   );
 
@@ -144,6 +154,50 @@ const createCachedUserFileSessionReader = (
 };
 
 /**
+ * Reads avatar metadata from a well-formed Files SDK presign request.
+ *
+ * @param request - The incoming request whose JSON body is inspected.
+ * @returns The submitted file metadata, or null for another JSON operation.
+ */
+const readProfileAvatarPresignFiles = async (
+  request: Request
+): Promise<ProfileAvatarFileMetadata[] | null> => {
+  const parsed = await result.trycatch(async () =>
+    profileAvatarPresignRequestSchema.safeParse(await request.clone().json())
+  );
+
+  return parsed.ok && parsed.value.success ? parsed.value.data.files : null;
+};
+
+/**
+ * Validates the cardinality and metadata for one avatar upload request.
+ *
+ * @param files - The browser-reported files in the presign request.
+ * @returns A structured validation issue, or null when signing may continue.
+ */
+const getProfileAvatarMetadataIssue = (
+  files: ProfileAvatarFileMetadata[]
+): ProfileAvatarError | null => {
+  if (files.length !== 1) {
+    return new ProfileAvatarError("Choose one avatar image at a time.", {
+      code: "wrong_file_count",
+      phase: "validation",
+      retryable: false,
+      storageState: "not_uploaded",
+    });
+  }
+
+  const file = files.at(0);
+
+  if (file === undefined) {
+    return null;
+  }
+
+  const validated = validateProfileAvatarUploadMetadata(file);
+  return validated.ok ? null : validated.error;
+};
+
+/**
  * Rejects avatar metadata that must not receive signed storage access.
  *
  * Authentication remains authoritative: unauthenticated callers continue into
@@ -172,41 +226,14 @@ const getProfileAvatarUploadRejection = async (
     return null;
   }
 
-  const parsed = await result.trycatch(async () =>
-    profileAvatarPresignRequestSchema.safeParse(await request.clone().json())
-  );
+  const files = await readProfileAvatarPresignFiles(request);
 
-  if (!parsed.ok || !parsed.value.success) {
+  if (files === null) {
     return null;
   }
 
-  if (parsed.value.data.files.length !== 1) {
-    return createUploadValidationResponse(
-      "Choose one avatar image at a time.",
-      "count"
-    );
-  }
-
-  const file = parsed.value.data.files.at(0);
-
-  if (file === undefined) {
-    return null;
-  }
-
-  const validated = validateProfileAvatarUploadMetadata(file);
-
-  if (validated.ok) {
-    return null;
-  }
-
-  const reason =
-    !Number.isFinite(file.size) ||
-    file.size < 0 ||
-    file.size > MAX_AVATAR_SIZE_IN_BYTES
-      ? "size"
-      : "type";
-
-  return createUploadValidationResponse(validated.error.message, reason);
+  const issue = getProfileAvatarMetadataIssue(files);
+  return issue === null ? null : createUploadValidationResponse(issue);
 };
 
 /**
@@ -246,60 +273,122 @@ const applyPrivateFileResponsePolicy = (response: Response): Response => {
 };
 
 /**
+ * Requires the permanent account shared by every private-file operation.
+ *
+ * @param readSession - Resolves the Better Auth identity from request headers.
+ * @param request - The incoming file request carrying session cookies.
+ * @returns The authenticated permanent-account session.
+ * @throws {FilesError} When the session is unavailable or lacks access.
+ */
+const requirePermanentUserFileSession = async (
+  readSession: ReadUserFileSessionResult,
+  request: Request
+): Promise<UserFileSession> => {
+  const session = await readSession(request);
+
+  if (!session.ok) {
+    logger.error(
+      { err: session.error, operation: "files.session.read" },
+      "Private file session read failed"
+    );
+    throw new FilesError(
+      "Provider",
+      "Private file authorization is unavailable.",
+      session.error
+    );
+  }
+
+  if (session.value === null || session.value.user.isAnonymous === true) {
+    throw new FilesError(
+      "Unauthorized",
+      "Sign in with a permanent account to access this file."
+    );
+  }
+
+  return session.value;
+};
+
+/**
+ * Selects upload authority for the explicit avatar namespace.
+ *
+ * @param context - The SDK operation and original request.
+ * @param userId - The permanent account that owns the upload.
+ * @returns Owner-scoped upload authority, or null for another operation.
+ */
+const authorizeProfileAvatarUpload = (
+  context: AuthorizeContext,
+  userId: string
+): AuthorizeResult | null => {
+  if (context.operation !== "upload" || context.key !== undefined) {
+    return null;
+  }
+
+  if (!isProfileAvatarUploadRequest(context.req)) {
+    throw new FilesError("NotFound", "File namespace not found.");
+  }
+
+  return {
+    keyPrefix: `users/${userId}/${PROFILE_AVATAR_NAMESPACE}/`,
+    maxExpiresIn: PROFILE_AVATAR_UPLOAD_EXPIRES_IN_SECONDS,
+  };
+};
+
+/**
+ * Selects read authority for a recognized owner-scoped file key.
+ *
+ * @param context - The SDK operation and caller-facing key.
+ * @param userId - The permanent account that owns the file.
+ * @returns Owner-scoped read authority, or null for another operation.
+ */
+const authorizeUserFileRead = (
+  context: AuthorizeContext,
+  userId: string
+): AuthorizeResult | null => {
+  if (
+    (context.operation !== "download" && context.operation !== "head") ||
+    context.key === undefined
+  ) {
+    return null;
+  }
+
+  const policy = parseUserFileKey(context.key);
+
+  if (policy === null) {
+    throw new FilesError("NotFound", "File not found.");
+  }
+
+  return {
+    disposition: policy.disposition,
+    keyPrefix: `users/${userId}/`,
+  };
+};
+
+/**
  * Constructs per-request authorization for private user files.
  *
  * @param readSession - Resolves the Better Auth identity from request headers.
- * @returns The Files SDK authorization hook that applies user and namespace
- *   scope.
+ * @returns The Files SDK authorization hook that applies explicit policies.
  */
 const createUserFileAuthorizer =
   (readSession: ReadUserFileSessionResult): Authorize =>
-  async ({ key, operation, req }: AuthorizeContext) => {
-    const session = await readSession(req);
+  async (context: AuthorizeContext) => {
+    const session = await requirePermanentUserFileSession(
+      readSession,
+      context.req
+    );
+    const upload = authorizeProfileAvatarUpload(context, session.user.id);
 
-    if (!session.ok) {
-      logger.error(
-        { err: session.error, operation: "files.session.read" },
-        "Private file session read failed"
-      );
-      throw new FilesError(
-        "Provider",
-        "Private file authorization is unavailable.",
-        session.error
-      );
+    if (upload !== null) {
+      return upload;
     }
 
-    if (session.value === null || session.value.user.isAnonymous === true) {
-      throw new FilesError(
-        "Unauthorized",
-        "Sign in with a permanent account to access this file."
-      );
+    const read = authorizeUserFileRead(context, session.user.id);
+
+    if (read !== null) {
+      return read;
     }
 
-    if (operation === "upload" && key === undefined) {
-      if (!isProfileAvatarUploadRequest(req)) {
-        throw new FilesError("NotFound", "File namespace not found.");
-      }
-
-      return {
-        keyPrefix: `users/${session.value.user.id}/${PROFILE_AVATAR_NAMESPACE}/`,
-        maxExpiresIn: PROFILE_AVATAR_UPLOAD_EXPIRES_IN_SECONDS,
-      };
-    }
-
-    const policy =
-      operation === "download" && key !== undefined
-        ? parseUserFileKey(key)
-        : null;
-
-    if (policy === null) {
-      throw new FilesError("NotFound", "File not found.");
-    }
-
-    return {
-      disposition: policy.disposition,
-      keyPrefix: `users/${session.value.user.id}/`,
-    };
+    throw new FilesError("NotFound", "File not found.");
   };
 
 /**
@@ -328,7 +417,7 @@ const createUserFilesRouter = (
     downloadMode: "proxy",
     files: options.files,
     maxUploadSize: MAX_AVATAR_SIZE_IN_BYTES,
-    operations: ["download", "upload"],
+    operations: ["download", "head", "upload"],
     secret: options.secret,
   });
 

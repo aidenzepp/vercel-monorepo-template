@@ -7,11 +7,13 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { ProfileSettingsForm } from "../../components/settings/profile-settings-form";
 import {
   createProfileUpdate,
-  ProfileSettingsForm,
+  ProfileSettingsSaveError,
   saveProfile,
-} from "../../components/settings/profile-settings-form";
+} from "../../components/settings/profile-settings-save";
+import type { ProfileSettingsSaveResult } from "../../components/settings/profile-settings-save";
 
 /**
  * The profile values shared by regular and anonymous form cases.
@@ -45,6 +47,22 @@ interface AvatarSubmission {
   avatar: File | null;
 }
 
+/**
+ * Narrows a save result to the repair state required by a failure scenario.
+ *
+ * @param saved - The explicit success or failure returned by profile saving.
+ * @returns The structured profile error under test.
+ */
+const requireProfileSaveError = (
+  saved: ProfileSettingsSaveResult
+): ProfileSettingsSaveError => {
+  if (saved.ok) {
+    throw new Error("The profile save should have failed.");
+  }
+
+  return saved.error;
+};
+
 test("profile avatar changes move through preview, reset, and saved states", async () => {
   const NativeImage = window.Image;
   const createObjectURL = spyOn(URL, "createObjectURL")
@@ -70,14 +88,14 @@ test("profile avatar changes move through preview, reset, and saved states", asy
     root.render(
       <ProfileSettingsForm
         canEditProfile
-        onResetUpload={() => {
+        onReset={() => {
           uploadResets += 1;
         }}
         onSave={async (settings) => {
           await Promise.resolve();
           submission.avatar =
             settings.avatar.kind === "selected" ? settings.avatar.file : null;
-          return { avatar: savedAvatar, issue: null };
+          return result.pass({ avatar: savedAvatar });
         }}
         user={profile}
       />
@@ -233,7 +251,7 @@ test("profile avatar selection does not depend on File constructor identity", as
           await Promise.resolve();
           submission.avatar =
             settings.avatar.kind === "selected" ? settings.avatar.file : null;
-          return { avatar: profile.image, issue: null };
+          return result.pass({ avatar: profile.image });
         }}
         user={profile}
       />
@@ -288,6 +306,82 @@ test("profile avatar selection does not depend on File constructor identity", as
   revokeObjectURL.mockRestore();
 });
 
+test("profile avatar save failures render beside the file input", async () => {
+  const createObjectURL = spyOn(URL, "createObjectURL").mockReturnValue(
+    "blob:https://templ8.test/error-preview"
+  );
+  const revokeObjectURL = spyOn(URL, "revokeObjectURL").mockImplementation(
+    () => {}
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <ProfileSettingsForm
+        canEditProfile
+        onSave={async () => {
+          await Promise.resolve();
+          return result.fail(
+            new ProfileSettingsSaveError(
+              "avatar",
+              "Image uploads are temporarily unavailable. The image remains selected."
+            )
+          );
+        }}
+        user={profile}
+      />
+    );
+  });
+
+  const form = container.querySelector<HTMLFormElement>("form");
+  const input = container.querySelector<HTMLInputElement>("#settings-avatar");
+
+  if (form === null || input === null) {
+    throw new Error("The mounted profile form should expose avatar editing.");
+  }
+
+  const selectedAvatar = new File(["avatar"], "avatar.png", {
+    type: "image/png",
+  });
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: {
+      0: selectedAvatar,
+      item: (index: number) => (index === 0 ? selectedAvatar : null),
+      length: 1,
+    },
+  });
+
+  act(() => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  await act(async () => {
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+    await Promise.resolve();
+  });
+
+  const error = container.querySelector<HTMLElement>("#settings-avatar-error");
+
+  expect(error?.textContent).toBe(
+    "Image uploads are temporarily unavailable. The image remains selected."
+  );
+  expect(error?.getAttribute("role")).toBe("alert");
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(input.getAttribute("aria-errormessage")).toBe("settings-avatar-error");
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+  createObjectURL.mockRestore();
+  revokeObjectURL.mockRestore();
+});
+
 test("anonymous profile forms disable the complete profile fieldset", () => {
   const markup = renderToStaticMarkup(
     <ProfileSettingsForm
@@ -303,6 +397,22 @@ test("anonymous profile forms disable the complete profile fieldset", () => {
   expect(markup).toContain('id="settings-avatar"');
   expect(markup).toContain('id="settings-name"');
   expect(markup).toContain('id="settings-username"');
+  expect(markup).toContain(
+    "Temporary accounts cannot change profile settings."
+  );
+  expect(markup).not.toContain("Temporary accounts cannot claim a username.");
+
+  const usernameInput = /<input(?=[^>]*id="settings-username")[^>]*>/u.exec(
+    markup
+  )?.[0];
+  const usernameGroup = /<div(?=[^>]*data-slot="input-group")[^>]*>/u.exec(
+    markup
+  )?.[0];
+  const fieldset = /<fieldset[^>]*>[\s\S]*<\/fieldset>/u.exec(markup)?.[0];
+
+  expect(usernameInput).not.toContain(' disabled=""');
+  expect(usernameGroup).not.toContain("data-disabled");
+  expect(fieldset).toContain("Save changes");
 });
 
 test("profile form actions opt into press sounds", () => {
@@ -355,11 +465,9 @@ test("anonymous profile saves stop before identity and avatar operations", async
     userId: "anonymous_123",
   });
 
-  expect(saved).toEqual({
-    issue: {
-      field: "root",
-      message: "Temporary accounts cannot change profile settings.",
-    },
+  expect(requireProfileSaveError(saved)).toMatchObject({
+    field: "root",
+    message: "Temporary accounts cannot change profile settings.",
   });
   expect(identityRequests).toBe(0);
   expect(uploadRequests).toBe(0);
@@ -418,7 +526,7 @@ test("profile saves send a selected avatar directly to its upload capability", a
     userId: "user_123",
   });
 
-  expect(saved).toEqual({ avatar: avatarUrl, issue: null });
+  expect(saved).toEqual(result.pass({ avatar: avatarUrl }));
   expect(operations).toEqual(["update", "upload", "update"]);
   expect(updates).toEqual([
     {
@@ -459,11 +567,9 @@ test("profile saves reject a username before uploading its avatar", async () => 
     userId: "user_123",
   });
 
-  expect(saved).toEqual({
-    issue: {
-      field: "username",
-      message: "That username is already taken. Choose another.",
-    },
+  expect(requireProfileSaveError(saved)).toMatchObject({
+    field: "username",
+    message: "That username is already taken. Choose another.",
   });
   expect(uploadAvatar).not.toHaveBeenCalled();
 });
@@ -474,7 +580,7 @@ test("profile saves keep avatar validation failures with the file field", async 
   });
   const uploadAvatar = mock(async (_file: File) => {
     await Promise.resolve();
-    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
+    throw new Error("Invalid avatars must stop before the upload capability.");
   });
   const updates: { name?: string; username?: string }[] = [];
   const updateUser = mock(async (update: (typeof updates)[number]) => {
@@ -499,16 +605,155 @@ test("profile saves keep avatar validation failures with the file field", async 
     userId: "user_123",
   });
 
-  expect(saved).toEqual({
-    issue: {
-      field: "avatar",
-      message: "Choose a JPEG, PNG, or WebP image.",
-    },
+  expect(requireProfileSaveError(saved)).toMatchObject({
+    field: "avatar",
+    message: "Choose a JPEG, PNG, or WebP image.",
   });
-  expect(updates).toEqual([
-    {
+  expect(updates).toHaveLength(0);
+  expect(uploadAvatar).not.toHaveBeenCalled();
+});
+
+test("profile saves explain when the session expired", async () => {
+  const saved = await saveProfile({
+    canEditProfile: true,
+    settings: {
+      avatar: { kind: "persisted", url: profile.image },
       name: nameSchema.parse("Aiden Zepp"),
       username: usernameSchema.parse("aiden"),
     },
-  ]);
+    updateUser: async () => {
+      await Promise.resolve();
+      return { error: { code: "SESSION_EXPIRED", status: 401 } };
+    },
+    uploadAvatar: () => {
+      throw new Error("An expired session must stop before avatar upload.");
+    },
+    userId: "user_123",
+  });
+
+  expect(requireProfileSaveError(saved)).toMatchObject({
+    field: "root",
+    message:
+      "Your session expired. Sign in again to save. Your edits are still here.",
+  });
+});
+
+test("profile saves retry attachment without uploading the same avatar twice", async () => {
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+  const avatarUrl =
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
+  const uploadAvatar = mock(async () => {
+    await Promise.resolve();
+    return result.pass({ url: avatarUrl });
+  });
+  let avatarUpdates = 0;
+  const updateUser = mock(async (update: { image?: string }) => {
+    await Promise.resolve();
+
+    if (update.image !== undefined) {
+      avatarUpdates += 1;
+      return {
+        error:
+          avatarUpdates === 1
+            ? { code: "PROFILE_UPDATE_FAILED", status: 503 }
+            : null,
+      };
+    }
+
+    return { error: null };
+  });
+  const selectedAvatar = {
+    file: avatar,
+    kind: "selected" as const,
+    previewUrl: "blob:https://templ8.test/avatar-preview",
+  };
+
+  const firstSave = await saveProfile({
+    canEditProfile: true,
+    settings: {
+      avatar: selectedAvatar,
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    },
+    updateUser,
+    uploadAvatar,
+    userId: "user_123",
+  });
+
+  const firstError = requireProfileSaveError(firstSave);
+
+  expect(firstError).toMatchObject({
+    avatarState: {
+      ...selectedAvatar,
+      kind: "uploaded",
+      savedIdentity: {
+        name: nameSchema.parse("Aiden Zepp"),
+        username: usernameSchema.parse("aiden"),
+      },
+      url: avatarUrl,
+    },
+    field: "avatar",
+    message:
+      "The image uploaded, but we couldn’t attach it to your profile. Your other changes were saved, and we’ll reuse this upload when you save again.",
+  });
+
+  if (firstError.avatarState === undefined) {
+    throw new Error("A failed attachment should preserve its uploaded URL.");
+  }
+
+  const secondSave = await saveProfile({
+    canEditProfile: true,
+    settings: {
+      avatar: firstError.avatarState,
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    },
+    updateUser,
+    uploadAvatar,
+    userId: "user_123",
+  });
+
+  expect(secondSave).toEqual(result.pass({ avatar: avatarUrl }));
+  expect(uploadAvatar).toHaveBeenCalledTimes(1);
+  expect(updateUser).toHaveBeenCalledTimes(3);
+  expect(avatarUpdates).toBe(2);
+});
+
+test("profile saves explain when attachment retries are rate limited", async () => {
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+  const avatarUrl =
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
+  const saved = await saveProfile({
+    canEditProfile: true,
+    settings: {
+      avatar: {
+        file: avatar,
+        kind: "selected",
+        previewUrl: "blob:https://templ8.test/avatar-preview",
+      },
+      name: nameSchema.parse("Aiden Zepp"),
+      username: usernameSchema.parse("aiden"),
+    },
+    updateUser: async (update) => {
+      await Promise.resolve();
+      return {
+        error:
+          update.image === undefined
+            ? null
+            : { code: "TOO_MANY_REQUESTS", status: 429 },
+      };
+    },
+    uploadAvatar: async () => {
+      await Promise.resolve();
+      return result.pass({ url: avatarUrl });
+    },
+    userId: "user_123",
+  });
+
+  expect(requireProfileSaveError(saved)).toMatchObject({
+    avatarState: { kind: "uploaded", url: avatarUrl },
+    field: "root",
+    message:
+      "The image uploaded, but you’ve made several changes in a short time. Your other changes were saved, and we’ll reuse this upload. Wait a moment, then save again.",
+  });
 });
