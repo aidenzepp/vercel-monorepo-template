@@ -32,8 +32,8 @@ const iconTempl8Light = new URL(
  *
  * Standalone favicon SVGs cannot inherit the page's CSS variables, so the
  * assets resolve the current Shadcn foreground and background tokens directly.
- * Their viewboxes focus on the central ball so its `8` remains legible at tab
- * sizes while the reusable logo retains the complete construction field.
+ * The canvas outside the ball remains transparent so browser chrome can show
+ * around its silhouette.
  *
  * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata#icons
  */
