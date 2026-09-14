@@ -121,7 +121,8 @@ export default defineConfig({
           },
           {
             allow: ["layout", "gap-*"],
-            pattern: "^(CardFooter|Field|FieldContent|FieldGroup|FieldSet)$",
+            pattern:
+              "^(CardFooter|Field|FieldContent|FieldGroup|FieldSet|RadioGroup)$",
           },
         ],
       },
