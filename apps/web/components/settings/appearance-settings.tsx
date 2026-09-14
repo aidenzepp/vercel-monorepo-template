@@ -117,6 +117,7 @@ const ThemePreferenceButton = ({
 }: ThemeOption) => (
   <RadioGroupButton
     aria-label={label}
+    data-cuelume-toggle="toggle"
     title={`${label}: ${description}`}
     value={value}
   >
