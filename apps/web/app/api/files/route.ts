@@ -17,10 +17,17 @@ const readUserFileSession: ReadUserFileSession = async (request) =>
   await auth.api.getSession({ headers: request.headers });
 
 /**
- * Constructs private Blob storage after Vercel establishes request OIDC state.
+ * Constructs private Blob storage within the active file request.
+ *
+ * Vercel exposes Function OIDC through request context, while the Files SDK
+ * validates credentials during adapter construction. Creating the service per
+ * request makes the token available before that validation runs.
  *
  * @returns A request-authenticated file service for the private user gateway.
+ * @throws {Error} When Vercel cannot resolve OIDC credentials for the active
+ *   request.
  * @see https://vercel.com/docs/oidc/reference#other-cloud-providers
+ * @see https://github.com/haydenbleasel/files-sdk/blob/b5c5810e60abe1610dd435fbb8482c5dec09292b/packages/files-sdk/src/vercel-blob/index.ts#L270-L313
  */
 const createRequestFileService = async (): Promise<FileService> =>
   new FileService({

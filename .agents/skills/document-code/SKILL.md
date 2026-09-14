@@ -1,6 +1,6 @@
 ---
 name: document-code
-description: Use when writing or reviewing TypeScript or TSX functions, components, interfaces, types, services, callbacks, or other named program units in this repository.
+description: Use when writing or reviewing TypeScript or TSX functions, components, interfaces, types, services, callbacks, or other named program units, and when debugging, upstream documentation, source inspection, or experiments reveal a non-obvious constraint the code must preserve.
 ---
 
 # Document Code
@@ -36,6 +36,28 @@ Follow `packages/utils/src/result.ts` and `packages/utils/src/option.ts`:
 - Describe the consumer-facing contract, not the implementation sequence.
 - Reuse the exact vocabulary of the domain, framework, and underlying library.
 - Omit filler. A comment that only expands the symbol's name is incomplete documentation.
+
+## Preserve Consequential Knowledge
+
+After debugging, reading documentation or upstream source, or running experiments reveals new knowledge, re-review the documentation on the affected code even when an existing comment already looks complete.
+
+Embed the knowledge when all three conditions hold:
+
+1. It changes which implementation is correct, safe, or interoperable.
+2. It is not apparent from the current code, types, or ordinary ecosystem knowledge.
+3. A reasonable maintainer could remove the constraint or repeat costly discovery without it.
+
+Write qualifying knowledge for a first-time reader:
+
+1. State the program unit's current contract or role.
+2. Give the causal chain as present facts: the governing invariant, why it requires the current design, and the guarantee that design provides.
+3. Add navigation for the causal chain: link a local owning symbol when the relationship crosses a repository boundary, canonical documentation for public behavior, and pinned upstream source when exact implementation matters.
+
+The explanation must stand alone without knowledge of past implementations or the incidents, prior defaults, successes, and failures that led to it. Translate discovery history into present-tense invariants; do not write “previously,” “this fixes,” “after this failed,” or similar chronology.
+
+Put the knowledge in the smallest owning program unit's doc comment. Use an inline comment only when the constraint belongs to one statement or to execution order and moving it outward would obscure the relationship.
+
+Do not add a knowledge comment when the code or types already make the fact clear, when another skill or lint rule owns the policy, or when the information is only temporary debugging evidence. Those comments add maintenance cost without improving understanding.
 
 ## Apply tags by contract
 
@@ -79,4 +101,4 @@ Add `@see` links whenever a reader would otherwise need to rediscover the extern
 
 ## Review
 
-Confirm every required unit, argument, and destructured property is documented; component-local props do not duplicate component prose; standalone interfaces retain their own contracts; every block is multiline; tags follow the unit's contract; authoritative links sit beside sourced behavior; and links resolve to useful relationships. Reject comments that narrate syntax, duplicate types, or merely restate names.
+Confirm every required unit, argument, and destructured property is documented; component-local props do not duplicate component prose; standalone interfaces retain their own contracts; every block is multiline; tags follow the unit's contract; authoritative links sit beside sourced behavior; and links resolve to useful relationships. After learning a non-obvious constraint, confirm the owning comment captures its present-tense causal chain for a first-time reader. Reject comments that narrate syntax, duplicate types, merely restate names, recount implementation history, or repeat policy already enforced elsewhere.

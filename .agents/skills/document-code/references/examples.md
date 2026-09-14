@@ -212,6 +212,75 @@ const requireSession = async (): Promise<Session> => {
 };
 ```
 
+## Consequential learned constraints
+
+### NEGATIVE — Incident history assumes context the reader does not have
+
+**Decisive evidence:** The comment names an earlier singleton and a production failure instead of explaining the two current lifecycle rules that make request-time construction necessary. Even with useful links, a first-time reader must reconstruct the causal chain.
+
+```ts
+/**
+ * Replaces the Blob singleton that failed in production.
+ *
+ * This fixes the missing-token bug by constructing the service later.
+ *
+ * @returns A request-authenticated file service for the private user gateway.
+ * @throws {Error} When Vercel cannot resolve OIDC credentials for the active
+ *   request.
+ * @see https://vercel.com/docs/oidc/reference#other-cloud-providers
+ * @see https://github.com/haydenbleasel/files-sdk/blob/b5c5810e60abe1610dd435fbb8482c5dec09292b/packages/files-sdk/src/vercel-blob/index.ts#L270-L313
+ */
+const createRequestFileService = async (): Promise<FileService> =>
+  new FileService({
+    access: "private",
+    oidcToken: await getVercelOidcToken(),
+    storeId: env.BLOB_STORE_ID,
+  });
+```
+
+### POSITIVE — Present facts make the current design self-contained
+
+**Decisive evidence:** The comment states the provider lifecycle, the adapter lifecycle, and the resulting construction boundary without referring to any earlier implementation. Canonical documentation and pinned source let the reader verify or explore both external rules.
+
+```ts
+/**
+ * Constructs private Blob storage within the active file request.
+ *
+ * Vercel exposes Function OIDC through request context, while the Files SDK
+ * validates credentials during adapter construction. Creating the service per
+ * request makes the token available before that validation runs.
+ *
+ * @returns A request-authenticated file service for the private user gateway.
+ * @throws {Error} When Vercel cannot resolve OIDC credentials for the active
+ *   request.
+ * @see https://vercel.com/docs/oidc/reference#other-cloud-providers
+ * @see https://github.com/haydenbleasel/files-sdk/blob/b5c5810e60abe1610dd435fbb8482c5dec09292b/packages/files-sdk/src/vercel-blob/index.ts#L270-L313
+ */
+const createRequestFileService = async (): Promise<FileService> =>
+  new FileService({
+    access: "private",
+    oidcToken: await getVercelOidcToken(),
+    storeId: env.BLOB_STORE_ID,
+  });
+```
+
+### NEGATIVE — A local comment repeats policy already owned elsewhere
+
+**Decisive evidence:** The component name makes the selected primitive visible, while the repository skill and lint rule already enforce that choice. The inline comment adds no local constraint or causal knowledge.
+
+```tsx
+{/* Uses Shadcn Input because raw inputs are prohibited. */}
+<Input name="username" />
+```
+
+### POSITIVE — Self-evident, enforced policy needs no local commentary
+
+**Decisive evidence:** The shared primitive is directly visible and no unusual local behavior depends on the choice, so the code is the clearest explanation.
+
+```tsx
+<Input name="username" />
+```
+
 ## Authoritative source links
 
 ### NEGATIVE — A generic homepage does not explain the sourced behavior
