@@ -2,7 +2,15 @@
 
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
+import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
+
+type RadioGroupButtonProps = Omit<
+  RadioPrimitive.Root.Props,
+  "className" | "nativeButton" | "render"
+> & {
+  className?: string;
+};
 
 function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (
@@ -34,4 +42,28 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
   );
 }
 
-export { RadioGroup, RadioGroupItem };
+/**
+ * Displays a radio option through the shared icon-button primitive.
+ *
+ * Base UI retains the hidden native radio input and radio-group behavior while
+ * Button owns the visible sizing, focus, hover, disabled, and active states.
+ *
+ * @param props - The radio value, accessible name, and optional presentation.
+ * @param props.className - Adds radio-specific presentation to the button.
+ * @returns An icon button with radio semantics and a hidden native input.
+ */
+function RadioGroupButton({ className, ...props }: RadioGroupButtonProps) {
+  return (
+    <RadioPrimitive.Root
+      className={cn(
+        "text-muted-foreground data-checked:bg-muted data-checked:text-foreground",
+        className
+      )}
+      nativeButton
+      render={<Button color="neutral" size="icon-lg" variant="ghost" />}
+      {...props}
+    />
+  );
+}
+
+export { RadioGroup, RadioGroupButton, RadioGroupItem };

@@ -1,10 +1,12 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
 
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
+import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import * as cuelume from "cuelume";
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
+import { AppearanceSettingsBoundary } from "../../components/settings/appearance-settings";
 import { SoundSettingsBoundary } from "../../components/settings/sound-settings";
 import { SidebarUserMenu } from "../../components/sidebar/sidebar-user-menu";
 import {
@@ -234,6 +236,48 @@ test("connects the production Sound card to immediate persisted preferences", as
     "tick",
     "toggle",
   ]);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+  playSound.mockRestore();
+});
+
+test("plays the toggle cue when a theme radio is selected", () => {
+  window.localStorage.setItem("sound-effects-enabled", "true");
+  window.localStorage.setItem("theme", "light");
+  const playSound = spyOn(cuelume, "play").mockImplementation(
+    ignoreAudioPlayback
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <SoundEffectsProvider>
+        <ThemeProvider>
+          <AppearanceSettingsBoundary />
+        </ThemeProvider>
+      </SoundEffectsProvider>
+    );
+  });
+
+  const darkRadio = container.querySelector<HTMLElement>(
+    '[role="radio"][aria-label="Dark"]'
+  );
+
+  if (darkRadio === null) {
+    throw new Error("The Appearance card should expose the Dark radio.");
+  }
+
+  act(() => {
+    darkRadio.click();
+  });
+
+  expect(window.localStorage.getItem("theme")).toBe("dark");
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual(["toggle"]);
 
   act(() => {
     root.unmount();
