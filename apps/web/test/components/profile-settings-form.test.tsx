@@ -14,6 +14,7 @@ import {
   saveProfile,
 } from "../../components/settings/profile-settings-save";
 import type { ProfileSettingsSaveResult } from "../../components/settings/profile-settings-save";
+import { ProfileAvatarError } from "../../lib/files/profile-avatar";
 
 /**
  * The profile values shared by regular and anonymous form cases.
@@ -145,14 +146,14 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   const firstAvatar = new File(["first"], "first.png", {
     type: "image/png",
   });
-  let selectedFileWasCleared = false;
+  let clearedFileInputCount = 0;
   Object.defineProperty(input, "value", {
     configurable: true,
     get: () =>
-      selectedFileWasCleared ? "" : String.raw`C:\fakepath\first.png`,
+      clearedFileInputCount > 0 ? "" : String.raw`C:\fakepath\first.png`,
     set: (value: string) => {
       if (value === "") {
-        selectedFileWasCleared = true;
+        clearedFileInputCount += 1;
       }
     },
   });
@@ -172,7 +173,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(
     container.querySelector<HTMLImageElement>('[data-slot="avatar-image"]')?.src
   ).toBe("blob:https://templ8.test/first-preview");
-  expect(selectedFileWasCleared).toBe(false);
+  expect(clearedFileInputCount).toBe(0);
 
   act(() => {
     reset.click();
@@ -184,7 +185,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(revokeObjectURL).toHaveBeenCalledWith(
     "blob:https://templ8.test/first-preview"
   );
-  expect(selectedFileWasCleared).toBe(true);
+  expect(clearedFileInputCount).toBe(1);
   expect(uploadResets).toBe(1);
 
   const secondAvatar = new File(["second"], "second.png", {
@@ -218,6 +219,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   expect(revokeObjectURL).toHaveBeenCalledWith(
     "blob:https://templ8.test/second-preview"
   );
+  expect(clearedFileInputCount).toBe(2);
 
   act(() => {
     root.unmount();
@@ -326,7 +328,7 @@ test("profile avatar save failures render beside the file input", async () => {
           return result.fail(
             new ProfileSettingsSaveError(
               "avatar",
-              "Image uploads are temporarily unavailable. The image remains selected."
+              "Image uploads are unavailable. Your image is still selected."
             )
           );
         }}
@@ -368,7 +370,7 @@ test("profile avatar save failures render beside the file input", async () => {
   const error = container.querySelector<HTMLElement>("#settings-avatar-error");
 
   expect(error?.textContent).toBe(
-    "Image uploads are temporarily unavailable. The image remains selected."
+    "Image uploads are unavailable. Your image is still selected."
   );
   expect(error?.getAttribute("role")).toBe("alert");
   expect(input.getAttribute("aria-invalid")).toBe("true");
@@ -462,7 +464,6 @@ test("anonymous profile saves stop before identity and avatar operations", async
         url: "/api/files?op=download&key=avatars%2Favatar.png",
       });
     },
-    userId: "anonymous_123",
   });
 
   expect(requireProfileSaveError(saved)).toMatchObject({
@@ -523,7 +524,6 @@ test("profile saves send a selected avatar directly to its upload capability", a
     },
     updateUser,
     uploadAvatar,
-    userId: "user_123",
   });
 
   expect(saved).toEqual(result.pass({ avatar: avatarUrl }));
@@ -564,7 +564,6 @@ test("profile saves reject a username before uploading its avatar", async () => 
     },
     updateUser,
     uploadAvatar,
-    userId: "user_123",
   });
 
   expect(requireProfileSaveError(saved)).toMatchObject({
@@ -602,7 +601,6 @@ test("profile saves keep avatar validation failures with the file field", async 
     },
     updateUser,
     uploadAvatar,
-    userId: "user_123",
   });
 
   expect(requireProfileSaveError(saved)).toMatchObject({
@@ -628,13 +626,11 @@ test("profile saves explain when the session expired", async () => {
     uploadAvatar: () => {
       throw new Error("An expired session must stop before avatar upload.");
     },
-    userId: "user_123",
   });
 
   expect(requireProfileSaveError(saved)).toMatchObject({
     field: "root",
-    message:
-      "Your session expired. Sign in again to save. Your edits are still here.",
+    message: "Your session expired. Sign in again. Your edits are still here.",
   });
 });
 
@@ -677,7 +673,6 @@ test("profile saves retry attachment without uploading the same avatar twice", a
     },
     updateUser,
     uploadAvatar,
-    userId: "user_123",
   });
 
   const firstError = requireProfileSaveError(firstSave);
@@ -694,7 +689,7 @@ test("profile saves retry attachment without uploading the same avatar twice", a
     },
     field: "avatar",
     message:
-      "The image uploaded, but we couldn’t attach it to your profile. Your other changes were saved, and we’ll reuse this upload when you save again.",
+      "The image uploaded but wasn’t attached. Save again; we’ll reuse it.",
   });
 
   if (firstError.avatarState === undefined) {
@@ -710,13 +705,153 @@ test("profile saves retry attachment without uploading the same avatar twice", a
     },
     updateUser,
     uploadAvatar,
-    userId: "user_123",
   });
 
   expect(secondSave).toEqual(result.pass({ avatar: avatarUrl }));
   expect(uploadAvatar).toHaveBeenCalledTimes(1);
   expect(updateUser).toHaveBeenCalledTimes(3);
   expect(avatarUpdates).toBe(2);
+});
+
+test("profile saves retry an upload without repeating the saved identity", async () => {
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+  const avatarUrl =
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
+  let uploadAttempts = 0;
+  const updateUser = mock(async () => {
+    await Promise.resolve();
+    return { error: null };
+  });
+  const uploadAvatar = mock(async () => {
+    uploadAttempts += 1;
+    await Promise.resolve();
+
+    if (uploadAttempts === 1) {
+      throw new Error("connection reset during upload");
+    }
+
+    return result.pass({ url: avatarUrl });
+  });
+  const settings = {
+    avatar: {
+      file: avatar,
+      kind: "selected" as const,
+      previewUrl: "blob:https://templ8.test/avatar-preview",
+    },
+    name: nameSchema.parse("Aiden Zepp"),
+    username: usernameSchema.parse("aiden"),
+  };
+
+  const firstSave = await saveProfile({
+    canEditProfile: true,
+    settings,
+    updateUser,
+    uploadAvatar,
+  });
+  const firstError = requireProfileSaveError(firstSave);
+
+  expect(firstError.avatarState).toMatchObject({
+    ...settings.avatar,
+    savedIdentity: {
+      name: settings.name,
+      username: settings.username,
+    },
+  });
+  expect(firstError.message).toBe(
+    "We couldn’t confirm the upload. Your other changes were saved. Check your connection and save again."
+  );
+
+  if (firstError.avatarState === undefined) {
+    throw new Error("An upload retry should preserve its saved identity.");
+  }
+
+  const secondSave = await saveProfile({
+    canEditProfile: true,
+    settings: { ...settings, avatar: firstError.avatarState },
+    updateUser,
+    uploadAvatar,
+  });
+
+  expect(secondSave).toEqual(result.pass({ avatar: avatarUrl }));
+  expect(uploadAvatar).toHaveBeenCalledTimes(2);
+  expect(updateUser).toHaveBeenCalledTimes(2);
+});
+
+test("profile saves reupload an avatar that reconciliation proves missing", async () => {
+  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+  const avatarUrl =
+    "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
+  const savedIdentity = {
+    name: nameSchema.parse("Aiden Zepp"),
+    username: usernameSchema.parse("aiden"),
+  };
+  const updateUser = mock(async () => {
+    await Promise.resolve();
+    return { error: null };
+  });
+  const uploadAvatar = mock(async () => {
+    await Promise.resolve();
+    return result.pass({ url: avatarUrl });
+  });
+  const reconcileAvatar = mock(async () => {
+    await Promise.resolve();
+    return result.fail(
+      new ProfileAvatarError("The image didn’t finish uploading.", {
+        code: "upload_missing",
+        phase: "reconciliation",
+        retryable: true,
+        storageState: "not_uploaded",
+      })
+    );
+  });
+  const settings = {
+    avatar: {
+      file: avatar,
+      key: "avatars/87654321-cba9-4fed-8abc-abcdef123456.png",
+      kind: "pending" as const,
+      previewUrl: "blob:https://templ8.test/avatar-preview",
+      savedIdentity,
+    },
+    ...savedIdentity,
+  };
+
+  const firstSave = await saveProfile({
+    canEditProfile: true,
+    reconcileAvatar,
+    settings,
+    updateUser,
+    uploadAvatar,
+  });
+  const firstError = requireProfileSaveError(firstSave);
+
+  expect(firstError).toMatchObject({
+    avatarState: {
+      file: avatar,
+      kind: "selected",
+      previewUrl: settings.avatar.previewUrl,
+      savedIdentity,
+    },
+    field: "avatar",
+    message:
+      "The image didn’t finish uploading. Your other changes were saved. Save again to upload it.",
+  });
+
+  if (firstError.avatarState === undefined) {
+    throw new Error("A missing upload should return to selected state.");
+  }
+
+  const secondSave = await saveProfile({
+    canEditProfile: true,
+    reconcileAvatar,
+    settings: { ...settings, avatar: firstError.avatarState },
+    updateUser,
+    uploadAvatar,
+  });
+
+  expect(secondSave).toEqual(result.pass({ avatar: avatarUrl }));
+  expect(reconcileAvatar).toHaveBeenCalledTimes(1);
+  expect(uploadAvatar).toHaveBeenCalledTimes(1);
+  expect(updateUser).toHaveBeenCalledTimes(1);
 });
 
 test("profile saves explain when attachment retries are rate limited", async () => {
@@ -747,13 +882,12 @@ test("profile saves explain when attachment retries are rate limited", async () 
       await Promise.resolve();
       return result.pass({ url: avatarUrl });
     },
-    userId: "user_123",
   });
 
   expect(requireProfileSaveError(saved)).toMatchObject({
     avatarState: { kind: "uploaded", url: avatarUrl },
     field: "root",
     message:
-      "The image uploaded, but you’ve made several changes in a short time. Your other changes were saved, and we’ll reuse this upload. Wait a moment, then save again.",
+      "Too many changes. Wait a moment, then save again. We’ll reuse the uploaded image.",
   });
 });

@@ -51,9 +51,10 @@ const profileAvatarGatewayErrorSchema = z.object({
 const profileAvatarGatewayRequestSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("presign") }),
   z.object({
-    completions: z.array(z.object({ key: z.string() })).min(1),
+    completions: z.array(z.object({ key: z.string() })).length(1),
     op: z.literal("complete"),
   }),
+  z.object({ key: z.string(), op: z.literal("head") }),
 ]);
 
 /**
@@ -68,18 +69,27 @@ const profileAvatarPresignResponseSchema = z.object({
         target: z.object({ method: z.literal("PUT"), url: z.string() }),
       })
     )
-    .min(1),
+    .length(1),
 });
 
 /**
- * Confirms that completion returned at least one verified stored file.
+ * Confirms that completion returned exactly one verified stored file.
  */
 const profileAvatarCompletionResponseSchema = z.object({
   errors: z
     .array(z.object({ key: z.string() }))
     .max(0)
     .optional(),
-  files: z.array(z.object({ key: z.string() })).min(1),
+  files: z
+    .array(z.object({ key: z.string(), size: z.number(), type: z.string() }))
+    .length(1),
+});
+
+/**
+ * Confirms that reconciliation returned metadata for one stored file.
+ */
+const profileAvatarReconciliationResponseSchema = z.object({
+  file: z.object({ key: z.string(), size: z.number(), type: z.string() }),
 });
 
 /**
@@ -87,7 +97,7 @@ const profileAvatarCompletionResponseSchema = z.object({
  */
 interface ProfileAvatarGatewayContext {
   key?: string;
-  phase: "completion" | "presign";
+  phase: "completion" | "presign" | "reconciliation";
 }
 
 /**
@@ -142,8 +152,14 @@ const parseProfileAvatarGatewayContext = (
     return { phase: "presign" };
   }
 
-  const completion = parsed.value.completions.at(0);
+  if (parsed.value.op === "head") {
+    return {
+      key: createProfileAvatarKey(parsed.value.key),
+      phase: "reconciliation",
+    };
+  }
 
+  const completion = parsed.value.completions.at(0);
   return completion === undefined
     ? null
     : {
@@ -165,7 +181,11 @@ const parseProfileAvatarGatewayContext = (
 const createGatewayError = (
   context: ProfileAvatarGatewayContext,
   message: string,
-  code: "session_expired" | "upload_unavailable" | "upload_unconfirmed",
+  code:
+    | "session_expired"
+    | "upload_forbidden"
+    | "upload_unavailable"
+    | "upload_unconfirmed",
   storageState: "not_uploaded" | "unknown",
   cause?: unknown
 ): ProfileAvatarError => {
@@ -235,7 +255,7 @@ const getFailedGatewayError = async (
     return validationError;
   }
 
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     return createGatewayError(
       context,
       "Your session expired.",
@@ -244,16 +264,34 @@ const getFailedGatewayError = async (
     );
   }
 
+  if (response.status === 403) {
+    return createGatewayError(
+      context,
+      "This image upload isn’t allowed.",
+      "upload_forbidden",
+      context.phase === "presign" ? "not_uploaded" : "unknown"
+    );
+  }
+
+  if (response.status === 404 && context.phase === "reconciliation") {
+    return new ProfileAvatarError("The image didn’t finish uploading.", {
+      code: "upload_missing",
+      phase: "reconciliation",
+      retryable: true,
+      storageState: "not_uploaded",
+    });
+  }
+
   return context.phase === "presign"
     ? createGatewayError(
         context,
-        "Image uploads are temporarily unavailable.",
+        "Image uploads are unavailable.",
         "upload_unavailable",
         "not_uploaded"
       )
     : createGatewayError(
         context,
-        "We couldn’t confirm whether the image finished uploading.",
+        "We couldn’t confirm the upload.",
         "upload_unconfirmed",
         "unknown"
       );
@@ -278,11 +316,28 @@ const isGatewayResponseInvalid = async (
     return !parsed.ok;
   }
 
+  if (context.phase === "completion") {
+    const parsed = await result.trycatch(async () => {
+      const json: unknown = await response.clone().json();
+      return profileAvatarCompletionResponseSchema.parse(json);
+    });
+    const file = parsed.ok ? parsed.value.files[0] : undefined;
+    return (
+      file === undefined ||
+      context.key === undefined ||
+      createProfileAvatarKey(file.key) !== context.key
+    );
+  }
+
   const parsed = await result.trycatch(async () => {
     const json: unknown = await response.clone().json();
-    return profileAvatarCompletionResponseSchema.parse(json);
+    return profileAvatarReconciliationResponseSchema.parse(json);
   });
-  return !parsed.ok;
+  return (
+    !parsed.ok ||
+    context.key === undefined ||
+    createProfileAvatarKey(parsed.value.file.key) !== context.key
+  );
 };
 
 /**
@@ -297,13 +352,13 @@ const getInvalidGatewayResponseError = (
   context.phase === "presign"
     ? createGatewayError(
         context,
-        "Image uploads are temporarily unavailable.",
+        "Image uploads are unavailable.",
         "upload_unavailable",
         "not_uploaded"
       )
     : createGatewayError(
         context,
-        "We couldn’t confirm whether the image finished uploading.",
+        "We couldn’t confirm the upload.",
         "upload_unconfirmed",
         "unknown"
       );
@@ -339,8 +394,8 @@ const createProfileAvatarGatewayFetch = (
         createGatewayError(
           context,
           context.phase === "presign"
-            ? "Image uploads are temporarily unavailable."
-            : "We couldn’t confirm whether the image finished uploading.",
+            ? "Image uploads are unavailable."
+            : "We couldn’t confirm the upload.",
           context.phase === "presign"
             ? "upload_unavailable"
             : "upload_unconfirmed",
@@ -397,7 +452,7 @@ const createProfileAvatarTransport =
   async (request: SendRequest) => {
     if (isApplicationProxyTarget(request.url)) {
       throw new ProfileAvatarClientError(
-        new ProfileAvatarError("Image uploads are temporarily unavailable.", {
+        new ProfileAvatarError("Image uploads are unavailable.", {
           code: "upload_unavailable",
           phase: "presign",
           retryable: true,
@@ -410,33 +465,27 @@ const createProfileAvatarTransport =
 
     if (!sent.ok) {
       throw new ProfileAvatarClientError(
-        new ProfileAvatarError(
-          "We couldn’t confirm whether the image reached storage.",
-          {
-            cause: sent.error,
-            code: "upload_unconfirmed",
-            phase: "transfer",
-            retryable: true,
-            storageState: "unknown",
-          }
-        )
+        new ProfileAvatarError("We couldn’t confirm the upload.", {
+          cause: sent.error,
+          code: "upload_unconfirmed",
+          phase: "transfer",
+          retryable: true,
+          storageState: "unknown",
+        })
       );
     }
 
     if (sent.value.status < 200 || sent.value.status >= 300) {
       throw new ProfileAvatarClientError(
-        new ProfileAvatarError(
-          "We couldn’t confirm whether the image reached storage.",
-          {
-            cause: new Error(
-              `Direct storage upload returned status ${sent.value.status}.`
-            ),
-            code: "upload_unconfirmed",
-            phase: "transfer",
-            retryable: true,
-            storageState: "unknown",
-          }
-        )
+        new ProfileAvatarError("We couldn’t confirm the upload.", {
+          cause: new Error(
+            `Direct storage upload returned status ${sent.value.status}.`
+          ),
+          code: "upload_unconfirmed",
+          phase: "transfer",
+          retryable: true,
+          storageState: "unknown",
+        })
       );
     }
 

@@ -30,12 +30,14 @@ const profileSettingsSchema = z.object({
       file: z.custom<File>(),
       kind: z.literal("selected"),
       previewUrl: z.string(),
+      savedIdentity: savedProfileIdentitySchema.optional(),
     }),
     z.object({
       file: z.custom<File>(),
       key: z.string(),
       kind: z.literal("pending"),
       previewUrl: z.string(),
+      savedIdentity: savedProfileIdentitySchema,
     }),
     z.object({
       file: z.custom<File>(),

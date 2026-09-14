@@ -38,10 +38,10 @@ const createTestGateway = (
     id: string;
     isAnonymous: boolean;
   } | null,
-  gatewayOptions: { signedUploadError?: Error } = {}
+  gatewayOptions: { headError?: Error; signedUploadError?: Error } = {}
 ) => {
   const signedUploads: SignedUploadRequest[] = [];
-  const adapter = memory({
+  const memoryAdapter = memory({
     initial: {
       [`users/user_123/${AVATAR_KEY}`]: {
         body: "avatar bytes",
@@ -49,6 +49,19 @@ const createTestGateway = (
       },
     },
   });
+  const adapter = {
+    ...memoryAdapter,
+    head: async (
+      key: Parameters<typeof memoryAdapter.head>[0],
+      options: Parameters<typeof memoryAdapter.head>[1]
+    ) => {
+      if (gatewayOptions.headError !== undefined) {
+        throw gatewayOptions.headError;
+      }
+
+      return await memoryAdapter.head(key, options);
+    },
+  };
   const files = new Files({
     adapter: {
       ...adapter,
@@ -285,7 +298,7 @@ test("does not fall back to an application upload when signing fails", async () 
   expect(await response.json()).toEqual({
     error: {
       code: "Provider",
-      message: "Direct file uploads are temporarily unavailable.",
+      message: "File storage is unavailable.",
     },
   });
   expect(signedUploads).toHaveLength(0);
@@ -310,6 +323,31 @@ test("lets an owner reconcile metadata for a canonical avatar key", async () => 
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
     file: { key: AVATAR_KEY, size: 12, type: "image/png" },
+  });
+});
+
+test("hides provider details from failed private file responses", async () => {
+  const { router } = createTestGateway(
+    { id: "user_123", isAnonymous: false },
+    { headError: new Error("secret provider account detail") }
+  );
+  const request = new Request("http://localhost/api/files?namespace=avatars", {
+    body: JSON.stringify({ key: AVATAR_KEY, op: "head" }),
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+    },
+    method: "POST",
+  });
+
+  const response = await router.handle(request);
+
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({
+    error: {
+      code: "Provider",
+      message: "File storage is unavailable.",
+    },
   });
 });
 
@@ -364,7 +402,7 @@ test("rejects oversized avatar metadata before signing storage access", async ()
         actualBytes: 5 * 1024 * 1024 + 1,
         maxBytes: 5 * 1024 * 1024,
       },
-      message: "Choose an image that’s 5 MiB or smaller.",
+      message: "Choose an image up to 5 MiB.",
       reason: "too_large",
     },
   });
@@ -390,7 +428,7 @@ test("identifies a filename and media-type mismatch before signing", async () =>
     error: {
       code: "Validation",
       details: { actualName: "profile.jpg", expectedExtension: "png" },
-      message: "The image filename does not match its selected format.",
+      message: "Choose a file whose extension matches its image format.",
       reason: "filename_type_mismatch",
     },
   });
@@ -438,7 +476,7 @@ test("rejects file bytes sent through the application gateway", async () => {
   expect(await response.json()).toEqual({
     error: {
       code: "Forbidden",
-      message: "Upload image bytes directly to the signed storage target.",
+      message: "This file operation isn’t allowed.",
     },
   });
 });

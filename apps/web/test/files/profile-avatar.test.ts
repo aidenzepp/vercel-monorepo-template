@@ -3,7 +3,10 @@ import { expect, test } from "bun:test";
 import { createFilesClient } from "files-sdk/client";
 import { z } from "zod";
 
-import { uploadProfileAvatarFile } from "../../lib/files/profile-avatar";
+import {
+  reconcileProfileAvatarFile,
+  uploadProfileAvatarFile,
+} from "../../lib/files/profile-avatar";
 import { createProfileAvatarFilesOptions } from "../../lib/files/profile-avatar-client";
 
 /**
@@ -40,7 +43,7 @@ const validationGatewayFetch: typeof fetch = async () => {
           actualName: "avatar.png",
           expectedExtension: "jpg",
         },
-        message: "The image filename does not match its selected format.",
+        message: "Choose a file whose extension matches its image format.",
         reason: "filename_type_mismatch",
       },
     },
@@ -48,6 +51,33 @@ const validationGatewayFetch: typeof fetch = async () => {
   );
 };
 validationGatewayFetch.preconnect = fetch.preconnect;
+
+/**
+ * Returns one failed owner-scoped avatar metadata response.
+ *
+ * @param status - The HTTP status emitted by the file gateway.
+ * @param code - The Files SDK error code represented by the response.
+ * @returns A gateway fetch implementation for reconciliation failures.
+ */
+const createFailedReconciliationFetch = (
+  status: number,
+  code: string
+): typeof fetch => {
+  /**
+   * Emits the selected failed response without contacting a file gateway.
+   *
+   * @returns The deterministic reconciliation failure under test.
+   */
+  const gatewayFetch: typeof fetch = async () => {
+    await Promise.resolve();
+    return Response.json(
+      { error: { code, message: "Provider detail must stay private." } },
+      { status }
+    );
+  };
+  gatewayFetch.preconnect = fetch.preconnect;
+  return gatewayFetch;
+};
 
 test("uploads a canonical avatar file and returns its private gateway URL", async () => {
   const uploads: File[] = [];
@@ -62,6 +92,8 @@ test("uploads a canonical avatar file and returns its private gateway URL", asyn
       uploads.push(file);
       return {
         key: "12345678-9abc-4def-8abc-123456789abc.png",
+        size: file.size,
+        type: file.type,
       };
     },
   });
@@ -120,9 +152,7 @@ test("rejects avatars larger than five mebibytes before requesting an upload", a
     throw new Error("An oversized avatar should return a validation error.");
   }
 
-  expect(uploaded.error.message).toBe(
-    "Choose an image that’s 5 MiB or smaller."
-  );
+  expect(uploaded.error.message).toBe("Choose an image up to 5 MiB.");
   expect(uploaded.error).toMatchObject({
     code: "too_large",
     details: {
@@ -145,7 +175,11 @@ test("accepts an avatar exactly five mebibytes large", async () => {
     upload: async (file) => {
       await Promise.resolve();
       expect(file.size).toBe(5 * 1024 * 1024);
-      return { key: "12345678-9abc-4def-8abc-123456789abc.png" };
+      return {
+        key: "12345678-9abc-4def-8abc-123456789abc.png",
+        size: file.size,
+        type: file.type,
+      };
     },
   });
 
@@ -166,6 +200,8 @@ test.each([
         expect(file.type).toBe(candidate.type);
         return {
           key: `12345678-9abc-4def-8abc-123456789abc.${candidate.extension}`,
+          size: file.size,
+          type: file.type,
         };
       },
     });
@@ -200,7 +236,7 @@ test("reports signed-target failures before sending image bytes", async () => {
 
   expect(uploaded.error).toMatchObject({
     code: "upload_unavailable",
-    message: "Image uploads are temporarily unavailable.",
+    message: "Image uploads are unavailable.",
     phase: "presign",
     retryable: true,
     storageState: "not_uploaded",
@@ -237,7 +273,7 @@ test("preserves structured gateway validation through the files client", async (
       actualName: "avatar.png",
       expectedExtension: "jpg",
     },
-    message: "The image filename does not match its selected format.",
+    message: "Choose a file whose extension matches its image format.",
     phase: "validation",
     retryable: false,
     storageState: "not_uploaded",
@@ -316,12 +352,210 @@ test("reconciles a stored image when completion cannot be confirmed", async () =
   });
 });
 
-test("rejects an uploaded key outside the generated avatar grammar", async () => {
-  const uploaded = await uploadProfileAvatarFile({
+test("returns a missing avatar to upload selection after reconciliation", async () => {
+  const key = "avatars/12345678-9abc-4def-8abc-123456789abc.png";
+  const client = createFilesClient(
+    createProfileAvatarFilesOptions({
+      fetchImpl: createFailedReconciliationFetch(404, "NotFound"),
+    })
+  );
+  const reconciled = await reconcileProfileAvatarFile({
     file: new File(["avatar"], "portrait.png", { type: "image/png" }),
+    key,
+    reconcile: async (candidate) => await client.head(candidate),
+  });
+
+  expect(reconciled.ok).toBe(false);
+
+  if (reconciled.ok) {
+    throw new Error("A missing upload should return repair guidance.");
+  }
+
+  expect(reconciled.error).toMatchObject({
+    code: "upload_missing",
+    message: "The image didn’t finish uploading.",
+    phase: "reconciliation",
+    retryable: true,
+    storageState: "not_uploaded",
+  });
+  expect(reconciled.error.pendingKey).toBeUndefined();
+});
+
+test("preserves a pending avatar when reconciliation needs sign-in", async () => {
+  const key = "avatars/12345678-9abc-4def-8abc-123456789abc.png";
+  const client = createFilesClient(
+    createProfileAvatarFilesOptions({
+      fetchImpl: createFailedReconciliationFetch(401, "Unauthorized"),
+    })
+  );
+  const reconciled = await reconcileProfileAvatarFile({
+    file: new File(["avatar"], "portrait.png", { type: "image/png" }),
+    key,
+    reconcile: async (candidate) => await client.head(candidate),
+  });
+
+  expect(reconciled.ok).toBe(false);
+
+  if (reconciled.ok) {
+    throw new Error("An expired session should return sign-in guidance.");
+  }
+
+  expect(reconciled.error).toMatchObject({
+    code: "session_expired",
+    message: "Your session expired.",
+    pendingKey: key,
+    phase: "reconciliation",
+    retryable: true,
+    storageState: "unknown",
+  });
+});
+
+test("distinguishes forbidden reconciliation from an expired session", async () => {
+  const key = "avatars/12345678-9abc-4def-8abc-123456789abc.png";
+  const client = createFilesClient(
+    createProfileAvatarFilesOptions({
+      fetchImpl: createFailedReconciliationFetch(403, "Forbidden"),
+    })
+  );
+  const reconciled = await reconcileProfileAvatarFile({
+    file: new File(["avatar"], "portrait.png", { type: "image/png" }),
+    key,
+    reconcile: async (candidate) => await client.head(candidate),
+  });
+
+  expect(reconciled.ok).toBe(false);
+
+  if (reconciled.ok) {
+    throw new Error("A forbidden upload should return access guidance.");
+  }
+
+  expect(reconciled.error).toMatchObject({
+    code: "upload_forbidden",
+    message: "This image upload isn’t allowed.",
+    pendingKey: key,
+    phase: "reconciliation",
+    retryable: true,
+    storageState: "unknown",
+  });
+});
+
+test("reconciles the issued key when completion returns another avatar", async () => {
+  const expectedKey = "12345678-9abc-4def-8abc-123456789abc.png";
+  const otherKey = "87654321-cba9-4fed-8abc-abcdef123456.png";
+  const avatar = new File(["avatar"], "portrait.png", { type: "image/png" });
+  let reconciliations = 0;
+  /**
+   * Returns an upload completion response for a different valid avatar key.
+   *
+   * @param _input - The user-files endpoint, unused by this deterministic stub.
+   * @param init - The Files SDK request carrying the current operation.
+   * @returns A valid presign response or mismatched completion response.
+   */
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    const encodedRequest = z.string().parse(init?.body);
+    const requestJson: unknown = JSON.parse(encodedRequest);
+    const request = z.object({ op: z.string() }).parse(requestJson);
+    await Promise.resolve();
+
+    if (request.op === "presign") {
+      return Response.json({
+        uploads: [
+          {
+            id: "signed-completion-token",
+            key: expectedKey,
+            target: {
+              headers: { "Content-Type": "image/png" },
+              method: "PUT",
+              url: "https://blob.example/signed-upload",
+            },
+          },
+        ],
+      });
+    }
+
+    return Response.json({
+      files: [
+        {
+          etag: "other-etag",
+          key: otherKey,
+          lastModified: "2026-09-14T00:00:00.000Z",
+          size: avatar.size,
+          type: avatar.type,
+        },
+      ],
+    });
+  };
+  fetchImpl.preconnect = fetch.preconnect;
+  const client = createFilesClient(
+    createProfileAvatarFilesOptions({
+      fetchImpl,
+      transport: async () => {
+        await Promise.resolve();
+        return { status: 200, text: "" };
+      },
+    })
+  );
+
+  const uploaded = await uploadProfileAvatarFile({
+    file: avatar,
+    reconcile: async (key) => {
+      reconciliations += 1;
+      await Promise.resolve();
+      expect(key).toBe(`avatars/${expectedKey}`);
+      return { key, size: avatar.size, type: avatar.type };
+    },
+    upload: async (file) => await client.upload(file),
+  });
+
+  expect(uploaded).toEqual({
+    ok: true,
+    value: {
+      url: `/api/files?op=download&key=avatars%2F${expectedKey}`,
+    },
+  });
+  expect(reconciliations).toBe(1);
+});
+
+test("rejects uploaded metadata that does not match the selected image", async () => {
+  const avatar = new File(["avatar"], "portrait.png", { type: "image/png" });
+  const uploaded = await uploadProfileAvatarFile({
+    file: avatar,
     upload: async () => {
       await Promise.resolve();
-      return { key: "documents/profile.png" };
+      return {
+        key: "12345678-9abc-4def-8abc-123456789abc.png",
+        size: avatar.size + 1,
+        type: "image/png",
+      };
+    },
+  });
+
+  expect(uploaded.ok).toBe(false);
+
+  if (uploaded.ok) {
+    throw new Error("Mismatched uploaded metadata should fail closed.");
+  }
+
+  expect(uploaded.error).toMatchObject({
+    code: "invalid_uploaded_avatar_metadata",
+    message: "We couldn’t verify the uploaded image.",
+    phase: "completion",
+    retryable: false,
+    storageState: "uploaded",
+  });
+});
+
+test("rejects an uploaded key outside the generated avatar grammar", async () => {
+  const avatar = new File(["avatar"], "portrait.png", { type: "image/png" });
+  const uploaded = await uploadProfileAvatarFile({
+    file: avatar,
+    upload: async () => {
+      await Promise.resolve();
+      return {
+        key: "documents/profile.png",
+        size: avatar.size,
+        type: avatar.type,
+      };
     },
   });
 
@@ -331,9 +565,7 @@ test("rejects an uploaded key outside the generated avatar grammar", async () =>
     throw new Error("An unexpected upload key should fail closed.");
   }
 
-  expect(uploaded.error.message).toBe(
-    "The upload returned an invalid avatar location."
-  );
+  expect(uploaded.error.message).toBe("We couldn’t verify the uploaded image.");
   expect(uploaded.error).toMatchObject({
     code: "invalid_uploaded_avatar_key",
     phase: "completion",

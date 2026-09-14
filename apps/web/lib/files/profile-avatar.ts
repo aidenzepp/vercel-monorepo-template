@@ -46,10 +46,13 @@ type ProfileAvatarExtension = "jpg" | "png" | "webp";
  */
 type ProfileAvatarErrorCode =
   | "filename_type_mismatch"
+  | "invalid_uploaded_avatar_metadata"
   | "invalid_uploaded_avatar_key"
   | "session_expired"
   | "too_large"
   | "unsupported_type"
+  | "upload_forbidden"
+  | "upload_missing"
   | "upload_unavailable"
   | "upload_unconfirmed"
   | "wrong_file_count";
@@ -150,7 +153,7 @@ interface ReconciledProfileAvatar {
 /**
  * Uploads one avatar directly from the browser to its signed storage target.
  */
-type UploadProfileAvatar = (file: File) => Promise<{ key: string }>;
+type UploadProfileAvatar = (file: File) => Promise<ReconciledProfileAvatar>;
 
 /**
  * Looks up an owner-scoped avatar after an uncertain completion response.
@@ -237,7 +240,7 @@ const validateProfileAvatarFile = (
     file.size > MAX_AVATAR_SIZE_IN_BYTES
   ) {
     return result.fail(
-      new ProfileAvatarError("Choose an image that’s 5 MiB or smaller.", {
+      new ProfileAvatarError("Choose an image up to 5 MiB.", {
         code: "too_large",
         details: {
           actualBytes: file.size,
@@ -271,7 +274,7 @@ const validateProfileAvatarUploadMetadata = (
   if (!file.name.toLowerCase().endsWith(`.${validated.value.extension}`)) {
     return result.fail(
       new ProfileAvatarError(
-        "The image filename does not match its selected format.",
+        "Choose a file whose extension matches its image format.",
         {
           code: "filename_type_mismatch",
           details: {
@@ -351,15 +354,12 @@ const createValidatedProfileAvatarUrl = (
 ): ProfileAvatarUploadResult => {
   if (!isProfileAvatarKey(key) || !key.endsWith(`.${extension}`)) {
     return result.fail(
-      new ProfileAvatarError(
-        "The upload returned an invalid avatar location.",
-        {
-          code: "invalid_uploaded_avatar_key",
-          phase: "completion",
-          retryable: false,
-          storageState: "uploaded",
-        }
-      )
+      new ProfileAvatarError("We couldn’t verify the uploaded image.", {
+        code: "invalid_uploaded_avatar_key",
+        phase: "completion",
+        retryable: false,
+        storageState: "uploaded",
+      })
     );
   }
 
@@ -398,40 +398,77 @@ const reconcileProfileAvatarFile = async (
   );
 
   if (!reconciled.ok) {
+    const avatarError = result.is(reconciled.error, ProfileAvatarError);
+
     return result.fail(
-      new ProfileAvatarError(
-        "We couldn’t confirm whether the image finished uploading.",
-        {
+      avatarError ??
+        new ProfileAvatarError("We couldn’t confirm the upload.", {
           cause: reconciled.error,
           code: "upload_unconfirmed",
           pendingKey: options.key,
           phase: "reconciliation",
           retryable: true,
           storageState: "unknown",
-        }
-      )
+        })
+    );
+  }
+
+  if (reconciled.value.key !== options.key) {
+    return result.fail(
+      new ProfileAvatarError("We couldn’t verify the uploaded image.", {
+        code: "invalid_uploaded_avatar_key",
+        phase: "reconciliation",
+        retryable: false,
+        storageState: "uploaded",
+      })
     );
   }
 
   if (
-    reconciled.value.key !== options.key ||
     reconciled.value.size !== options.file.size ||
     reconciled.value.type !== options.file.type
   ) {
     return result.fail(
-      new ProfileAvatarError(
-        "The upload returned an invalid avatar location.",
-        {
-          code: "invalid_uploaded_avatar_key",
-          phase: "reconciliation",
-          retryable: false,
-          storageState: "uploaded",
-        }
-      )
+      new ProfileAvatarError("We couldn’t verify the uploaded image.", {
+        code: "invalid_uploaded_avatar_metadata",
+        phase: "reconciliation",
+        retryable: false,
+        storageState: "uploaded",
+      })
     );
   }
 
   return validatedUrl;
+};
+
+/**
+ * Verifies provider metadata before an uploaded avatar becomes durable state.
+ *
+ * @param file - The selected image whose metadata was authorized.
+ * @param uploaded - The stored file returned by upload completion.
+ * @param extension - The canonical extension derived from the selected image.
+ * @returns The private avatar URL or a closed metadata mismatch.
+ */
+const createUploadedProfileAvatarUrl = (
+  file: File,
+  uploaded: ReconciledProfileAvatar,
+  extension: ProfileAvatarExtension
+): ProfileAvatarUploadResult => {
+  if (uploaded.size !== file.size || uploaded.type !== file.type) {
+    return result.fail(
+      new ProfileAvatarError("We couldn’t verify the uploaded image.", {
+        code: "invalid_uploaded_avatar_metadata",
+        phase: "completion",
+        retryable: false,
+        storageState: "uploaded",
+      })
+    );
+  }
+
+  return createValidatedProfileAvatarUrl(
+    createProfileAvatarKey(uploaded.key),
+    extension
+  );
 };
 
 /**
@@ -445,16 +482,13 @@ const getProfileAvatarUploadError = (error: Error): ProfileAvatarError => {
 
   return (
     domainError ??
-    new ProfileAvatarError(
-      "We couldn’t confirm whether the image reached storage.",
-      {
-        cause: error,
-        code: "upload_unconfirmed",
-        phase: "transfer",
-        retryable: true,
-        storageState: "unknown",
-      }
-    )
+    new ProfileAvatarError("We couldn’t confirm the upload.", {
+      cause: error,
+      code: "upload_unconfirmed",
+      phase: "transfer",
+      retryable: true,
+      storageState: "unknown",
+    })
   );
 };
 
@@ -499,8 +533,9 @@ const uploadProfileAvatarFile = async (
     return result.fail(error);
   }
 
-  return createValidatedProfileAvatarUrl(
-    createProfileAvatarKey(uploaded.value.key),
+  return createUploadedProfileAvatarUrl(
+    options.file,
+    uploaded.value,
     validated.value.extension
   );
 };

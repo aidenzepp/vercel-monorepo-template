@@ -32,9 +32,10 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@workspace/ui/components/input-group";
+import { toast } from "@workspace/ui/components/toast";
 import { useFiles } from "files-sdk/react";
 import type { ReactNode, SyntheticEvent } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   FormProvider,
   useController,
@@ -87,6 +88,19 @@ interface ProfileSettingsFormProps {
   onSave: (settings: ProfileSettings) => Promise<ProfileSettingsSaveResult>;
   user: ProfileSettingsUser;
 }
+
+/**
+ * Clears the browser-owned filename from the profile avatar control.
+ *
+ * @param form - The mounted profile form whose file input may hold a selection.
+ */
+const clearProfileAvatarInput = (form: HTMLFormElement | null): void => {
+  const avatarInput = form?.elements.namedItem("avatar");
+
+  if (avatarInput instanceof HTMLInputElement) {
+    avatarInput.value = "";
+  }
+};
 
 /**
  * Persists Better Auth user fields through the browser client.
@@ -187,10 +201,15 @@ const ProfileAvatarField = () => {
               const file = event.currentTarget.files?.item(0);
 
               if (file !== null && file !== undefined) {
+                const savedIdentity =
+                  avatar.kind === "persisted"
+                    ? undefined
+                    : avatar.savedIdentity;
                 onChange({
                   file,
                   kind: "selected",
                   previewUrl: URL.createObjectURL(file),
+                  savedIdentity,
                 });
               }
             }}
@@ -371,6 +390,7 @@ const ProfileSettingsForm = ({
   onSave,
   user,
 }: ProfileSettingsFormProps) => {
+  const formElement = useRef<HTMLFormElement>(null);
   const form = useForm<ProfileSettingsFields, unknown, ProfileSettings>({
     resetOptions: { keepDirtyValues: true },
     resolver: zodResolver(profileSettingsSchema),
@@ -408,6 +428,7 @@ const ProfileSettingsForm = ({
       },
       { keepDirtyValues: false }
     );
+    clearProfileAvatarInput(formElement.current);
   };
 
   /**
@@ -416,12 +437,7 @@ const ProfileSettingsForm = ({
    * @param event - The reset event carrying the form's native controls.
    */
   const resetProfile = (event: SyntheticEvent<HTMLFormElement>): void => {
-    const avatarInput = event.currentTarget.elements.namedItem("avatar");
-
-    if (avatarInput instanceof HTMLInputElement) {
-      avatarInput.value = "";
-    }
-
+    clearProfileAvatarInput(event.currentTarget);
     form.reset(form.formState.defaultValues, { keepDirtyValues: false });
     onReset?.();
   };
@@ -447,7 +463,12 @@ const ProfileSettingsForm = ({
       </CardHeader>
 
       <FormProvider {...form}>
-        <form noValidate onReset={resetProfile} onSubmit={submitProfileForm}>
+        <form
+          noValidate
+          onReset={resetProfile}
+          onSubmit={submitProfileForm}
+          ref={formElement}
+        >
           <FieldSet
             className="gap-0"
             disabled={!canEditProfile || form.formState.isSubmitting}
@@ -533,11 +554,15 @@ const ProfileSettingsFormBoundary = () => {
       settings,
       updateUser: updateProfileUser,
       uploadAvatar,
-      userId: user.id,
     });
 
     if (saved.ok) {
       avatarFiles.reset();
+      toast.add({
+        description: "Your changes are now reflected throughout templ8.",
+        title: "Profile updated",
+        type: "success",
+      });
     }
 
     return saved;

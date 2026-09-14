@@ -55,6 +55,38 @@ const profileAvatarPresignResponseSchema = z.object({
 });
 
 /**
+ * The product-owned validation reasons safe to return to the avatar field.
+ */
+const profileAvatarValidationReasonSchema = z.enum([
+  "filename_type_mismatch",
+  "too_large",
+  "unsupported_type",
+  "wrong_file_count",
+]);
+
+/**
+ * Parses the stable envelope emitted for a failed Files SDK operation.
+ */
+const userFilesErrorResponseSchema = z.object({
+  error: z.object({
+    code: z.string(),
+    details: z.unknown().optional(),
+    message: z.string(),
+    reason: z.string().optional(),
+  }),
+});
+
+/**
+ * Parses the operation name carried by a Files SDK JSON request.
+ */
+const userFilesOperationSchema = z.object({ op: z.string() });
+
+/**
+ * The failed gateway response retained for server diagnostics.
+ */
+type UserFilesErrorResponse = z.infer<typeof userFilesErrorResponseSchema>;
+
+/**
  * The authenticated identity required to scope a private user-file request.
  */
 interface UserFileSession {
@@ -137,6 +169,138 @@ const createUploadValidationResponse = (issue: ProfileAvatarError): Response =>
     },
     { status: 422 }
   );
+
+/**
+ * Reads the Files SDK operation without consuming the request body.
+ *
+ * @param request - The user-files request being authorized and dispatched.
+ * @returns The SDK operation or HTTP method used for diagnostics.
+ */
+const readUserFilesOperation = async (request: Request): Promise<string> => {
+  const queryOperation = new URL(request.url).searchParams.get("op");
+
+  if (queryOperation !== null) {
+    return queryOperation;
+  }
+
+  if (request.method !== "POST") {
+    return request.method;
+  }
+
+  const parsed = await result.trycatch(async () => {
+    const json: unknown = await request.clone().json();
+    return userFilesOperationSchema.safeParse(json);
+  });
+  return parsed.ok && parsed.value.success
+    ? parsed.value.data.op
+    : request.method;
+};
+
+/**
+ * Reads one failed gateway envelope without trusting its provider message.
+ *
+ * @param response - The non-successful Files SDK response to inspect.
+ * @returns The parsed diagnostic envelope or null for malformed output.
+ */
+const readUserFilesErrorResponse = async (
+  response: Response
+): Promise<UserFilesErrorResponse | null> => {
+  const parsed = await result.trycatch(async () => {
+    const json: unknown = await response.clone().json();
+    return userFilesErrorResponseSchema.safeParse(json);
+  });
+  return parsed.ok && parsed.value.success ? parsed.value.data : null;
+};
+
+/**
+ * Selects the safe Files SDK error envelope exposed to authenticated clients.
+ *
+ * @param status - The HTTP status returned by the files gateway.
+ * @returns A stable code and concise message understood by Files SDK clients.
+ */
+const getSafeUserFilesError = (
+  status: number
+): UserFilesErrorResponse["error"] => {
+  switch (status) {
+    case 401: {
+      return { code: "Unauthorized", message: "Sign in to access this file." };
+    }
+    case 403: {
+      return {
+        code: "Forbidden",
+        message: "This file operation isn’t allowed.",
+      };
+    }
+    case 404: {
+      return { code: "NotFound", message: "File not found." };
+    }
+    case 409: {
+      return {
+        code: "Conflict",
+        message: "The file changed before the operation finished.",
+      };
+    }
+    case 422: {
+      return { code: "Validation", message: "The file request is invalid." };
+    }
+    default: {
+      return { code: "Provider", message: "File storage is unavailable." };
+    }
+  }
+};
+
+/**
+ * Logs private file failures server-side and removes provider details from the
+ * client response.
+ *
+ * Product-owned avatar validation remains intact because its structured reason
+ * and details are already safe for the form.
+ *
+ * @param request - The original request supplying correlation headers.
+ * @param operation - The Files SDK operation being served.
+ * @param response - The failed gateway response to normalize.
+ * @returns The original safe validation response or an app-owned error
+ *   envelope.
+ */
+const normalizeUserFilesErrorResponse = async (
+  request: Request,
+  operation: string,
+  response: Response
+): Promise<Response> => {
+  if (response.ok) {
+    return response;
+  }
+
+  const parsed = await readUserFilesErrorResponse(response);
+  const logContext = {
+    errorCode: parsed?.error.code,
+    operation: `files.${operation}`,
+    providerMessage: parsed?.error.message,
+    requestId:
+      request.headers.get("x-vercel-id") ??
+      request.headers.get("x-request-id") ??
+      undefined,
+    status: response.status,
+  };
+
+  if (response.status >= 500) {
+    logger.error(logContext, "Private file request failed");
+  } else {
+    logger.warn(logContext, "Private file request rejected");
+  }
+
+  if (
+    response.status === 422 &&
+    profileAvatarValidationReasonSchema.safeParse(parsed?.error.reason).success
+  ) {
+    return response;
+  }
+
+  return Response.json(
+    { error: getSafeUserFilesError(response.status) },
+    { status: response.status }
+  );
+};
 
 /**
  * Creates a request-local session cache for authorization and presign policy.
@@ -518,9 +682,15 @@ const createUserFilesRouter = (
 
   return {
     handle: async (request) => {
+      const operation = await readUserFilesOperation(request);
+
       if (request.method === "PUT") {
         return applyPrivateFileResponsePolicy(
-          createApplicationUploadRejection()
+          await normalizeUserFilesErrorResponse(
+            request,
+            operation,
+            createApplicationUploadRejection()
+          )
         );
       }
 
@@ -535,7 +705,9 @@ const createUserFilesRouter = (
           await router.handle(request)
         ));
 
-      return applyPrivateFileResponsePolicy(response);
+      return applyPrivateFileResponsePolicy(
+        await normalizeUserFilesErrorResponse(request, operation, response)
+      );
     },
   };
 };

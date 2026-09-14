@@ -1,5 +1,3 @@
-import { toast } from "@workspace/ui/components/toast";
-import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import type { Result } from "@workspace/utils/result";
 
@@ -28,7 +26,6 @@ interface SaveProfileOptions {
     update: ProfileUserUpdate
   ) => Promise<{ error: { code?: string; status?: number } | null }>;
   uploadAvatar: (file: File) => Promise<ProfileAvatarUploadResult>;
-  userId: string;
 }
 
 /**
@@ -119,7 +116,8 @@ const createProfileIdentity = (settings: ProfileSettings): ProfileIdentity => ({
  * @returns True when Better Auth still needs a name or username update.
  */
 const shouldSaveProfileIdentity = (settings: ProfileSettings): boolean =>
-  settings.avatar.kind !== "uploaded" ||
+  settings.avatar.kind === "persisted" ||
+  settings.avatar.savedIdentity === undefined ||
   settings.avatar.savedIdentity.name !== settings.name ||
   settings.avatar.savedIdentity.username !== settings.username;
 
@@ -180,15 +178,14 @@ const getProfileUpdateIssue = (error: {
     return {
       field: "root",
       message:
-        "Your session expired. Sign in again to save. Your edits are still here.",
+        "Your session expired. Sign in again. Your edits are still here.",
     };
   }
 
   if (error.status === 429) {
     return {
       field: "root",
-      message:
-        "You’ve made several changes in a short time. Wait a moment, then try again.",
+      message: "Too many changes. Wait a moment, then save again.",
     };
   }
 
@@ -220,21 +217,36 @@ const getProfileAvatarSaveIssue = (
       return {
         field: "root",
         message:
-          "Your session expired. Sign in again to finish saving. Your other changes were saved, and the selected image is still here.",
+          "Your session expired. Sign in again. Your other changes were saved, and your image is still selected.",
+      };
+    }
+    case "upload_forbidden": {
+      return {
+        field: "avatar",
+        message:
+          "This upload isn’t allowed. Your other changes were saved. Refresh and try again.",
+      };
+    }
+    case "upload_missing": {
+      return {
+        field: "avatar",
+        message:
+          "The image didn’t finish uploading. Your other changes were saved. Save again to upload it.",
       };
     }
     case "upload_unavailable": {
       return {
         field: "avatar",
         message:
-          "Image uploads are temporarily unavailable. Your other changes were saved, and the image remains selected. Try again later.",
+          "Image uploads are unavailable. Your other changes were saved. Try again later.",
       };
     }
+    case "invalid_uploaded_avatar_metadata":
     case "invalid_uploaded_avatar_key": {
       return {
         field: "avatar",
         message:
-          "The image uploaded, but we couldn’t finish updating your profile. Your other changes were saved, and the image remains selected. Contact support if this continues.",
+          "We couldn’t verify the uploaded image. Your other changes were saved. Choose it again.",
       };
     }
     case "upload_unconfirmed": {
@@ -242,15 +254,14 @@ const getProfileAvatarSaveIssue = (
         field: "avatar",
         message:
           error.pendingKey === undefined
-            ? "We couldn’t confirm whether the image reached storage. Your other changes were saved, and the image remains selected. Check your connection, then save again."
-            : "We couldn’t confirm whether the image finished uploading. Your other changes were saved, and the image remains selected. Save again to check the existing upload.",
+            ? "We couldn’t confirm the upload. Your other changes were saved. Check your connection and save again."
+            : "We couldn’t confirm the upload. Your other changes were saved. Save again to check it.",
       };
     }
     default: {
       return {
         field: "avatar",
-        message:
-          "We couldn’t save that image. Your other changes were saved, and the image remains selected.",
+        message: "We couldn’t save the image. Your other changes were saved.",
       };
     }
   }
@@ -287,21 +298,13 @@ const validateProfileAvatarSelection = (
  * @returns Success or the translated Better Auth failure.
  */
 const saveProfileIdentity = async (
-  options: Pick<SaveProfileOptions, "settings" | "updateUser" | "userId">
+  options: Pick<SaveProfileOptions, "settings" | "updateUser">
 ): Promise<Result<null, ProfileSettingsSaveError>> => {
   const response = await result.trycatch(
     async () => await options.updateUser(createProfileUpdate(options.settings))
   );
 
   if (!response.ok) {
-    logger.error(
-      {
-        err: response.error,
-        operation: "profile.identity.request",
-        userId: options.userId,
-      },
-      "Profile identity request failed before Better Auth responded"
-    );
     return result.fail(
       new ProfileSettingsSaveError(
         "root",
@@ -312,15 +315,6 @@ const saveProfileIdentity = async (
   }
 
   if (response.value.error !== null) {
-    logger.warn(
-      {
-        code: response.value.error.code,
-        operation: "profile.identity.response",
-        status: response.value.error.status,
-        userId: options.userId,
-      },
-      "Better Auth rejected the profile identity update"
-    );
     const issue = getProfileUpdateIssue(response.value.error);
     return result.fail(
       new ProfileSettingsSaveError(issue.field, issue.message)
@@ -331,49 +325,31 @@ const saveProfileIdentity = async (
 };
 
 /**
- * Records one structured avatar failure for operators without exposing it to
- * UI.
- *
- * @param error - The structured validation or storage failure.
- * @param userId - The account whose avatar operation failed.
- */
-const logProfileAvatarError = (
-  error: ProfileAvatarError,
-  userId: string
-): void => {
-  logger.error(
-    {
-      code: error.code,
-      err: error.cause,
-      operation: `profile.avatar.${error.phase}`,
-      pendingKey: error.pendingKey,
-      retryable: error.retryable,
-      storageState: error.storageState,
-      userId,
-    },
-    "Profile avatar persistence failed"
-  );
-};
-
-/**
  * Preserves the selected file while recording any upload eligible for lookup.
  *
  * @param avatar - The current selected or pending avatar state.
  * @param error - The storage failure that may include a canonical pending key.
+ * @param savedIdentity - The identity already persisted before avatar storage.
  * @returns The avatar state to retain for the next save.
  */
 const createAvatarRepairState = (
   avatar: Exclude<ProfileAvatarState, { kind: "persisted" | "uploaded" }>,
-  error: ProfileAvatarError
-): ProfileAvatarState =>
-  error.pendingKey === undefined
-    ? avatar
-    : {
-        file: avatar.file,
-        key: error.pendingKey,
-        kind: "pending",
-        previewUrl: avatar.previewUrl,
-      };
+  error: ProfileAvatarError,
+  savedIdentity: ProfileIdentity
+): ProfileAvatarState => {
+  const selected = {
+    file: avatar.file,
+    kind: "selected" as const,
+    previewUrl: avatar.previewUrl,
+    savedIdentity,
+  };
+
+  if (error.code === "upload_missing" || error.pendingKey === undefined) {
+    return selected;
+  }
+
+  return { ...selected, key: error.pendingKey, kind: "pending" };
+};
 
 /**
  * Runs the upload or reconciliation operation selected by avatar state.
@@ -392,19 +368,36 @@ const persistProfileAvatar = async (
 
   return options.reconcileAvatar === undefined
     ? result.fail(
-        new ProfileAvatarError(
-          "We couldn’t confirm whether the image finished uploading.",
-          {
-            code: "upload_unconfirmed",
-            pendingKey: avatar.key,
-            phase: "reconciliation",
-            retryable: true,
-            storageState: "unknown",
-          }
-        )
+        new ProfileAvatarError("We couldn’t confirm the upload.", {
+          code: "upload_unconfirmed",
+          pendingKey: avatar.key,
+          phase: "reconciliation",
+          retryable: true,
+          storageState: "unknown",
+        })
       )
     : await options.reconcileAvatar(avatar.file, avatar.key);
 };
+
+/**
+ * Normalizes an unexpected avatar persistence exception into retryable state.
+ *
+ * @param avatar - The selected or pending avatar whose operation threw.
+ * @param cause - The unexpected browser, network, or SDK exception.
+ * @returns A structured error that preserves any key eligible for lookup.
+ */
+const createUnexpectedAvatarPersistenceError = (
+  avatar: Exclude<ProfileAvatarState, { kind: "persisted" | "uploaded" }>,
+  cause: unknown
+): ProfileAvatarError =>
+  new ProfileAvatarError("We couldn’t confirm the upload.", {
+    cause,
+    code: "upload_unconfirmed",
+    pendingKey: avatar.kind === "pending" ? avatar.key : undefined,
+    phase: avatar.kind === "pending" ? "reconciliation" : "transfer",
+    retryable: true,
+    storageState: "unknown",
+  });
 
 /**
  * Uploads, reconciles, or reuses an avatar without repeating completed storage.
@@ -415,7 +408,7 @@ const persistProfileAvatar = async (
 const resolveProfileAvatar = async (
   options: Pick<
     SaveProfileOptions,
-    "reconcileAvatar" | "settings" | "uploadAvatar" | "userId"
+    "reconcileAvatar" | "settings" | "uploadAvatar"
   >
 ): Promise<Result<ResolvedProfileAvatar, ProfileSettingsSaveError>> => {
   const { avatar } = options.settings;
@@ -441,29 +434,32 @@ const resolveProfileAvatar = async (
   );
 
   if (!persisted.ok) {
-    logger.error(
-      {
-        err: persisted.error,
-        operation: "profile.avatar.client",
-        userId: options.userId,
-      },
-      "Profile avatar client failed before returning a result"
+    const error = createUnexpectedAvatarPersistenceError(
+      avatar,
+      persisted.error
     );
+    const issue = getProfileAvatarSaveIssue(error);
     return result.fail(
-      new ProfileSettingsSaveError(
-        "avatar",
-        "We couldn’t confirm whether the image reached storage. Your other changes were saved, and the image remains selected. Check your connection, then save again.",
-        { avatarState: avatar, cause: persisted.error }
-      )
+      new ProfileSettingsSaveError(issue.field, issue.message, {
+        avatarState: createAvatarRepairState(
+          avatar,
+          error,
+          createProfileIdentity(options.settings)
+        ),
+        cause: error,
+      })
     );
   }
 
   if (!persisted.value.ok) {
-    logProfileAvatarError(persisted.value.error, options.userId);
     const issue = getProfileAvatarSaveIssue(persisted.value.error);
     return result.fail(
       new ProfileSettingsSaveError(issue.field, issue.message, {
-        avatarState: createAvatarRepairState(avatar, persisted.value.error),
+        avatarState: createAvatarRepairState(
+          avatar,
+          persisted.value.error,
+          createProfileIdentity(options.settings)
+        ),
         cause: persisted.value.error,
       })
     );
@@ -484,6 +480,38 @@ const resolveProfileAvatar = async (
 };
 
 /**
+ * Maps an avatar attachment rejection to its concise repair guidance.
+ *
+ * @param error - The Better Auth status returned by the image update.
+ * @returns The field and message that preserve the uploaded avatar for retry.
+ */
+const getProfileAvatarAttachmentIssue = (error: {
+  status?: number;
+}): ProfileSettingsIssue => {
+  if (error.status === 401) {
+    return {
+      field: "root",
+      message:
+        "Your session expired. Sign in again, then save. We’ll reuse the uploaded image.",
+    };
+  }
+
+  if (error.status === 429) {
+    return {
+      field: "root",
+      message:
+        "Too many changes. Wait a moment, then save again. We’ll reuse the uploaded image.",
+    };
+  }
+
+  return {
+    field: "avatar",
+    message:
+      "The image uploaded but wasn’t attached. Save again; we’ll reuse it.",
+  };
+};
+
+/**
  * Attaches one uploaded avatar URL to the Better Auth user.
  *
  * @param options - Identity client, avatar URL, repair state, and logging
@@ -494,25 +522,15 @@ const attachProfileAvatar = async (options: {
   avatarState: ProfileAvatarState;
   updateUser: SaveProfileOptions["updateUser"];
   url: string;
-  userId: string;
 }): Promise<Result<null, ProfileSettingsSaveError>> => {
   const response = await result.trycatch(
     async () => await options.updateUser({ image: options.url })
   );
-  const message =
-    "The image uploaded, but we couldn’t attach it to your profile. Your other changes were saved, and we’ll reuse this upload when you save again.";
+  const fallbackIssue = getProfileAvatarAttachmentIssue({});
 
   if (!response.ok) {
-    logger.error(
-      {
-        err: response.error,
-        operation: "profile.avatar.attach.request",
-        userId: options.userId,
-      },
-      "Profile avatar attachment failed before Better Auth responded"
-    );
     return result.fail(
-      new ProfileSettingsSaveError("avatar", message, {
+      new ProfileSettingsSaveError(fallbackIssue.field, fallbackIssue.message, {
         avatarState: options.avatarState,
         cause: response.error,
       })
@@ -520,33 +538,7 @@ const attachProfileAvatar = async (options: {
   }
 
   if (response.value.error !== null) {
-    logger.warn(
-      {
-        code: response.value.error.code,
-        operation: "profile.avatar.attach.response",
-        status: response.value.error.status,
-        userId: options.userId,
-      },
-      "Better Auth rejected the profile avatar attachment"
-    );
-    let issue: ProfileSettingsIssue = {
-      field: "avatar",
-      message,
-    };
-
-    if (response.value.error.status === 401) {
-      issue = {
-        field: "root",
-        message:
-          "Your session expired. Sign in again to finish saving. The image is uploaded and remains selected.",
-      };
-    } else if (response.value.error.status === 429) {
-      issue = {
-        field: "root",
-        message:
-          "The image uploaded, but you’ve made several changes in a short time. Your other changes were saved, and we’ll reuse this upload. Wait a moment, then save again.",
-      };
-    }
+    const issue = getProfileAvatarAttachmentIssue(response.value.error);
 
     return result.fail(
       new ProfileSettingsSaveError(issue.field, issue.message, {
@@ -556,17 +548,6 @@ const attachProfileAvatar = async (options: {
   }
 
   return result.pass(null);
-};
-
-/**
- * Notifies the user after every requested profile field is durable.
- */
-const showProfileSavedToast = (): void => {
-  toast.add({
-    description: "Your changes are now reflected throughout templ8.",
-    title: "Profile updated",
-    type: "success",
-  });
 };
 
 /**
@@ -617,7 +598,6 @@ const saveProfile = async (
       avatarState: avatar.value.attachmentState,
       updateUser: options.updateUser,
       url: avatar.value.url,
-      userId: options.userId,
     });
 
     if (!attached.ok) {
@@ -625,7 +605,6 @@ const saveProfile = async (
     }
   }
 
-  showProfileSavedToast();
   return result.pass({ avatar: avatar.value.url });
 };
 
