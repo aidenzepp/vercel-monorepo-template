@@ -39,8 +39,9 @@ const DEFAULT_URL_LIFETIME_IN_SECONDS = 5 * 60;
  * Returns only the optional credentials understood by Vercel's signing
  * functions.
  *
- * An empty result preserves the Blob SDK's per-operation credential lookup:
- * Vercel OIDC first, then the local read-write token fallback.
+ * For signed operations, an empty result preserves the Blob SDK's
+ * per-operation credential lookup. The Files SDK adapter still validates its
+ * own credentials when it is constructed.
  *
  * @param options - The adapter options that may contain provider credentials.
  * @returns Only the credential fields accepted by the signing SDK.
@@ -291,24 +292,18 @@ class FileService extends Files<VercelBlobAdapter> {
    *
    * Object keys remain caller-owned and deterministic. Existing keys are
    * protected by default; pass `allowOverwrite: true` when stable-key
-   * replacement is intentional. When credentials are omitted, the Blob SDK
-   * resolves auto-rotating Vercel OIDC credentials per operation before
-   * falling back to `BLOB_READ_WRITE_TOKEN`.
+   * replacement is intentional. Vercel Functions must pass request-scoped
+   * OIDC credentials because the Files SDK adapter validates authentication
+   * during construction.
    *
    * @param options - Optional Vercel Blob access and credential overrides.
    * @see https://files-sdk.dev/docs/adapters/vercel-blob
+   * @see https://vercel.com/docs/oidc/reference#other-cloud-providers
    */
   constructor(options: FileServiceOptions = {}) {
     super({ adapter: signedVercelBlob(options) });
   }
 }
 
-/**
- * Application FileService configured for access-controlled private objects.
- */
-const files = new FileService({
-  access: "private",
-});
-
-export { FileService, files };
+export { FileService };
 export type { FileServiceOptions };
