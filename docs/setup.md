@@ -242,7 +242,7 @@ Create Blob from the `web` project's **Storage** page:
 
 `lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct upload capabilities. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths and per-use-case upload limits to the caller.
 
-Private user media is read through the authenticated `app/api/files/route.ts` gateway. Its current contract exports only `GET`, permits only the Files SDK `download` operation, scopes keys under `users/<current-user-id>/`, and proxies bytes through `web` so the provider URL never reaches the browser. Each new product namespace must add its own key parser and authorization policy before the gateway will serve it. Writes should use a separately authorized workflow; profile avatar uploads intentionally stay behind the save action so username validation runs before storage changes.
+Private user media uses the authenticated `app/api/files/route.ts` gateway. `GET` authorizes and proxies downloads so provider read URLs never reach the browser. `POST` authorizes only the metadata and completion phases of browser-direct uploads; image bytes go from the browser to the short-lived signed provider target, and application-route `PUT` requests are rejected. The gateway scopes keys under `users/<current-user-id>/`, admits each product namespace through an explicit parser and authorization policy, and denies temporary accounts. Profile avatar uploads start only after username validation succeeds, then persist a stable application proxy URL rather than an expiring provider URL.
 
 ## Resend on web only
 
