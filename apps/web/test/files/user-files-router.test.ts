@@ -281,9 +281,12 @@ test("does not fall back to an application upload when signing fails", async () 
     })
   );
 
-  expect(response.status).toBe(500);
+  expect(response.status).toBe(503);
   expect(await response.json()).toEqual({
-    error: { code: "Provider", message: "signed target exploded" },
+    error: {
+      code: "Provider",
+      message: "Direct file uploads are temporarily unavailable.",
+    },
   });
   expect(signedUploads).toHaveLength(0);
 });

@@ -42,6 +42,19 @@ const profileAvatarPresignRequestSchema = z.object({
 });
 
 /**
+ * Parses upload targets returned by a successful Files SDK presign response.
+ */
+const profileAvatarPresignResponseSchema = z.object({
+  uploads: z
+    .array(
+      z.object({
+        target: z.object({ url: z.string() }),
+      })
+    )
+    .min(1),
+});
+
+/**
  * The authenticated identity required to scope a private user-file request.
  */
 interface UserFileSession {
@@ -234,6 +247,88 @@ const getProfileAvatarUploadRejection = async (
 
   const issue = getProfileAvatarMetadataIssue(files);
   return issue === null ? null : createUploadValidationResponse(issue);
+};
+
+/**
+ * Determines whether an upload target points back to the application proxy.
+ *
+ * @param request - The avatar request that established the gateway endpoint.
+ * @param target - The upload target returned by Files SDK.
+ * @returns True only for the gateway's own proxy-upload operation.
+ */
+const isApplicationUploadTarget = (
+  request: Request,
+  target: string
+): boolean => {
+  const parsed = result.trycatch(() => new URL(target, request.url));
+
+  if (!parsed.ok) {
+    return false;
+  }
+
+  const gateway = new URL(request.url);
+  return (
+    parsed.value.origin === gateway.origin &&
+    parsed.value.pathname === gateway.pathname &&
+    parsed.value.searchParams.get("op") === "proxy"
+  );
+};
+
+/**
+ * Returns safe guidance when direct storage authorization is unavailable.
+ *
+ * @returns A retryable gateway failure without provider implementation detail.
+ */
+const createDirectUploadUnavailableResponse = (): Response =>
+  Response.json(
+    {
+      error: {
+        code: "Provider",
+        message: "Direct file uploads are temporarily unavailable.",
+      },
+    },
+    { status: 503 }
+  );
+
+/**
+ * Prevents Files SDK from silently downgrading a failed signed upload to an
+ * application byte upload.
+ *
+ * @param request - The original namespaced avatar request.
+ * @param response - The Files SDK gateway response to enforce.
+ * @returns The direct target response or a normalized 503 failure.
+ */
+const enforceDirectProfileAvatarUpload = async (
+  request: Request,
+  response: Response
+): Promise<Response> => {
+  if (
+    !response.ok ||
+    request.method !== "POST" ||
+    !isProfileAvatarUploadRequest(request)
+  ) {
+    return response;
+  }
+
+  const parsed = await result.trycatch(async () => {
+    const json: unknown = await response.clone().json();
+    return profileAvatarPresignResponseSchema.parse(json);
+  });
+
+  if (
+    !parsed.ok ||
+    !parsed.value.uploads.some((upload) =>
+      isApplicationUploadTarget(request, upload.target.url)
+    )
+  ) {
+    return response;
+  }
+
+  logger.error(
+    { operation: "files.avatar.reject-upload-proxy-fallback" },
+    "Direct avatar upload authorization fell back to the application gateway"
+  );
+  return createDirectUploadUnavailableResponse();
 };
 
 /**
@@ -433,10 +528,14 @@ const createUserFilesRouter = (
         request,
         readSession
       );
+      const response =
+        uploadRejection ??
+        (await enforceDirectProfileAvatarUpload(
+          request,
+          await router.handle(request)
+        ));
 
-      return applyPrivateFileResponsePolicy(
-        uploadRejection ?? (await router.handle(request))
-      );
+      return applyPrivateFileResponsePolicy(response);
     },
   };
 };
