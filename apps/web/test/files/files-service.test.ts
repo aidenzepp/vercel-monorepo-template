@@ -68,7 +68,12 @@ process.env.VERCEL_OIDC_TOKEN = "test-oidc-token";
  * File service loaded after its server-only and provider dependencies are
  * mocked.
  */
-const { FileService, files } = await import("../../lib/files/files-service");
+const { FileService } = await import("../../lib/files/files-service");
+
+/**
+ * Private file service backed by the test process credentials.
+ */
+const files = new FileService({ access: "private" });
 
 beforeEach(() => {
   setSystemTime(NOW);
@@ -171,7 +176,7 @@ describe("FileService", () => {
     expect(presignUrl).not.toHaveBeenCalled();
   });
 
-  test("configures the application file service for private signed URLs", async () => {
+  test("supports private signed URLs with environment credentials", async () => {
     const avatarUrl = await files.url("users/user_123/avatars/avatar.png");
 
     expect(avatarUrl).toBe("https://blob.example/signed");

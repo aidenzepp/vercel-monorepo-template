@@ -3,12 +3,12 @@ import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
 import type { Result } from "@workspace/utils/result";
 import { FilesError } from "files-sdk";
-import type { Files } from "files-sdk";
 import { createFilesRouter } from "files-sdk/api";
 import type {
   Authorize,
   AuthorizeContext,
   AuthorizeResult,
+  CreateFilesRouterOptions,
   FilesApi,
 } from "files-sdk/api";
 import { z } from "zod";
@@ -110,7 +110,7 @@ type ReadUserFileSession = (
  * Dependencies required to expose private user files through the SDK gateway.
  */
 interface CreateUserFilesRouterOptions {
-  files: Files;
+  files: CreateFilesRouterOptions["files"];
   readSession: ReadUserFileSession;
   secret: string;
 }
@@ -658,9 +658,10 @@ const createUserFileAuthorizer =
  * metadata and completion tokens; image bytes must use the signed provider
  * target returned to the client.
  *
- * @param options - The file service, session reader, and gateway signing
- *   secret.
- * @param options.files - Reads private objects and signs constrained uploads.
+ * @param options - The file service provider, session reader, and gateway
+ *   signing secret.
+ * @param options.files - Reads private objects and signs constrained uploads,
+ *   resolving the service per request when credentials require request state.
  * @param options.readSession - Resolves the current Better Auth session.
  * @param options.secret - Stabilizes the SDK's internal gateway token contract.
  * @returns A Web Request router for authorized reads and direct-upload setup.

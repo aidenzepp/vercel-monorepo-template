@@ -44,7 +44,7 @@ Ultracite oxlint + oxfmt. Root scripts: `check`, `fix`, `lint`, `format`, `typec
 - `.agents/skills/component-decomposition` when creating, changing, or reviewing React UI
 - `.agents/skills/function-decomposition` when writing, changing, or reviewing TypeScript and TSX functions, methods, or substantial callbacks
 - `.agents/skills/async-boundaries` when composing React loading, failure, streaming, or Promise-reading regions
-- `.agents/skills/document-code` when writing or reviewing TypeScript and TSX program units
+- `.agents/skills/document-code` when writing or reviewing TypeScript and TSX program units, or when debugging, documentation, source inspection, or experiments reveal a non-obvious constraint the code must preserve
 - `.agents/skills/betterauth-best-practices` when configuring or reviewing Better Auth
 - `.agents/skills/conventional-commits` when committing
 
