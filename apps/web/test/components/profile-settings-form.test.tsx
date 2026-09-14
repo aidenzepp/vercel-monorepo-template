@@ -56,6 +56,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   const savedAvatar =
     "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
   const submission: AvatarSubmission = { avatar: null };
+  let uploadResets = 0;
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -69,6 +70,9 @@ test("profile avatar changes move through preview, reset, and saved states", asy
     root.render(
       <ProfileSettingsForm
         canEditProfile
+        onResetUpload={() => {
+          uploadResets += 1;
+        }}
         onSave={async (settings) => {
           await Promise.resolve();
           submission.avatar =
@@ -163,6 +167,7 @@ test("profile avatar changes move through preview, reset, and saved states", asy
     "blob:https://templ8.test/first-preview"
   );
   expect(selectedFileWasCleared).toBe(true);
+  expect(uploadResets).toBe(1);
 
   const secondAvatar = new File(["second"], "second.png", {
     type: "image/png",
@@ -373,8 +378,10 @@ test("regular profile updates include a selected username", () => {
   });
 });
 
-test("profile saves upload a selected avatar and persist its URL", async () => {
-  const avatar = new File(["avatar"], "avatar.png", { type: "image/png" });
+test("profile saves send a selected avatar directly to its upload capability", async () => {
+  const avatar = new File([new Uint8Array(2 * 1024 * 1024)], "avatar.png", {
+    type: "image/png",
+  });
   const avatarUrl =
     "/api/files?op=download&key=avatars%2F12345678-9abc-4def-8abc-123456789abc.png";
   const operations: string[] = [];
@@ -383,7 +390,7 @@ test("profile saves upload a selected avatar and persist its URL", async () => {
     name?: string;
     username?: string;
   }[] = [];
-  const uploadAvatar = mock(async (_formData: FormData) => {
+  const uploadAvatar = mock(async (_file: File) => {
     operations.push("upload");
     await Promise.resolve();
     return result.pass({ url: avatarUrl });
@@ -420,7 +427,7 @@ test("profile saves upload a selected avatar and persist its URL", async () => {
     },
     { image: avatarUrl },
   ]);
-  expect(uploadAvatar.mock.calls[0]?.[0].get("avatar")).toBe(avatar);
+  expect(uploadAvatar.mock.calls[0]?.[0]).toBe(avatar);
 });
 
 test("profile saves reject a username before uploading its avatar", async () => {
@@ -465,7 +472,7 @@ test("profile saves keep avatar validation failures with the file field", async 
   const avatar = new File(["avatar"], "avatar.svg", {
     type: "image/svg+xml",
   });
-  const uploadAvatar = mock(async (_formData: FormData) => {
+  const uploadAvatar = mock(async (_file: File) => {
     await Promise.resolve();
     return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
   });

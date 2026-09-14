@@ -1,8 +1,6 @@
 import { ProfileSettingsFormBoundary } from "@/components/settings/profile-settings-form";
 import { SoundSettingsBoundary } from "@/components/settings/sound-settings";
 
-import { uploadProfileAvatar } from "./actions";
-
 /**
  * Displays the stable heading for application settings.
  *
@@ -28,7 +26,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-8">
       <SettingsHeader />
-      <ProfileSettingsFormBoundary onUploadAvatar={uploadProfileAvatar} />
+      <ProfileSettingsFormBoundary />
       <SoundSettingsBoundary />
     </div>
   );

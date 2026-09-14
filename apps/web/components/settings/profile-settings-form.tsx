@@ -36,6 +36,7 @@ import {
 import { toast } from "@workspace/ui/components/toast";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
+import { useFiles } from "files-sdk/react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import {
@@ -49,6 +50,10 @@ import { z } from "zod";
 import { useSession } from "@/components/auth/session-provider";
 import type { Session } from "@/components/auth/session-provider";
 import { authClient } from "@/lib/auth/auth-client";
+import {
+  PROFILE_AVATAR_UPLOAD_ENDPOINT,
+  uploadProfileAvatarFile,
+} from "@/lib/files/profile-avatar";
 import type { ProfileAvatarUploadResult } from "@/lib/files/profile-avatar";
 
 /**
@@ -125,12 +130,9 @@ interface ProfileUsernameInputProps {
 
 interface ProfileSettingsFormProps {
   canEditProfile: boolean;
+  onResetUpload?: () => void;
   onSave: (settings: ProfileSettings) => Promise<ProfileSettingsSaveResult>;
   user: ProfileSettingsUser;
-}
-
-interface ProfileSettingsFormBoundaryProps {
-  onUploadAvatar: (formData: FormData) => Promise<ProfileAvatarUploadResult>;
 }
 
 /**
@@ -142,7 +144,7 @@ interface SaveProfileOptions {
   updateUser: (
     update: ProfileUserUpdate
   ) => Promise<{ error: { code?: string; status?: number } | null }>;
-  uploadAvatar: (formData: FormData) => Promise<ProfileAvatarUploadResult>;
+  uploadAvatar: (file: File) => Promise<ProfileAvatarUploadResult>;
   userId: string;
 }
 
@@ -282,20 +284,19 @@ const saveProfile = async ({
   }
 
   if (settings.avatar.kind === "selected") {
-    const formData = new FormData();
-    formData.set("avatar", settings.avatar.file);
+    const selectedAvatar = settings.avatar.file;
     const uploaded = await result.trycatch(
-      async () => await uploadAvatar(formData)
+      async () => await uploadAvatar(selectedAvatar)
     );
 
     if (!uploaded.ok) {
       logger.error(
         {
           err: uploaded.error,
-          operation: "profile.avatar.request",
+          operation: "profile.avatar.upload.request",
           userId,
         },
-        "Profile avatar request failed before the upload action responded"
+        "Profile avatar upload failed before the client returned a result"
       );
       return {
         issue: {
@@ -307,6 +308,17 @@ const saveProfile = async ({
     }
 
     if (!uploaded.value.ok) {
+      if (uploaded.value.error.cause !== undefined) {
+        logger.error(
+          {
+            err: uploaded.value.error.cause,
+            operation: "profile.avatar.upload.response",
+            userId,
+          },
+          "Profile avatar upload failed"
+        );
+      }
+
       return {
         issue: { field: "avatar", message: uploaded.value.error.message },
       };
@@ -626,6 +638,8 @@ const ProfileSaveAction = () => {
  *
  * @param props - The account capability, current identity, and save operation.
  * @param props.canEditProfile - Whether the account may change profile fields.
+ * @param props.onResetUpload - Clears state retained by the optional upload
+ *   client.
  * @param props.onSave - Persists validated values and returns any repairable
  *   failure.
  * @param props.user - Supplies the latest session-backed profile values.
@@ -634,6 +648,7 @@ const ProfileSaveAction = () => {
  */
 const ProfileSettingsForm = ({
   canEditProfile,
+  onResetUpload,
   onSave,
   user,
 }: ProfileSettingsFormProps) => {
@@ -694,6 +709,7 @@ const ProfileSettingsForm = ({
             form.reset(form.formState.defaultValues, {
               keepDirtyValues: false,
             });
+            onResetUpload?.();
           }}
           onSubmit={(event) => {
             void form.handleSubmit(submitProfile)(event);
@@ -728,28 +744,37 @@ const ProfileSettingsForm = ({
 /**
  * Connects the prop-driven profile form to the current Better Auth session.
  *
- * @param props - The server-side avatar upload available to the client form.
- * @param props.onUploadAvatar - Stores a newly selected avatar for the user.
  * @returns The profile form with account-scoped values and persistence.
  */
-const ProfileSettingsFormBoundary = ({
-  onUploadAvatar,
-}: ProfileSettingsFormBoundaryProps) => {
+const ProfileSettingsFormBoundary = () => {
   const { user } = useSession();
+  const avatarFiles = useFiles({ endpoint: PROFILE_AVATAR_UPLOAD_ENDPOINT });
   const canEditProfile = user.isAnonymous !== true;
 
   return (
     <ProfileSettingsForm
       canEditProfile={canEditProfile}
-      onSave={async (settings) =>
-        await saveProfile({
+      onResetUpload={avatarFiles.reset}
+      onSave={async (settings) => {
+        const saved = await saveProfile({
           canEditProfile,
           settings,
           updateUser: async (update) => await authClient.updateUser(update),
-          uploadAvatar: onUploadAvatar,
+          uploadAvatar: async (file) =>
+            await uploadProfileAvatarFile({
+              file,
+              upload: async (uploadFile) =>
+                await avatarFiles.upload(uploadFile),
+            }),
           userId: user.id,
-        })
-      }
+        });
+
+        if (saved.issue === null) {
+          avatarFiles.reset();
+        }
+
+        return saved;
+      }}
       user={{ image: user.image, name: user.name, username: user.username }}
     />
   );

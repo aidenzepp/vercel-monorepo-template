@@ -2,14 +2,24 @@ import { result } from "@workspace/utils/result";
 import type { Result } from "@workspace/utils/result";
 
 /**
- * The largest avatar accepted by both profile validation and Blob storage.
+ * The largest avatar accepted by the form, upload gateway, and Blob policy.
  */
 const MAX_AVATAR_SIZE_IN_BYTES = 5 * 1024 * 1024;
 
 /**
- * The Files SDK endpoint used to project private avatar objects to the owner.
+ * The caller-facing namespace reserved for private profile avatars.
+ */
+const PROFILE_AVATAR_NAMESPACE = "avatars";
+
+/**
+ * The Files SDK endpoint used to project private objects to their owner.
  */
 const PROFILE_AVATAR_ENDPOINT = "/api/files";
+
+/**
+ * The namespaced Files SDK endpoint used for browser-direct avatar uploads.
+ */
+const PROFILE_AVATAR_UPLOAD_ENDPOINT = `${PROFILE_AVATAR_ENDPOINT}?namespace=${PROFILE_AVATAR_NAMESPACE}`;
 
 /**
  * The caller-facing avatar namespace and generated filename grammar.
@@ -23,36 +33,32 @@ const PROFILE_AVATAR_KEY_PATTERN =
 type ProfileAvatarExtension = "jpg" | "png" | "webp";
 
 /**
- * The file operations required to store one profile avatar.
+ * Browser-reported metadata checked before avatar upload authority is issued.
  */
-interface ProfileAvatarFileStore {
-  /**
-   * Stores an avatar under its application-owned object key.
-   *
-   * @param key - The object key reserved for the avatar.
-   * @param body - The validated image selected by the user.
-   * @param options - The content metadata persisted with the image.
-   * @returns The stored object's canonical key.
-   */
-  upload: (
-    key: string,
-    body: File,
-    options: { contentType: string }
-  ) => Promise<{ key: string }>;
+interface ProfileAvatarFileMetadata {
+  name: string;
+  size: number;
+  type: string;
 }
 
 /**
- * Values required to store one authenticated user's selected avatar.
+ * Uploads one avatar directly from the browser to its signed storage target.
+ *
+ * @param file - The validated image with a canonical extension.
+ * @returns The unscoped key verified by the Files SDK completion handshake.
+ */
+type UploadProfileAvatar = (file: File) => Promise<{ key: string }>;
+
+/**
+ * Values required to upload one browser-selected profile avatar.
  */
 interface UploadProfileAvatarFileOptions {
   file: File;
-  files: ProfileAvatarFileStore;
-  isAnonymous: boolean;
-  userId: string;
+  upload: UploadProfileAvatar;
 }
 
 /**
- * The typed outcome of validating and storing a selected profile avatar.
+ * The typed outcome of validating and uploading a selected profile avatar.
  */
 type ProfileAvatarUploadResult = Result<{ url: string }>;
 
@@ -82,13 +88,70 @@ const getAvatarFileExtension = (
 };
 
 /**
- * Constructs a generated caller-facing key inside the avatar namespace.
+ * Validates the media type and shared size limit for one avatar candidate.
  *
- * @param extension - The canonical extension selected from validated media.
- * @returns The relative key accepted by the private user-files gateway.
+ * @param file - The untrusted metadata supplied by a browser upload request.
+ * @returns The canonical extension or user-facing validation guidance.
  */
-const createProfileAvatarKey = (extension: ProfileAvatarExtension): string =>
-  `avatars/${crypto.randomUUID()}.${extension}`;
+const validateProfileAvatarFile = (
+  file: ProfileAvatarFileMetadata
+): Result<{ extension: ProfileAvatarExtension }> => {
+  const extension = getAvatarFileExtension(file.type);
+
+  if (extension === null) {
+    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
+  }
+
+  if (
+    !Number.isFinite(file.size) ||
+    file.size < 0 ||
+    file.size > MAX_AVATAR_SIZE_IN_BYTES
+  ) {
+    return result.fail(new Error("Choose an image that’s 5 MB or smaller."));
+  }
+
+  return result.pass({ extension });
+};
+
+/**
+ * Validates metadata before the gateway signs a canonical avatar object key.
+ *
+ * @param file - The untrusted file metadata submitted to the Files SDK.
+ * @returns The canonical extension or safe validation guidance.
+ */
+const validateProfileAvatarUploadMetadata = (
+  file: ProfileAvatarFileMetadata
+): Result<{ extension: ProfileAvatarExtension }> => {
+  const validated = validateProfileAvatarFile(file);
+
+  if (!validated.ok) {
+    return validated;
+  }
+
+  if (!file.name.toLowerCase().endsWith(`.${validated.value.extension}`)) {
+    return result.fail(
+      new Error("The image filename does not match its selected format.")
+    );
+  }
+
+  return validated;
+};
+
+/**
+ * Gives an accepted image the deterministic extension used by gateway keys.
+ *
+ * @param file - The browser-selected image whose display name is irrelevant.
+ * @param extension - The extension derived from its accepted media type.
+ * @returns An equivalent browser file whose name produces a canonical key.
+ */
+const createProfileAvatarUploadFile = (
+  file: File,
+  extension: ProfileAvatarExtension
+): File =>
+  new File([file], `avatar.${extension}`, {
+    lastModified: file.lastModified,
+    type: file.type,
+  });
 
 /**
  * Constructs the stable application URL used to read one private avatar.
@@ -113,48 +176,49 @@ const isProfileAvatarKey = (key: string): boolean =>
   PROFILE_AVATAR_KEY_PATTERN.test(key);
 
 /**
- * Validates and stores a selected avatar under a user-scoped object key.
+ * Validates and uploads a selected avatar through a browser-direct capability.
  *
- * @param options - The image, authenticated owner, and file-store capability.
+ * @param options - The image and direct Files SDK upload operation.
  * @param options.file - Supplies the browser-selected image.
- * @param options.files - Stores the image under its owner-scoped key.
- * @param options.isAnonymous - Whether the current identity is temporary.
- * @param options.userId - Scopes the object key to the authenticated owner.
+ * @param options.upload - Sends bytes to the signed storage target and verifies
+ *   completion.
  * @returns The stable private gateway URL or repair guidance for the image.
  */
 const uploadProfileAvatarFile = async (
   options: UploadProfileAvatarFileOptions
 ): Promise<ProfileAvatarUploadResult> => {
-  if (options.isAnonymous) {
-    return result.fail(
-      new Error("Temporary accounts cannot upload an avatar.")
-    );
+  const validated = validateProfileAvatarFile(options.file);
+
+  if (!validated.ok) {
+    return validated;
   }
 
-  const extension = getAvatarFileExtension(options.file.type);
-
-  if (extension === null) {
-    return result.fail(new Error("Choose a JPEG, PNG, or WebP image."));
-  }
-
-  if (options.file.size > MAX_AVATAR_SIZE_IN_BYTES) {
-    return result.fail(new Error("Choose an image that’s 5 MB or smaller."));
-  }
-
-  const key = createProfileAvatarKey(extension);
-  const storageKey = `users/${options.userId}/${key}`;
+  const uploadFile = createProfileAvatarUploadFile(
+    options.file,
+    validated.value.extension
+  );
   const uploaded = await result.trycatch(
-    async () =>
-      await options.files.upload(storageKey, options.file, {
-        contentType: options.file.type,
-      })
+    async () => await options.upload(uploadFile)
   );
 
   if (!uploaded.ok) {
     return result.fail(
       new Error(
-        "Avatar uploads are unavailable right now. Your other profile changes were saved, and the selected image is still here.",
+        "We couldn’t upload that image. Your other profile changes were saved, and the selected image is still here. Check your connection, then save again.",
         { cause: uploaded.error }
+      )
+    );
+  }
+
+  const key = `${PROFILE_AVATAR_NAMESPACE}/${uploaded.value.key}`;
+
+  if (
+    !isProfileAvatarKey(key) ||
+    !key.endsWith(`.${validated.value.extension}`)
+  ) {
+    return result.fail(
+      new Error(
+        "The image reached storage, but its saved location was invalid. The selected image is still here. Save again to retry."
       )
     );
   }
@@ -162,5 +226,16 @@ const uploadProfileAvatarFile = async (
   return result.pass({ url: createProfileAvatarUrl(key) });
 };
 
-export { isProfileAvatarKey, uploadProfileAvatarFile };
-export type { ProfileAvatarFileStore, ProfileAvatarUploadResult };
+export {
+  isProfileAvatarKey,
+  MAX_AVATAR_SIZE_IN_BYTES,
+  PROFILE_AVATAR_NAMESPACE,
+  PROFILE_AVATAR_UPLOAD_ENDPOINT,
+  uploadProfileAvatarFile,
+  validateProfileAvatarUploadMetadata,
+};
+export type {
+  ProfileAvatarFileMetadata,
+  ProfileAvatarUploadResult,
+  UploadProfileAvatar,
+};

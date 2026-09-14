@@ -16,7 +16,7 @@ const readUserFileSession: ReadUserFileSession = async (request) =>
   await auth.api.getSession({ headers: request.headers });
 
 /**
- * The authenticated, read-only gateway for private user media.
+ * The authenticated gateway for private user media and upload metadata.
  */
 const userFilesRouter = createUserFilesRouter({
   files,
@@ -27,6 +27,6 @@ const userFilesRouter = createUserFilesRouter({
 /**
  * Serves private file bytes after session and namespace authorization.
  */
-const { GET } = createRouteHandler(userFilesRouter);
+const { GET, POST } = createRouteHandler(userFilesRouter);
 
-export { GET };
+export { GET, POST };
