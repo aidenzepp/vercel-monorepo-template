@@ -1,21 +1,28 @@
 "use client";
 
-import { Button } from "@workspace/ui/components/button";
 import { Field, FieldError } from "@workspace/ui/components/field";
 import { GoogleLogo } from "@workspace/ui/logos/google";
 import Form from "next/form";
 import { useActionState } from "react";
 
+import { SignInMethodButton } from "@/components/auth/sign-in-method-button";
 import { authClient } from "@/lib/auth/auth-client";
 import { requestGoogleSignIn } from "@/lib/auth/google-sign-in";
 
 interface GoogleSignInFormProps {
+  lastUsedLoginMethod: string | null;
   onSignIn: () => Promise<string | null>;
   redirectErrorMessage: string | null;
 }
 
 interface GoogleSignInFormBoundaryProps {
+  lastUsedLoginMethod: string | null;
   redirectErrorMessage: string | null;
+}
+
+interface GoogleSignInActionProps {
+  lastUsedLoginMethod: string | null;
+  pending: boolean;
 }
 
 /**
@@ -31,22 +38,24 @@ const signInWithGoogle = async (): Promise<string | null> =>
 /**
  * Displays Google sign-in progress on the form action.
  *
- * @param props - The current Google submission state.
+ * @param props - The remembered method and current Google submission state.
+ * @param props.lastUsedLoginMethod - Supplies the method remembered for this
+ *   device.
  * @param props.pending - Disables repeated submission while OAuth starts.
  * @returns The Google sign-in submission button.
  */
-const GoogleSignInAction = ({ pending }: { pending: boolean }) => (
-  <Button
-    className="w-full"
-    color="neutral"
+const GoogleSignInAction = ({
+  lastUsedLoginMethod,
+  pending,
+}: GoogleSignInActionProps) => (
+  <SignInMethodButton
+    lastUsedLoginMethod={lastUsedLoginMethod}
     loading={pending}
-    size="lg"
-    type="submit"
-    variant="outline"
+    method="google"
   >
     <GoogleLogo className="size-4" />
     {pending ? "Opening Google…" : "Continue with Google"}
-  </Button>
+  </SignInMethodButton>
 );
 
 /**
@@ -63,12 +72,15 @@ const GoogleSignInError = ({ message }: { message: string | null }) =>
  * Displays Google authentication with localized progress and failure copy.
  *
  * @param props - The Google authentication capability and callback state.
+ * @param props.lastUsedLoginMethod - Supplies the method remembered for this
+ *   device.
  * @param props.onSignIn - Starts the provider redirect and resolves to `null`
  *   after it begins or to a recoverable failure message when it cannot begin.
  * @param props.redirectErrorMessage - Reports a prior callback failure.
  * @returns The Google sign-in form.
  */
 const GoogleSignInForm = ({
+  lastUsedLoginMethod,
   onSignIn,
   redirectErrorMessage,
 }: GoogleSignInFormProps) => {
@@ -81,7 +93,10 @@ const GoogleSignInForm = ({
   return (
     <Field>
       <Form action={action}>
-        <GoogleSignInAction pending={pending} />
+        <GoogleSignInAction
+          lastUsedLoginMethod={lastUsedLoginMethod}
+          pending={pending}
+        />
       </Form>
       <GoogleSignInError message={errorMessage} />
     </Field>
@@ -91,14 +106,18 @@ const GoogleSignInForm = ({
 /**
  * Connects the prop-driven Google form to the Better Auth browser client.
  *
- * @param props - The server-validated callback state.
+ * @param props - The server-provided device and callback state.
+ * @param props.lastUsedLoginMethod - Supplies the method remembered for this
+ *   device.
  * @param props.redirectErrorMessage - Reports a prior callback failure.
  * @returns The production Google sign-in form.
  */
 const GoogleSignInFormBoundary = ({
+  lastUsedLoginMethod,
   redirectErrorMessage,
 }: GoogleSignInFormBoundaryProps) => (
   <GoogleSignInForm
+    lastUsedLoginMethod={lastUsedLoginMethod}
     onSignIn={signInWithGoogle}
     redirectErrorMessage={redirectErrorMessage}
   />

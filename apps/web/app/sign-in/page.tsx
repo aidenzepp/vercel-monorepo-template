@@ -1,4 +1,6 @@
+import { lastLoginMethodOptions } from "@workspace/better-auth/config/last-login-method";
 import { Templ8Wordmark } from "@workspace/ui/logos/templ8";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -15,6 +17,7 @@ interface SignInPageProps {
 
 interface SignInPanelProps {
   googleSignInErrorMessage: string | null;
+  lastUsedLoginMethod: string | null;
 }
 
 /**
@@ -33,16 +36,24 @@ const SignInBrand = () => (
 /**
  * Displays the sign-in controls within the narrow authentication column.
  *
- * @param props - The validated provider callback state.
+ * @param props - The request-scoped device and provider callback state.
  * @param props.googleSignInErrorMessage - Reports a prior Google failure.
+ * @param props.lastUsedLoginMethod - Supplies Better Auth's remembered method
+ *   for this device.
  * @returns The branded sign-in panel.
  */
-const SignInPanel = ({ googleSignInErrorMessage }: SignInPanelProps) => (
+const SignInPanel = ({
+  googleSignInErrorMessage,
+  lastUsedLoginMethod,
+}: SignInPanelProps) => (
   <section className="flex min-h-svh flex-col gap-4 px-6 py-10 md:px-10">
     <SignInBrand />
     <div className="flex flex-1 items-center justify-center py-12">
       <div className="w-full max-w-xs">
-        <SignInForm googleSignInErrorMessage={googleSignInErrorMessage} />
+        <SignInForm
+          googleSignInErrorMessage={googleSignInErrorMessage}
+          lastUsedLoginMethod={lastUsedLoginMethod}
+        />
       </div>
     </div>
   </section>
@@ -74,13 +85,21 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     redirect("/");
   }
 
-  const googleSignInErrorMessage = getGoogleSignInErrorMessage(
-    await searchParams
-  );
+  const [cookieStore, resolvedSearchParams] = await Promise.all([
+    cookies(),
+    searchParams,
+  ]);
+  const googleSignInErrorMessage =
+    getGoogleSignInErrorMessage(resolvedSearchParams);
+  const lastUsedLoginMethod =
+    cookieStore.get(lastLoginMethodOptions.cookieName)?.value ?? null;
 
   return (
     <main className="grid min-h-svh lg:grid-cols-2">
-      <SignInPanel googleSignInErrorMessage={googleSignInErrorMessage} />
+      <SignInPanel
+        googleSignInErrorMessage={googleSignInErrorMessage}
+        lastUsedLoginMethod={lastUsedLoginMethod}
+      />
       <SignInArtwork />
     </main>
   );

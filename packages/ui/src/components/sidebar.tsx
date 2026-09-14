@@ -21,7 +21,7 @@ import {
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import * as React from "react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
@@ -255,26 +255,40 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar();
+  const { isMobile, openMobile, state, toggleSidebar } = useSidebar();
+  const isOpen = isMobile ? openMobile : state === "expanded";
+  const actionLabel = isOpen ? "Close sidebar" : "Open sidebar";
 
   return (
-    <Button
-      color="neutral"
-      data-cuelume-toggle="toggle"
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
-      variant="ghost"
-      size="icon-sm"
-      className={cn(className)}
-      onClick={(event) => {
-        onClick?.(event);
-        toggleSidebar();
-      }}
-      {...props}
-    >
-      <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        delay={600}
+        render={
+          <Button
+            aria-label={actionLabel}
+            color="neutral"
+            data-cuelume-toggle="toggle"
+            data-sidebar="trigger"
+            data-slot="sidebar-trigger"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(className)}
+            onClick={(event) => {
+              onClick?.(event);
+              toggleSidebar();
+            }}
+            {...props}
+          >
+            {isOpen ? (
+              <PanelLeftClose aria-hidden="true" />
+            ) : (
+              <PanelLeftOpen aria-hidden="true" />
+            )}
+          </Button>
+        }
+      />
+      <TooltipContent side="right">{actionLabel}</TooltipContent>
+    </Tooltip>
   );
 }
 

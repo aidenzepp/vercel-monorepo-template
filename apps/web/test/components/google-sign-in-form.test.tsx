@@ -1,9 +1,13 @@
 import { expect, test } from "bun:test";
 
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 
-import { GoogleSignInForm } from "../../components/auth/google-sign-in-form";
+import {
+  GoogleSignInForm,
+  GoogleSignInFormBoundary,
+} from "../../components/auth/google-sign-in-form";
 
 test("shows an OAuth callback error before a retry", () => {
   const container = document.createElement("div");
@@ -13,6 +17,7 @@ test("shows an OAuth callback error before a retry", () => {
   act(() => {
     root.render(
       <GoogleSignInForm
+        lastUsedLoginMethod={null}
         onSignIn={async () => await Promise.resolve(null)}
         redirectErrorMessage="Google sign-in couldn’t be completed. Try again."
       />
@@ -40,6 +45,7 @@ test("recovers Google sign-in after a failed request", async () => {
   act(() => {
     root.render(
       <GoogleSignInForm
+        lastUsedLoginMethod={null}
         onSignIn={async () => {
           requestCount += 1;
           return await (requestCount === 1
@@ -102,6 +108,33 @@ test("recovers Google sign-in after a failed request", async () => {
   expect(container.textContent).not.toContain(
     "Google sign-in couldn’t be opened. Try again."
   );
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
+test("preserves the server-provided remembered method through hydration", async () => {
+  const form = (
+    <GoogleSignInFormBoundary
+      lastUsedLoginMethod="google"
+      redirectErrorMessage={null}
+    />
+  );
+  const container = document.createElement("div");
+  container.innerHTML = renderToString(form);
+  document.body.append(container);
+
+  expect(container.textContent).toContain("Last Used");
+
+  const root = hydrateRoot(container, form);
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(container.textContent).toContain("Last Used");
 
   act(() => {
     root.unmount();

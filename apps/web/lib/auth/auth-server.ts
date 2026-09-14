@@ -2,6 +2,7 @@ import "server-only";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { dash } from "@better-auth/infra";
 import { waitUntil } from "@vercel/functions";
+import { lastLoginMethodOptions } from "@workspace/better-auth/config/last-login-method";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { lastLoginMethod } from "better-auth/plugins";
@@ -55,7 +56,7 @@ const auth = betterAuth({
       secret: env.OAUTH_PROXY_SECRET,
     }),
     admin(),
-    lastLoginMethod(),
+    lastLoginMethod(lastLoginMethodOptions),
     ...createAuthPlugins(),
     dash({
       activityTracking: { enabled: true },

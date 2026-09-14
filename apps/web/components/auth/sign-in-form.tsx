@@ -5,6 +5,7 @@ import { GoogleSignInFormBoundary } from "@/components/auth/google-sign-in-form"
 
 interface SignInFormProps {
   googleSignInErrorMessage: string | null;
+  lastUsedLoginMethod: string | null;
 }
 
 /**
@@ -26,14 +27,22 @@ const SignInHeader = () => (
  *
  * @param props - The validated provider callback state.
  * @param props.googleSignInErrorMessage - Reports a prior Google failure.
+ * @param props.lastUsedLoginMethod - Supplies Better Auth's remembered method
+ *   for this device.
  * @returns The sign-in heading, temporary-account flow, and Google flow.
  */
-const SignInForm = ({ googleSignInErrorMessage }: SignInFormProps) => (
+const SignInForm = ({
+  googleSignInErrorMessage,
+  lastUsedLoginMethod,
+}: SignInFormProps) => (
   <FieldGroup>
     <SignInHeader />
     <AnonymousSignInFormBoundary />
     <FieldSeparator>Or continue with</FieldSeparator>
-    <GoogleSignInFormBoundary redirectErrorMessage={googleSignInErrorMessage} />
+    <GoogleSignInFormBoundary
+      lastUsedLoginMethod={lastUsedLoginMethod}
+      redirectErrorMessage={googleSignInErrorMessage}
+    />
   </FieldGroup>
 );
 
