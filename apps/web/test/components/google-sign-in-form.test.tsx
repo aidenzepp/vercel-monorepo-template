@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 
 import { act } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
@@ -9,10 +9,6 @@ import {
   GoogleSignInFormBoundary,
 } from "../../components/auth/google-sign-in-form";
 
-afterEach(() => {
-  Reflect.deleteProperty(document, "cookie");
-});
-
 test("shows an OAuth callback error before a retry", () => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -21,6 +17,7 @@ test("shows an OAuth callback error before a retry", () => {
   act(() => {
     root.render(
       <GoogleSignInForm
+        lastUsedLoginMethod={null}
         onSignIn={async () => await Promise.resolve(null)}
         redirectErrorMessage="Google sign-in couldn’t be completed. Try again."
       />
@@ -48,6 +45,7 @@ test("recovers Google sign-in after a failed request", async () => {
   act(() => {
     root.render(
       <GoogleSignInForm
+        lastUsedLoginMethod={null}
         onSignIn={async () => {
           requestCount += 1;
           return await (requestCount === 1
@@ -117,42 +115,20 @@ test("recovers Google sign-in after a failed request", async () => {
   container.remove();
 });
 
-test("marks Google from Better Auth's remembered login method", () => {
-  Object.defineProperty(document, "cookie", {
-    configurable: true,
-    value: "better-auth.last_used_login_method=google",
-  });
+test("preserves the server-provided remembered method through hydration", async () => {
+  const form = (
+    <GoogleSignInFormBoundary
+      lastUsedLoginMethod="google"
+      redirectErrorMessage={null}
+    />
+  );
   const container = document.createElement("div");
+  container.innerHTML = renderToString(form);
   document.body.append(container);
-  const root = createRoot(container);
-
-  act(() => {
-    root.render(<GoogleSignInFormBoundary redirectErrorMessage={null} />);
-  });
 
   expect(container.textContent).toContain("Last Used");
 
-  act(() => {
-    root.unmount();
-  });
-  container.remove();
-});
-
-test("restores Google's remembered marker after server hydration", async () => {
-  const container = document.createElement("div");
-  container.innerHTML = renderToString(
-    <GoogleSignInFormBoundary redirectErrorMessage={null} />
-  );
-  document.body.append(container);
-  Object.defineProperty(document, "cookie", {
-    configurable: true,
-    value: "better-auth.last_used_login_method=google",
-  });
-
-  const root = hydrateRoot(
-    container,
-    <GoogleSignInFormBoundary redirectErrorMessage={null} />
-  );
+  const root = hydrateRoot(container, form);
 
   await act(async () => {
     await Promise.resolve();

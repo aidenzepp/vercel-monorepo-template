@@ -5,7 +5,6 @@ import { passkeyClient } from "@better-auth/passkey/client";
 import {
   adminClient,
   anonymousClient,
-  lastLoginMethodClient,
   organizationClient,
   twoFactorClient,
   usernameClient,
@@ -22,7 +21,6 @@ const authClient = createAuthClient({
     adminClient(),
     anonymousClient(),
     apiKeyClient(),
-    lastLoginMethodClient(),
     organizationClient(),
     passkeyClient(),
     twoFactorClient(),
