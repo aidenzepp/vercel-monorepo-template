@@ -1,6 +1,8 @@
 import "server-only";
 import { issueSignedToken, presignUrl } from "@vercel/blob";
 import type { IssueSignedTokenOptions } from "@vercel/blob";
+import { logger } from "@workspace/utils/logger";
+import { result } from "@workspace/utils/result";
 import { Files, FilesError } from "files-sdk";
 import type { SignUploadOptions, SignedUpload, UrlOptions } from "files-sdk";
 import { vercelBlob } from "files-sdk/vercel-blob";
@@ -128,25 +130,64 @@ const signedUploadUrl = async (
   const validUntil = expiresAt(options.expiresIn);
   const allowedContentTypes =
     options.contentType === undefined ? undefined : [options.contentType];
-  const token = await issueSignedToken({
-    ...credentials,
-    abortSignal: options.signal,
-    allowedContentTypes,
-    maximumSizeInBytes: options.maxSize,
-    operations: ["put"],
-    pathname: key,
-    validUntil,
-  });
-  const signed = await presignUrl(token, {
-    access,
-    addRandomSuffix: false,
-    allowOverwrite,
-    allowedContentTypes,
-    maximumSizeInBytes: options.maxSize,
-    operation: "put",
-    pathname: key,
-    validUntil: token.validUntil,
-  });
+  const issued = await result.trycatch(
+    async () =>
+      await issueSignedToken({
+        ...credentials,
+        abortSignal: options.signal,
+        allowedContentTypes,
+        maximumSizeInBytes: options.maxSize,
+        operations: ["put"],
+        pathname: key,
+        validUntil,
+      })
+  );
+
+  if (!issued.ok) {
+    logger.error(
+      {
+        err: issued.error,
+        key,
+        operation: "files.vercel-blob.issue-upload-token",
+      },
+      "Direct file upload token creation failed"
+    );
+    throw new FilesError(
+      "Provider",
+      "Direct file uploads are temporarily unavailable.",
+      issued.error
+    );
+  }
+
+  const signed = await result.trycatch(
+    async () =>
+      await presignUrl(issued.value, {
+        access,
+        addRandomSuffix: false,
+        allowOverwrite,
+        allowedContentTypes,
+        maximumSizeInBytes: options.maxSize,
+        operation: "put",
+        pathname: key,
+        validUntil: issued.value.validUntil,
+      })
+  );
+
+  if (!signed.ok) {
+    logger.error(
+      {
+        err: signed.error,
+        key,
+        operation: "files.vercel-blob.presign-upload-url",
+      },
+      "Direct file upload URL creation failed"
+    );
+    throw new FilesError(
+      "Provider",
+      "Direct file uploads are temporarily unavailable.",
+      signed.error
+    );
+  }
 
   return {
     headers:
@@ -154,7 +195,7 @@ const signedUploadUrl = async (
         ? undefined
         : { "Content-Type": options.contentType },
     method: "PUT",
-    url: signed.presignedUrl,
+    url: signed.value.presignedUrl,
   };
 };
 
@@ -199,8 +240,9 @@ const url = async (
  * Adds Vercel's current signed URL primitives to the Files SDK adapter.
  *
  * The upstream adapter predates `issueSignedToken()` and `presignUrl()`. This
- * adapter preserves its storage behavior while supplying signed private reads
- * and direct client uploads through the standard Files interface.
+ * adapter preserves its storage behavior while supplying permanent public or
+ * signed private reads and direct client uploads through the standard Files
+ * interface.
  *
  * @param options - Storage, access, and credential options for the adapter.
  * @returns A Vercel Blob adapter with signed upload and download support.
@@ -208,8 +250,8 @@ const url = async (
 const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
   // Resolve policy once so the inherited adapter methods and our signed URL
   // methods cannot apply different defaults. Files SDK defaults access to
-  // public and overwrites to true; this service preserves public access but
-  // rejects overwrites unless the caller explicitly opts in.
+  // public and overwrites to true; this service preserves the selected access
+  // mode but rejects overwrites unless the caller explicitly opts in.
   const { access = "public", allowOverwrite = false } = options;
   const credentials = getBlobCredentials(options);
   const adapter = vercelBlob({
@@ -229,8 +271,14 @@ const signedVercelBlob = (options: FileServiceOptions): VercelBlobAdapter => {
         uploadOptions
       ),
     signedUrl: { supported: true },
-    url: async (key, urlOptions) =>
-      await url(access, credentials, key, urlOptions),
+    url:
+      access === "public"
+        ? async (key, urlOptions) => {
+            assertUrlSupported(urlOptions);
+            return await adapter.url(key, urlOptions);
+          }
+        : async (key, urlOptions) =>
+            await url(access, credentials, key, urlOptions),
   };
 };
 
@@ -256,7 +304,7 @@ class FileService extends Files<VercelBlobAdapter> {
 }
 
 /**
- * Application FileService configured for the private Vercel Blob store.
+ * Application FileService configured for access-controlled private objects.
  */
 const files = new FileService({
   access: "private",

@@ -233,14 +233,16 @@ Provider support remains a product decision. Before adding one, confirm its OAut
 Create Blob from the `web` project's **Storage** page:
 
 1. Choose **Create Database**, then **Blob**.
-2. Name the private store `blob-<package-name>-apps` and use `iad1` unless the product requires another region.
+2. Name the private store `blob-<package-name>-apps` and use `iad1` unless the product requires another region. Blob access cannot be changed after creation, so do not create a public store for this contract.
 3. Keep the environment-variable prefix as `BLOB` and leave **Add a read-write token env var** unchecked.
 4. After creation, open the store's **Projects** page and update the `web` connection to include Development, Preview, and Production.
 5. Confirm the connection lists `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY`, and that the project does not contain `BLOB_READ_WRITE_TOKEN`.
 
 `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` are the stable connection values validated by the shared Blob environment contract. The public key is available for future webhook verification without coupling current file operations to a webhook implementation. `BLOB_READ_WRITE_TOKEN` is represented as an optional compatibility credential, but the default setup must leave it absent. Vercel supplies short-lived OIDC identity to the Blob SDK at runtime; application code must not read or validate the raw `VERCEL_OIDC_TOKEN`.
 
-`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct uploads. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths, authorization, and per-use-case upload limits to the caller.
+`lib/files/files-service.ts` supplies the provider-neutral Files SDK surface with deterministic keys, signed private reads, and constrained browser-direct upload capabilities. Overwrites are rejected by default; callers can construct a separate `FileService` with `allowOverwrite: true` for intentional stable-key replacement. It leaves product object paths and per-use-case upload limits to the caller.
+
+Private user media uses the authenticated `app/api/files/route.ts` gateway. `GET` authorizes and proxies downloads so provider read URLs never reach the browser. `POST` authorizes only the metadata and completion phases of browser-direct uploads; image bytes go from the browser to the short-lived signed provider target, and application-route `PUT` requests are rejected. The gateway scopes keys under `users/<current-user-id>/`, admits each product namespace through an explicit parser and authorization policy, and denies temporary accounts. Profile avatar uploads start only after username validation succeeds, then persist a stable application proxy URL rather than an expiring provider URL.
 
 ## Resend on web only
 
@@ -270,7 +272,7 @@ The shared Resend environment contract requires both values because the API key 
 5. Review provider, billing, and OAuth consent implications.
 6. Only then apply the production migration/deployment through the confirmed provider flow.
 
-Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the replacement dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. Resend was not provisioned in that disposable project because it had no owned sending domain. The validation did not connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
+Disposable `foobar` validation confirmed separate `web` and `mkt` projects under one organization and unconnected Neon creation in that organization. A CLI-created private Blob store used the legacy read-write-token connection; the replacement dashboard flow was verified with a private `iad1` store, OIDC, no read-write-token environment variable, and a `web` connection covering Development, Preview, and Production. Resend was not provisioned in that disposable project because it had no owned sending domain. The validation did not exercise the authenticated files proxy, connect Neon, apply a product migration, or deploy a Preview. Treat those product-specific gates as unproven until the minted workspace records its own evidence.
 
 Google OAuth was verified for `templ8-web` at commit `55e86ec9d474470f2825525f57f58e5b1787d2a6`. Google Cloud project and OAuth Web client `templ8-web` remain External and Testing, with only the approved tester and the final redirect URI `https://app.templ8.dev/api/auth/callback/google`. `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are non-revealable Vercel Secrets in Development, Preview, and Production.
 

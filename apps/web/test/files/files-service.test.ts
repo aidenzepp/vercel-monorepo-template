@@ -61,7 +61,7 @@ const ORIGINAL_BLOB_STORE_ID = process.env.BLOB_STORE_ID;
  */
 const ORIGINAL_VERCEL_OIDC_TOKEN = process.env.VERCEL_OIDC_TOKEN;
 
-process.env.BLOB_STORE_ID = "store_test";
+process.env.BLOB_STORE_ID = "store_test1234";
 process.env.VERCEL_OIDC_TOKEN = "test-oidc-token";
 
 /**
@@ -156,6 +156,44 @@ describe("FileService", () => {
     );
   });
 
+  test("returns permanent URLs for public avatar storage", async () => {
+    const service = new FileService({
+      access: "public",
+      oidcToken: "oidc-token",
+      storeId: "store_12345678",
+    });
+    const avatarUrl = await service.url("users/user_123/avatars/avatar.png");
+
+    expect(avatarUrl).toBe(
+      "https://12345678.public.blob.vercel-storage.com/users/user_123/avatars/avatar.png"
+    );
+    expect(issueSignedToken).not.toHaveBeenCalled();
+    expect(presignUrl).not.toHaveBeenCalled();
+  });
+
+  test("configures the application file service for private signed URLs", async () => {
+    const avatarUrl = await files.url("users/user_123/avatars/avatar.png");
+
+    expect(avatarUrl).toBe("https://blob.example/signed");
+    expect(issueSignedToken).toHaveBeenCalledWith({
+      operations: ["get"],
+      pathname: "users/user_123/avatars/avatar.png",
+      validUntil: NOW.getTime() + 5 * 60_000,
+    });
+    expect(presignUrl).toHaveBeenCalledWith(
+      {
+        ...SIGNED_TOKEN,
+        validUntil: NOW.getTime() + 5 * 60_000,
+      },
+      {
+        access: "private",
+        operation: "get",
+        pathname: "users/user_123/avatars/avatar.png",
+        validUntil: NOW.getTime() + 5 * 60_000,
+      }
+    );
+  });
+
   test("allows callers to opt into stable-key replacement", async () => {
     const service = new FileService({
       access: "private",
@@ -192,6 +230,31 @@ describe("FileService", () => {
       permanent: true,
     });
     expect(issueSignedToken).not.toHaveBeenCalled();
+  });
+
+  test("normalizes signed-target provider failures without exposing credentials", () => {
+    const providerError = new Error(
+      "Vercel Blob token secret-token-value was rejected"
+    );
+    issueSignedToken.mockImplementationOnce(() => {
+      throw providerError;
+    });
+
+    const upload = files.signedUploadUrl(
+      "users/user_123/avatars/12345678-9abc-4def-8abc-123456789abc.png",
+      {
+        contentType: "image/png",
+        expiresIn: 60,
+        maxSize: 5 * 1024 * 1024,
+        minSize: 0,
+      }
+    );
+
+    expect(upload).rejects.toMatchObject({
+      cause: providerError,
+      code: "Provider",
+      message: "Direct file uploads are temporarily unavailable.",
+    });
   });
 
   test("rejects download dispositions Vercel cannot enforce", () => {

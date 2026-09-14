@@ -1,0 +1,19 @@
+diff --git a/dist/api/index.js b/dist/api/index.js
+index 4fba2554f9896cfa31e2e9896f2424043d5528bb..bd86af725e1de062c8a56684fc5cac9456a0d4c1 100644
+--- a/dist/api/index.js
++++ b/dist/api/index.js
+@@ -1,10 +1,12 @@
+ import {
+-  FilesError,
+   isBoolean,
+   isFunction,
+   isNumber,
+   isString
+ } from "../chunk-qjccztyf.js";
++import {
++  FilesError
++} from "../chunk-sdze727v.js";
+-
++
+ // src/internal/content-disposition.ts
+ var isAttachmentDisposition = (value) => value !== undefined && /^\s*attachment\b/iu.test(value);
