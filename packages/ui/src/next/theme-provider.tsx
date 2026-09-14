@@ -3,6 +3,8 @@
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import * as React from "react";
 
+export { useTheme } from "next-themes";
+
 /**
  * Determines whether a keyboard event belongs to an editable control.
  *
