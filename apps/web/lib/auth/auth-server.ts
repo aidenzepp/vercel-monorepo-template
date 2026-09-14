@@ -71,6 +71,12 @@ const auth = betterAuth({
       strategy: "compact",
     },
   },
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    },
+  },
 });
 
 export { auth };

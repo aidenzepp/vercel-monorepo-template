@@ -11,7 +11,7 @@ It establishes shared presentation infrastructure while keeping product state in
 - Ultracite (oxlint + oxfmt) with a local `workspace` plugin
 - TypeScript 7's native compiler
 - `packages/better-auth`: shared Better Auth configuration and error contracts
-- `packages/t3-env`: composable Better Auth, Resend, and Vercel Blob environment contracts
+- `packages/t3-env`: composable Better Auth, Google OAuth, Resend, and Vercel Blob environment contracts
 - `packages/utils`: Result, Option, Zero, Pino logger
 - `packages/ui`: the complete shared Shadcn component set, styles, hooks, and Next.js providers
 - `apps/web`: authenticated full-stack product foundation
@@ -47,12 +47,13 @@ Import shared foundation code from direct workspace package subpaths:
 ```ts
 import { createEnv } from "@t3-oss/env-nextjs";
 import { usernameSchema } from "@workspace/better-auth/config/username";
+import { google } from "@workspace/t3-env/config/google";
 import { resend } from "@workspace/t3-env/config/resend";
 import { Button } from "@workspace/ui/components/button";
 import { result } from "@workspace/utils/result";
 import { logger } from "@workspace/utils/logger";
 
-const env = createEnv({ extends: [resend()] });
+const env = createEnv({ extends: [google(), resend()] });
 ```
 
 `packages/ui` is shared presentation infrastructure. Keep application-specific data, routes, environment variables, and providers in the owning application.
@@ -68,7 +69,8 @@ const env = createEnv({ extends: [resend()] });
 ### `@workspace/t3-env`
 
 - server environment contracts composed through T3 Env's `extends` option
-- `betterAuth()`, `resend()`, and `vercelBlob()` presets on direct config subpaths
+- `betterAuth()`, `google()`, `resend()`, and `vercelBlob()` presets on direct config subpaths
+- Google credentials remain server-only and are owned by the application that configures the provider
 - no duplicate Neon or Vercel schemas; applications use T3 Env's upstream presets
 
 ### `@workspace/utils`
