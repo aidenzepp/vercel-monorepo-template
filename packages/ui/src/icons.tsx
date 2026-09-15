@@ -1,13 +1,18 @@
 import * as React from "react";
 
 /**
+ * A shared SVG icon component that accepts native presentation attributes.
+ */
+type Icon = React.ComponentType<React.ComponentProps<"svg">>;
+
+/**
  * Applies Nucleo's shared 18px Fill Duo presentation to one licensed glyph.
  *
  * @param props - The native SVG geometry and presentation for one duo-tone
  *   icon.
  * @returns The Nucleo Fill Duo canvas supplied to a public icon.
  */
-const NucleoDuoToneIcon = (props: React.ComponentProps<"svg">) => (
+const NucleoDuoToneIcon: Icon = (props) => (
   <svg fill="currentColor" {...props} xmlns="http://www.w3.org/2000/svg" />
 );
 
@@ -21,13 +26,11 @@ const NucleoDuoToneIcon = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo badge-check vector.
  * @see https://nucleoapp.com/license
  */
-const BadgeCheck = (props: React.ComponentProps<"svg">) => (
-  <svg
-    fill="currentColor"
+const BadgeCheck: Icon = (props) => (
+  <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="badge-check"
     viewBox="0 0 18 18"
-    xmlns="http://www.w3.org/2000/svg"
   >
     <path
       d="M15.5352 6.29351C15.75 5.23931 15.4327 4.11921 14.6573 3.34381C13.8819 2.56741 12.7608 2.25051 11.7071 2.46541C11.1143 1.56841 10.0977 1.00101 9.00102 1.00101C7.90432 1.00101 6.88772 1.56841 6.29492 2.46541C5.24222 2.25011 4.12111 2.56751 3.34471 3.34381C2.56931 4.11921 2.25191 5.23931 2.46681 6.29301C1.56931 6.88631 1.00201 7.90291 1.00201 9.00001C1.00201 10.0971 1.56941 11.1133 2.46681 11.7065C2.25201 12.7607 2.56931 13.8808 3.34471 14.6562C4.12111 15.4321 5.24222 15.749 6.29492 15.5346C6.88772 16.4316 7.90432 16.999 9.00102 16.999C10.0977 16.999 11.1143 16.4311 11.7071 15.5342C12.7647 15.7486 13.8819 15.4317 14.6573 14.6563C15.4337 13.8804 15.7511 12.7603 15.5352 11.7066C16.4327 11.1138 17 10.0972 17 9.00011C17 7.90301 16.4326 6.88671 15.5352 6.29351Z"
@@ -39,7 +42,7 @@ const BadgeCheck = (props: React.ComponentProps<"svg">) => (
       data-color="color-1"
       fill="currentColor"
     />
-  </svg>
+  </NucleoDuoToneIcon>
 );
 
 /**
@@ -53,13 +56,11 @@ const BadgeCheck = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo circle-info vector.
  * @see https://nucleoapp.com/license
  */
-const CircleInfo = (props: React.ComponentProps<"svg">) => (
-  <svg
-    fill="currentColor"
+const CircleInfo: Icon = (props) => (
+  <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="circle-info"
     viewBox="0 0 18 18"
-    xmlns="http://www.w3.org/2000/svg"
   >
     <path
       d="M9 1C4.5889 1 1 4.5889 1 9C1 13.4111 4.5889 17 9 17C13.4111 17 17 13.4111 17 9C17 4.5889 13.4111 1 9 1Z"
@@ -71,7 +72,7 @@ const CircleInfo = (props: React.ComponentProps<"svg">) => (
       data-color="color-1"
       fill="currentColor"
     />
-  </svg>
+  </NucleoDuoToneIcon>
 );
 
 /**
@@ -81,7 +82,7 @@ const CircleInfo = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo incognito vector.
  * @see https://nucleoapp.com/license
  */
-const Incognito = (props: React.ComponentProps<"svg">) => (
+const Incognito: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="incognito"
@@ -110,13 +111,11 @@ const Incognito = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo triangle-warning vector.
  * @see https://nucleoapp.com/license
  */
-const TriangleWarning = (props: React.ComponentProps<"svg">) => (
-  <svg
-    fill="currentColor"
+const TriangleWarning: Icon = (props) => (
+  <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="triangle-warning"
     viewBox="0 0 18 18"
-    xmlns="http://www.w3.org/2000/svg"
   >
     <path
       d="M16.4364 12.5151L11.0101 3.11316C10.5902 2.39096 9.83872 1.96045 8.99982 1.96045C8.16092 1.96045 7.40952 2.39106 6.98952 3.11316C6.98902 3.11366 6.98902 3.11473 6.98852 3.11523L1.56272 12.5156C1.14332 13.2436 1.14332 14.1128 1.56372 14.8398C1.98362 15.5664 2.73562 16 3.57492 16H14.4245C15.2639 16 16.0158 15.5664 16.4357 14.8398C16.8561 14.1127 16.8563 13.2436 16.4364 12.5151Z"
@@ -133,7 +132,7 @@ const TriangleWarning = (props: React.ComponentProps<"svg">) => (
       data-color="color-1"
       fill="currentColor"
     />
-  </svg>
+  </NucleoDuoToneIcon>
 );
 
 /**
@@ -146,13 +145,11 @@ const TriangleWarning = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo octagon-warning vector.
  * @see https://nucleoapp.com/license
  */
-const OctagonWarning = (props: React.ComponentProps<"svg">) => (
-  <svg
-    fill="currentColor"
+const OctagonWarning: Icon = (props) => (
+  <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="octagon-warning"
     viewBox="0 0 18 18"
-    xmlns="http://www.w3.org/2000/svg"
   >
     <path
       d="M15.695 5.08801L12.912 2.30603C12.393 1.78603 11.702 1.5 10.968 1.5H7.03297C6.29897 1.5 5.60897 1.78603 5.08897 2.30603L2.30698 5.08801C1.78698 5.60701 1.50098 6.29798 1.50098 7.03198V10.967C1.50098 11.701 1.78698 12.392 2.30698 12.911L5.08897 15.693C5.60897 16.213 6.29897 16.499 7.03297 16.499H10.968C11.702 16.499 12.393 16.213 12.912 15.693L15.695 12.911C16.214 12.392 16.5 11.701 16.5 10.967V7.03198C16.5 6.29798 16.214 5.60701 15.695 5.08801Z"
@@ -169,7 +166,7 @@ const OctagonWarning = (props: React.ComponentProps<"svg">) => (
       data-color="color-1"
       fill="currentColor"
     />
-  </svg>
+  </NucleoDuoToneIcon>
 );
 
 /**
@@ -179,7 +176,7 @@ const OctagonWarning = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo monitor vector.
  * @see https://nucleoapp.com/license
  */
-const Monitor = (props: React.ComponentProps<"svg">) => (
+const Monitor: Icon = (props) => (
   <NucleoDuoToneIcon {...props} data-nucleo-icon="monitor" viewBox="0 0 18 18">
     <path
       clipRule="evenodd"
@@ -203,7 +200,7 @@ const Monitor = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo moon-stars vector.
  * @see https://nucleoapp.com/license
  */
-const MoonStars = (props: React.ComponentProps<"svg">) => (
+const MoonStars: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="moon-stars"
@@ -236,7 +233,7 @@ const MoonStars = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo person-door vector.
  * @see https://nucleoapp.com/license
  */
-const PersonDoor = (props: React.ComponentProps<"svg">) => (
+const PersonDoor: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="person-door"
@@ -285,7 +282,7 @@ const PersonDoor = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo sidebar-left-hide vector.
  * @see https://nucleoapp.com/license
  */
-const SidebarLeftHide = (props: React.ComponentProps<"svg">) => (
+const SidebarLeftHide: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="sidebar-left-hide"
@@ -316,7 +313,7 @@ const SidebarLeftHide = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo sidebar-left-show vector.
  * @see https://nucleoapp.com/license
  */
-const SidebarLeftShow = (props: React.ComponentProps<"svg">) => (
+const SidebarLeftShow: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="sidebar-left-show"
@@ -347,7 +344,7 @@ const SidebarLeftShow = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo sun vector.
  * @see https://nucleoapp.com/license
  */
-const Sun = (props: React.ComponentProps<"svg">) => (
+const Sun: Icon = (props) => (
   <NucleoDuoToneIcon {...props} data-nucleo-icon="sun" viewBox="0 0 18 18">
     <path
       clipRule="evenodd"
@@ -420,7 +417,7 @@ const Sun = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo user vector.
  * @see https://nucleoapp.com/license
  */
-const User = (props: React.ComponentProps<"svg">) => (
+const User: Icon = (props) => (
   <NucleoDuoToneIcon {...props} data-nucleo-icon="user" viewBox="0 0 18 18">
     <path
       d="M2.60518 13.1674C3.69058 10.7157 6.14168 9 8.99999 9C11.7634 9 14.1462 10.6037 15.2822 12.9257C15.3564 13.0774 15.4289 13.2326 15.4797 13.3894C15.8649 14.5805 15.1811 15.8552 13.9874 16.2313C12.705 16.6354 11.0072 17 8.99999 17C6.99283 17 5.29503 16.6354 4.01259 16.2313C2.74425 15.8317 2.05162 14.4186 2.60518 13.1674Z"
@@ -442,7 +439,7 @@ const User = (props: React.ComponentProps<"svg">) => (
  * @returns The licensed Nucleo user-settings vector.
  * @see https://nucleoapp.com/license
  */
-const UserSettings = (props: React.ComponentProps<"svg">) => (
+const UserSettings: Icon = (props) => (
   <NucleoDuoToneIcon
     {...props}
     data-nucleo-icon="user-settings"
@@ -481,3 +478,5 @@ export {
   User,
   UserSettings,
 };
+
+export type { Icon };

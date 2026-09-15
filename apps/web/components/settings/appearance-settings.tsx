@@ -17,6 +17,7 @@ import {
   RadioGroup,
   RadioGroupButton,
 } from "@workspace/ui/components/radio-group";
+import type { Icon } from "@workspace/ui/icons";
 import { Monitor, MoonStars, Sun } from "@workspace/ui/icons";
 import { useTheme } from "@workspace/ui/next/theme-provider";
 import { useSyncExternalStore } from "react";
@@ -31,7 +32,7 @@ type ThemePreference = "dark" | "light" | "system";
  */
 interface ThemeOption {
   description: string;
-  icon: typeof Monitor;
+  icon: Icon;
   label: string;
   value: ThemePreference;
 }

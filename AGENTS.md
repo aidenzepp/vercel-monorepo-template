@@ -60,6 +60,13 @@ See Skills policy below for what stays out of the template.
 - Avoid barrel files (`index.ts` that re-export everything).
 - Import from package subpaths: `@workspace/utils/result`, `@workspace/utils/logger`, etc.
 
+## Licensed icons
+
+- `packages/ui/src/icons.tsx` owns the individual Nucleo UI 1.8.0 Fill Duo glyphs bundled with this product. Import its public icons and `Icon` contract through `@workspace/ui/icons`.
+- The complete vendor archive is intentionally not checked in. Obtain a Nucleo UI 1.8.0 SVG export through an authorized Nucleo account or ask the maintainer to supply the licensed archive; do not download substitutes or reconstruct the vendor artwork.
+- Select the 18px source at `/glyph-duo/<category>/18px_<icon-name>.svg`. Preserve both color layers, render the glyph through `NucleoDuoToneIcon`, type it as `Icon`, export it explicitly, cover it in `packages/ui/test/icons.test.tsx`, and update the bundled-glyph inventory in `README.md`.
+- Never commit the complete Nucleo source archive or expose it as a reusable icon download.
+
 ## Skills policy
 
 Ship foundation skills that apply broadly across the checked-in workspace. The repo-owned foundation set is `async-boundaries`, `component-decomposition`, `function-decomposition`, `type-design`, `document-code`, and `conventional-commits`.
