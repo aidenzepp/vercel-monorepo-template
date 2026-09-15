@@ -1,4 +1,20 @@
-import { createToastManager, toast } from "@workspace/ui/components/toast";
+import type * as ToastModule from "@workspace/ui/components/toast";
+import {
+  createToastManager,
+  toast,
+  Toaster,
+} from "@workspace/ui/components/toast";
+
+/**
+ * The complete value API exposed by the application toast module.
+ */
+const publicToastApi = {
+  Toaster,
+  createToastManager,
+  toast,
+} satisfies typeof ToastModule;
+
+void publicToastApi;
 
 /**
  * An isolated manager used to verify the public toast type contract.

@@ -430,29 +430,4 @@ function Toaster<Data extends object = object>({
   );
 }
 
-export {
-  Toaster,
-  Toast,
-  ToastAction,
-  ToastClose,
-  ToastContent,
-  ToastDescription,
-  ToastPortal,
-  ToastProvider,
-  ToastTitle,
-  ToastViewport,
-  createToastManager,
-  toast,
-  useToastManager,
-};
-
-export type {
-  ToastManager,
-  ToastManagerAddOptions,
-  ToastManagerPromiseOptions,
-  ToastManagerUpdateOptions,
-  ToastObject,
-  ToastProviderProps,
-  ToastType,
-  UseToastManagerReturnValue,
-};
+export { Toaster, createToastManager, toast };
