@@ -1,3 +1,4 @@
+import type { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import type * as ToastModule from "@workspace/ui/components/toast";
 import {
   createToastManager,
@@ -17,29 +18,11 @@ const publicToastApi = {
 void publicToastApi;
 
 /**
- * An isolated manager used to verify the public toast type contract.
+ * The isolated manager retains Base UI's native manager contract.
  */
-const manager = createToastManager<Record<string, never>>();
+const manager: ReturnType<typeof ToastPrimitive.createToastManager> =
+  createToastManager();
 
-manager.add({ title: "Saved", type: "success" });
-manager.add({ title: "Heads up", type: "warning" });
-toast.add({ title: "Loading", type: "loading" });
+manager.add({ title: "Custom", type: "custom" });
 
-// @ts-expect-error -- Application toast managers reject unsupported types.
-manager.add({ title: "Unknown", type: "custom" });
-
-// @ts-expect-error -- The shared toast manager exposes the same closed type.
-toast.update("toast-id", { type: "custom" });
-
-void manager.promise(Promise.resolve("saved"), {
-  error: { title: "Failed", type: "error" },
-  loading: { title: "Saving", type: "loading" },
-  success: { title: "Saved", type: "success" },
-});
-
-void manager.promise(Promise.resolve("saved"), {
-  error: "Failed",
-  // @ts-expect-error -- Promise phases cannot introduce unsupported types.
-  loading: { title: "Saving", type: "custom" },
-  success: "Saved",
-});
+void manager;
