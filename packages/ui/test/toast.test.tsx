@@ -172,7 +172,7 @@ test("loading toasts use the shared spinner", () => {
   unmountToaster(mounted);
 });
 
-test("toasts enter from a viewport centered along the top edge", () => {
+test("toasts enter from a viewport centered along the bottom edge", () => {
   const mounted = mountToaster();
 
   act(() => {
@@ -183,14 +183,19 @@ test("toasts enter from a viewport centered along the top edge", () => {
   const toastItem = findToast("Draft saved");
 
   expect(viewport?.classList.contains("inset-x-4")).toBeTrue();
-  expect(viewport?.classList.contains("top-4")).toBeTrue();
+  expect(viewport?.classList.contains("bottom-4")).toBeTrue();
   expect(viewport?.classList.contains("mx-auto")).toBeTrue();
-  expect(viewport?.classList.contains("bottom-4")).toBeFalse();
-  expect(toastItem?.classList.contains("top-0")).toBeTrue();
-  expect(toastItem?.classList.contains("origin-top")).toBeTrue();
+  expect(viewport?.classList.contains("top-4")).toBeFalse();
+  expect(toastItem?.classList.contains("bottom-0")).toBeTrue();
+  expect(toastItem?.classList.contains("origin-bottom")).toBeTrue();
   expect(
     toastItem?.classList.contains(
-      "data-starting-style:[transform:translateY(-150%)]"
+      "[--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))]"
+    )
+  ).toBeTrue();
+  expect(
+    toastItem?.classList.contains(
+      "data-starting-style:[transform:translateY(150%)]"
     )
   ).toBeTrue();
 
