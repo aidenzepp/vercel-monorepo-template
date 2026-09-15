@@ -19,33 +19,30 @@ interface MountedToaster {
  */
 const SEMANTIC_ICON_CASES = [
   {
-    baseColorClass: "fill-success",
-    foregroundColorClasses: ["fill-success-foreground"],
     iconName: "badge-check",
+    primaryColor: "var(--success-foreground)",
+    secondaryColor: "var(--success)",
     title: "Changes saved",
     type: "success",
   },
   {
-    baseColorClass: "fill-[oklch(62.04%_0.1950_253.83)]",
-    foregroundColorClasses: [
-      "fill-[oklch(49.82%_0.1370_253.91)]",
-      "dark:fill-[oklch(72.11%_0.1414_253.55)]",
-    ],
     iconName: "circle-info",
+    primaryColor: "var(--info-foreground)",
+    secondaryColor: "var(--info)",
     title: "Update available",
     type: "info",
   },
   {
-    baseColorClass: "fill-warning",
-    foregroundColorClasses: ["fill-warning-foreground"],
     iconName: "triangle-warning",
+    primaryColor: "var(--warning-foreground)",
+    secondaryColor: "var(--warning)",
     title: "Connection unstable",
     type: "warning",
   },
   {
-    baseColorClass: "fill-destructive",
-    foregroundColorClasses: ["fill-destructive-foreground"],
     iconName: "octagon-warning",
+    primaryColor: "var(--destructive-foreground)",
+    secondaryColor: "var(--destructive)",
     title: "Could not save",
     type: "error",
   },
@@ -100,9 +97,9 @@ test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
   const mounted = mountToaster();
 
   for (const {
-    baseColorClass,
-    foregroundColorClasses,
     iconName,
+    primaryColor,
+    secondaryColor,
     title,
     type,
   } of SEMANTIC_ICON_CASES) {
@@ -132,16 +129,12 @@ test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
     expect(toastIcon?.querySelectorAll("svg")).toHaveLength(1);
     expect(icon?.getAttribute("viewBox")).toBe("0 0 18 18");
     expect(icon?.classList.contains("size-5")).toBeTrue();
-    expect(baseLayer?.classList.contains(baseColorClass)).toBeTrue();
+    expect(baseLayer?.getAttribute("fill")).toBe(secondaryColor);
     expect(baseLayer?.getAttribute("opacity")).toBe("0.4");
     expect(foregroundLayers?.length).toBeGreaterThan(0);
 
     for (const layer of foregroundLayers ?? []) {
-      expect(
-        foregroundColorClasses.every((colorClass) =>
-          layer.classList.contains(colorClass)
-        )
-      ).toBeTrue();
+      expect(layer.getAttribute("fill")).toBe(primaryColor);
     }
 
     expect(icon?.querySelector("[stroke]")).toBeNull();

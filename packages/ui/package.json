@@ -3,11 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "imports": {
-    "#toast-icons": "./src/internal/toast-icons.tsx"
-  },
   "exports": {
     "./globals.css": "./src/styles/globals.css",
+    "./icons": "./src/icons.tsx",
     "./postcss.config": "./postcss.config.mjs",
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",

@@ -3,16 +3,15 @@
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import { Button } from "@workspace/ui/components/button";
 import { Spinner } from "@workspace/ui/components/spinner";
+import {
+  BadgeCheck,
+  CircleInfo,
+  OctagonWarning,
+  TriangleWarning,
+} from "@workspace/ui/icons";
 import { cn } from "@workspace/ui/lib/utils";
 import { X } from "lucide-react";
 import * as React from "react";
-
-import {
-  ToastErrorIcon,
-  ToastInfoIcon,
-  ToastSuccessIcon,
-  ToastWarningIcon,
-} from "#toast-icons";
 
 /**
  * The shared application toast manager.
@@ -154,19 +153,43 @@ function ToastIcon({ type }: { type: string | undefined }) {
 
   switch (type) {
     case "success": {
-      icon = <ToastSuccessIcon className="size-5" />;
+      icon = (
+        <BadgeCheck
+          className="size-5"
+          primaryColor="var(--success-foreground)"
+          secondaryColor="var(--success)"
+        />
+      );
       break;
     }
     case "info": {
-      icon = <ToastInfoIcon className="size-5" />;
+      icon = (
+        <CircleInfo
+          className="size-5"
+          primaryColor="var(--info-foreground)"
+          secondaryColor="var(--info)"
+        />
+      );
       break;
     }
     case "warning": {
-      icon = <ToastWarningIcon className="size-5" />;
+      icon = (
+        <TriangleWarning
+          className="size-5"
+          primaryColor="var(--warning-foreground)"
+          secondaryColor="var(--warning)"
+        />
+      );
       break;
     }
     case "error": {
-      icon = <ToastErrorIcon className="size-5" />;
+      icon = (
+        <OctagonWarning
+          className="size-5"
+          primaryColor="var(--destructive-foreground)"
+          secondaryColor="var(--destructive)"
+        />
+      );
       break;
     }
     case "loading": {
