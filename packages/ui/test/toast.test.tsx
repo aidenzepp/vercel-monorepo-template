@@ -20,25 +20,25 @@ interface MountedToaster {
 const SEMANTIC_ICON_CASES = [
   {
     colorClass: "text-success",
-    iconClass: "lucide-circle-check",
+    iconName: "circle-check",
     title: "Changes saved",
     type: "success",
   },
   {
     colorClass: "text-[oklch(62.04%_0.1950_253.83)]",
-    iconClass: "lucide-info",
+    iconName: "circle-info",
     title: "Update available",
     type: "info",
   },
   {
     colorClass: "text-warning",
-    iconClass: "lucide-triangle-alert",
+    iconName: "triangle-warning",
     title: "Connection unstable",
     type: "warning",
   },
   {
     colorClass: "text-destructive",
-    iconClass: "lucide-octagon-x",
+    iconName: "octagon-xmark",
     title: "Could not save",
     type: "error",
   },
@@ -89,10 +89,10 @@ const findToast = (title: string): HTMLElement | undefined =>
       title
   );
 
-test("status colors stay on outlined icons instead of the toast surface", () => {
+test("status colors stay on outlined Nucleo icons instead of the toast surface", () => {
   const mounted = mountToaster();
 
-  for (const { colorClass, iconClass, title, type } of SEMANTIC_ICON_CASES) {
+  for (const { colorClass, iconName, title, type } of SEMANTIC_ICON_CASES) {
     act(() => {
       mounted.manager.add({ title, type });
     });
@@ -101,7 +101,9 @@ test("status colors stay on outlined icons instead of the toast surface", () => 
     const toastIcon = toastItem?.querySelector<HTMLElement>(
       '[data-slot="toast-icon"]'
     );
-    const icon = toastIcon?.querySelector<SVGElement>(`.${iconClass}`);
+    const icon = toastIcon?.querySelector<SVGElement>(
+      `[data-nucleo-icon="${iconName}"]`
+    );
 
     expect(toastItem?.classList.contains("bg-popover")).toBeTrue();
     expect(toastItem?.classList.contains("text-popover-foreground")).toBeTrue();
@@ -113,6 +115,11 @@ test("status colors stay on outlined icons instead of the toast surface", () => 
     expect(toastIcon?.querySelectorAll("svg")).toHaveLength(1);
     expect(icon?.classList.contains(colorClass)).toBeTrue();
     expect(icon?.getAttribute("fill")).toBe("none");
+    expect(icon?.getAttribute("viewBox")).toBe("0 0 18 18");
+    expect(icon?.querySelector('[stroke="currentColor"]')).not.toBeNull();
+    expect(
+      icon?.querySelector('[fill="#000"], [stroke="#000"], [stroke="black"]')
+    ).toBeNull();
     expect(icon?.classList.contains("size-5")).toBeTrue();
   }
 

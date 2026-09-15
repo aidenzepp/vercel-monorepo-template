@@ -12,8 +12,15 @@ import type {
 import { Button } from "@workspace/ui/components/button";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
-import { CircleCheck, Info, OctagonX, TriangleAlert, X } from "lucide-react";
+import { X } from "lucide-react";
 import * as React from "react";
+
+import {
+  ToastErrorIcon,
+  ToastInfoIcon,
+  ToastSuccessIcon,
+  ToastWarningIcon,
+} from "../internal/toast-icons.js";
 
 /**
  * The closed toast types supported by the application presentation.
@@ -309,19 +316,21 @@ function ToastIcon({ type }: { type: ToastIconType }) {
 
   switch (type) {
     case "success": {
-      icon = <CircleCheck className="text-success size-5" />;
+      icon = <ToastSuccessIcon className="text-success size-5" />;
       break;
     }
     case "info": {
-      icon = <Info className="size-5 text-[oklch(62.04%_0.1950_253.83)]" />;
+      icon = (
+        <ToastInfoIcon className="size-5 text-[oklch(62.04%_0.1950_253.83)]" />
+      );
       break;
     }
     case "warning": {
-      icon = <TriangleAlert className="text-warning size-5" />;
+      icon = <ToastWarningIcon className="text-warning size-5" />;
       break;
     }
     case "error": {
-      icon = <OctagonX className="text-destructive size-5" />;
+      icon = <ToastErrorIcon className="text-destructive size-5" />;
       break;
     }
     case "loading": {
