@@ -20,28 +20,31 @@ interface MountedToaster {
 const SEMANTIC_ICON_CASES = [
   {
     baseColorClass: "fill-success",
-    foregroundColorClass: "fill-success-foreground",
+    foregroundColorClasses: ["fill-success-foreground"],
     iconName: "badge-check",
     title: "Changes saved",
     type: "success",
   },
   {
     baseColorClass: "fill-[oklch(62.04%_0.1950_253.83)]",
-    foregroundColorClass: "fill-[oklch(62.04%_0.1950_253.83)]",
+    foregroundColorClasses: [
+      "fill-[oklch(49.82%_0.1370_253.91)]",
+      "dark:fill-[oklch(72.11%_0.1414_253.55)]",
+    ],
     iconName: "circle-info",
     title: "Update available",
     type: "info",
   },
   {
     baseColorClass: "fill-warning",
-    foregroundColorClass: "fill-warning-foreground",
+    foregroundColorClasses: ["fill-warning-foreground"],
     iconName: "triangle-warning",
     title: "Connection unstable",
     type: "warning",
   },
   {
     baseColorClass: "fill-destructive",
-    foregroundColorClass: "fill-destructive-foreground",
+    foregroundColorClasses: ["fill-destructive-foreground"],
     iconName: "octagon-warning",
     title: "Could not save",
     type: "error",
@@ -98,7 +101,7 @@ test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
 
   for (const {
     baseColorClass,
-    foregroundColorClass,
+    foregroundColorClasses,
     iconName,
     title,
     type,
@@ -134,7 +137,11 @@ test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
     expect(foregroundLayers?.length).toBeGreaterThan(0);
 
     for (const layer of foregroundLayers ?? []) {
-      expect(layer.classList.contains(foregroundColorClass)).toBeTrue();
+      expect(
+        foregroundColorClasses.every((colorClass) =>
+          layer.classList.contains(colorClass)
+        )
+      ).toBeTrue();
     }
 
     expect(icon?.querySelector("[stroke]")).toBeNull();
