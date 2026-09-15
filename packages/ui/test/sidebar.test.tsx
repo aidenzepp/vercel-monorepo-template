@@ -47,14 +47,28 @@ test("shows the sidebar action in its label and icon", () => {
   }
 
   expect(trigger.getAttribute("aria-label")).toBe("Close sidebar");
-  expect(trigger.querySelector(".lucide-panel-left-close")).not.toBeNull();
+  expect(
+    trigger.querySelector('[data-nucleo-icon="sidebar-left-hide"]')
+  ).not.toBeNull();
+  expect(
+    trigger.querySelector(
+      '[data-nucleo-icon="sidebar-left-hide"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
 
   act(() => {
     trigger.click();
   });
 
   expect(trigger.getAttribute("aria-label")).toBe("Open sidebar");
-  expect(trigger.querySelector(".lucide-panel-left-open")).not.toBeNull();
+  expect(
+    trigger.querySelector('[data-nucleo-icon="sidebar-left-show"]')
+  ).not.toBeNull();
+  expect(
+    trigger.querySelector(
+      '[data-nucleo-icon="sidebar-left-show"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
 
   act(() => {
     root.unmount();

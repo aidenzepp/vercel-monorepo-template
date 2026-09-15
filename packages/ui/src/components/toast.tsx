@@ -3,8 +3,14 @@
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import { Button } from "@workspace/ui/components/button";
 import { Spinner } from "@workspace/ui/components/spinner";
+import {
+  BadgeCheck,
+  CircleInfo,
+  OctagonWarning,
+  TriangleWarning,
+} from "@workspace/ui/icons";
 import { cn } from "@workspace/ui/lib/utils";
-import { CircleCheck, Info, OctagonX, TriangleAlert, X } from "lucide-react";
+import { X } from "lucide-react";
 import * as React from "react";
 
 /**
@@ -25,7 +31,7 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-4 top-4 z-50 mx-auto w-auto max-w-sm outline-none sm:w-full",
+        "pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:w-full",
         className
       )}
       {...props}
@@ -38,13 +44,13 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
     <ToastPrimitive.Root
       data-slot="toast"
       className={cn(
-        "group/toast bg-popover text-popover-foreground focus-visible:border-ring focus-visible:ring-ring/50 pointer-events-auto absolute inset-x-0 top-0 z-[calc(1000-var(--toast-index))] w-full origin-top rounded-2xl! border shadow-lg will-change-transform outline-none select-none focus-visible:ring-[3px]",
-        "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)+calc(var(--toast-index)*var(--gap))+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
-        "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)+(var(--toast-index)*var(--peek))+(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
+        "group/toast bg-popover text-popover-foreground focus-visible:border-ring focus-visible:ring-ring/50 pointer-events-auto absolute inset-x-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl! border shadow-lg will-change-transform outline-none select-none focus-visible:ring-[3px]",
+        "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
+        "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
         "after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
         "data-expanded:h-(--toast-height) data-expanded:[transform:translateX(var(--toast-swipe-movement-x))_translateY(var(--offset-y))]",
-        "data-limited:opacity-0 data-starting-style:[transform:translateY(-150%)]",
-        "[&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(-150%)]",
+        "data-limited:opacity-0 data-starting-style:[transform:translateY(150%)]",
+        "[&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(150%)]",
         "data-ending-style:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))]",
         "data-ending-style:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))]",
         "data-ending-style:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))]",
@@ -140,26 +146,32 @@ function ToastClose({
  *
  * @param props - The toast state used to select an icon and palette.
  * @param props.type - The application toast type selecting an icon and palette.
- * @returns The outlined status icon for the supplied type.
+ * @returns The Fill Duo status icon for the supplied type.
  */
 function ToastIcon({ type }: { type: string | undefined }) {
   let icon: React.ReactNode;
 
   switch (type) {
     case "success": {
-      icon = <CircleCheck className="text-success size-5" />;
+      icon = (
+        <BadgeCheck className="fill-success text-success-foreground size-5" />
+      );
       break;
     }
     case "info": {
-      icon = <Info className="size-5 text-[oklch(62.04%_0.1950_253.83)]" />;
+      icon = <CircleInfo className="fill-info text-info-foreground size-5" />;
       break;
     }
     case "warning": {
-      icon = <TriangleAlert className="text-warning size-5" />;
+      icon = (
+        <TriangleWarning className="fill-warning text-warning-foreground size-5" />
+      );
       break;
     }
     case "error": {
-      icon = <OctagonX className="text-destructive size-5" />;
+      icon = (
+        <OctagonWarning className="fill-destructive text-destructive-foreground size-5" />
+      );
       break;
     }
     case "loading": {

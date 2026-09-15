@@ -94,6 +94,27 @@ Custom oxlint plugin: `tools/oxlint-plugin-workspace`
 
 Built-in try/catch is allowlisted only in `packages/utils/src/result.ts`.
 
+## Third-party assets
+
+### Nucleo Icons
+
+Copyright © Nucleo
+
+Version 1.3, January 3, 2024
+
+Nucleo Icons
+
+https://nucleoapp.com/
+
+- Redistribution of icons is prohibited.
+- Icons are restricted for use only within the product they are bundled with.
+
+For more details: https://nucleoapp.com/license
+
+This product bundles thirteen rendered glyphs from the Nucleo UI 1.8.0 Fill Duo asset family under a purchased Nucleo license: badge-check, circle-info, incognito, monitor, moon-stars, octagon-warning, person-door, sidebar-left-hide, sidebar-left-show, sun, triangle-warning, user, and user-settings. These vectors are included only as part of this product and are not offered as a standalone icon library.
+
+The complete source archive is intentionally not checked in. Contributors must obtain the Nucleo UI 1.8.0 SVG export through an authorized Nucleo account before adding licensed glyphs.
+
 ## Agent notes
 
 See `AGENTS.md` and `.agents/skills/`.

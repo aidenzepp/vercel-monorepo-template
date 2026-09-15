@@ -19,9 +19,9 @@ import {
   SidebarMenuItem,
 } from "@workspace/ui/components/sidebar";
 import { Spinner } from "@workspace/ui/components/spinner";
+import { Incognito, PersonDoor, User, UserSettings } from "@workspace/ui/icons";
 import { logger } from "@workspace/utils/logger";
 import { result } from "@workspace/utils/result";
-import { HatGlasses, LogOut, Settings, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -120,9 +120,9 @@ const UserMenuAvatar = ({ image, isAnonymous }: UserMenuAvatarProps) => (
     )}
     <AvatarFallback>
       {isAnonymous ? (
-        <HatGlasses aria-hidden="true" />
+        <Incognito aria-hidden="true" />
       ) : (
-        <UserRound aria-hidden="true" />
+        <User aria-hidden="true" />
       )}
     </AvatarFallback>
   </Avatar>
@@ -196,7 +196,7 @@ const SettingsMenuItem = () => (
   <DropdownMenuItem
     render={<Link data-cuelume-toggle="press" href="/settings" />}
   >
-    <Settings aria-hidden="true" />
+    <UserSettings aria-hidden="true" />
     Settings
   </DropdownMenuItem>
 );
@@ -248,7 +248,7 @@ const SignOutMenuItem = ({ onSignOut }: SignOutMenuItemProps) => {
         {pending ? (
           <Spinner data-icon="inline-start" />
         ) : (
-          <LogOut aria-hidden="true" />
+          <PersonDoor aria-hidden="true" />
         )}
         {pending ? "Signing out…" : "Sign out"}
       </DropdownMenuItem>

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { strict as assert } from "node:assert";
 
 import { createToastManager, Toaster } from "@workspace/ui/components/toast";
 import { act } from "react";
@@ -15,30 +16,34 @@ interface MountedToaster {
 }
 
 /**
- * The semantic stroke color expected from each outlined status glyph.
+ * The Nucleo glyph and semantic Fill Duo palette expected for each status.
  */
 const SEMANTIC_ICON_CASES = [
   {
-    colorClass: "text-success",
-    iconClass: "lucide-circle-check",
+    fillClass: "fill-success",
+    iconName: "badge-check",
+    textClass: "text-success-foreground",
     title: "Changes saved",
     type: "success",
   },
   {
-    colorClass: "text-[oklch(62.04%_0.1950_253.83)]",
-    iconClass: "lucide-info",
+    fillClass: "fill-info",
+    iconName: "circle-info",
+    textClass: "text-info-foreground",
     title: "Update available",
     type: "info",
   },
   {
-    colorClass: "text-warning",
-    iconClass: "lucide-triangle-alert",
+    fillClass: "fill-warning",
+    iconName: "triangle-warning",
+    textClass: "text-warning-foreground",
     title: "Connection unstable",
     type: "warning",
   },
   {
-    colorClass: "text-destructive",
-    iconClass: "lucide-octagon-x",
+    fillClass: "fill-destructive",
+    iconName: "octagon-warning",
+    textClass: "text-destructive-foreground",
     title: "Could not save",
     type: "error",
   },
@@ -89,31 +94,65 @@ const findToast = (title: string): HTMLElement | undefined =>
       title
   );
 
-test("status colors stay on outlined icons instead of the toast surface", () => {
+test("status icons use Nucleo Fill Duo glyphs with semantic Tailwind palettes", () => {
   const mounted = mountToaster();
 
-  for (const { colorClass, iconClass, title, type } of SEMANTIC_ICON_CASES) {
+  for (const {
+    fillClass,
+    iconName,
+    textClass,
+    title,
+    type,
+  } of SEMANTIC_ICON_CASES) {
     act(() => {
       mounted.manager.add({ title, type });
     });
 
     const toastItem = findToast(title);
-    const toastIcon = toastItem?.querySelector<HTMLElement>(
+    assert.ok(toastItem);
+
+    const toastIcon = toastItem.querySelector<HTMLElement>(
       '[data-slot="toast-icon"]'
     );
-    const icon = toastIcon?.querySelector<SVGElement>(`.${iconClass}`);
+    assert.ok(toastIcon);
 
-    expect(toastItem?.classList.contains("bg-popover")).toBeTrue();
-    expect(toastItem?.classList.contains("text-popover-foreground")).toBeTrue();
+    const icon = toastIcon.querySelector<SVGElement>(
+      `[data-nucleo-icon="${iconName}"]`
+    );
+    assert.ok(icon);
+
+    const baseLayer = icon.querySelector<SVGElement>('[data-color="color-2"]');
+    assert.ok(baseLayer);
+
+    const foregroundLayers = icon.querySelectorAll<SVGElement>(
+      '[data-color="color-1"]'
+    );
+
+    expect(toastItem.classList.contains("bg-popover")).toBeTrue();
+    expect(toastItem.classList.contains("text-popover-foreground")).toBeTrue();
     expect(
-      [...(toastItem?.classList ?? [])].some((className) =>
+      [...toastItem.classList].some((className) =>
         className.startsWith("data-[type=")
       )
     ).toBeFalse();
-    expect(toastIcon?.querySelectorAll("svg")).toHaveLength(1);
-    expect(icon?.classList.contains(colorClass)).toBeTrue();
-    expect(icon?.getAttribute("fill")).toBe("none");
-    expect(icon?.classList.contains("size-5")).toBeTrue();
+    expect(toastIcon.querySelectorAll("svg")).toHaveLength(1);
+    expect(icon.getAttribute("viewBox")).toBe("0 0 18 18");
+    expect(icon.classList.contains("size-5")).toBeTrue();
+    expect(icon.classList.contains(fillClass)).toBeTrue();
+    expect(icon.classList.contains(textClass)).toBeTrue();
+    expect(icon.getAttribute("fill")).toBe("currentColor");
+    expect(baseLayer.getAttribute("fill")).toBeNull();
+    expect(baseLayer.getAttribute("opacity")).toBe("0.4");
+    expect(foregroundLayers.length).toBeGreaterThan(0);
+
+    for (const layer of foregroundLayers) {
+      expect(layer.getAttribute("fill")).toBe("currentColor");
+    }
+
+    expect(icon.querySelector("[stroke]")).toBeNull();
+    expect(
+      icon.querySelector('[fill="#000"], [fill="black"], [stroke="black"]')
+    ).toBeNull();
   }
 
   unmountToaster(mounted);
@@ -133,7 +172,7 @@ test("loading toasts use the shared spinner", () => {
   unmountToaster(mounted);
 });
 
-test("toasts enter from a viewport centered along the top edge", () => {
+test("toasts enter from a viewport centered along the bottom edge", () => {
   const mounted = mountToaster();
 
   act(() => {
@@ -144,14 +183,19 @@ test("toasts enter from a viewport centered along the top edge", () => {
   const toastItem = findToast("Draft saved");
 
   expect(viewport?.classList.contains("inset-x-4")).toBeTrue();
-  expect(viewport?.classList.contains("top-4")).toBeTrue();
+  expect(viewport?.classList.contains("bottom-4")).toBeTrue();
   expect(viewport?.classList.contains("mx-auto")).toBeTrue();
-  expect(viewport?.classList.contains("bottom-4")).toBeFalse();
-  expect(toastItem?.classList.contains("top-0")).toBeTrue();
-  expect(toastItem?.classList.contains("origin-top")).toBeTrue();
+  expect(viewport?.classList.contains("top-4")).toBeFalse();
+  expect(toastItem?.classList.contains("bottom-0")).toBeTrue();
+  expect(toastItem?.classList.contains("origin-bottom")).toBeTrue();
   expect(
     toastItem?.classList.contains(
-      "data-starting-style:[transform:translateY(-150%)]"
+      "[--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))]"
+    )
+  ).toBeTrue();
+  expect(
+    toastItem?.classList.contains(
+      "data-starting-style:[transform:translateY(150%)]"
     )
   ).toBeTrue();
 

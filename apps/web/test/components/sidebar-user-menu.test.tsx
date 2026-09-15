@@ -53,6 +53,7 @@ test("user menu identity shows the user's public identity", () => {
 
   expect(markup).toContain("Aiden Zepp");
   expect(markup).toContain("@aiden");
+  expect(markup).not.toContain("font-mono");
 });
 
 test("user menu identity falls back when the username is missing", () => {
@@ -61,6 +62,7 @@ test("user menu identity falls back when the username is missing", () => {
   );
 
   expect(markup).toContain("Username not set");
+  expect(markup).not.toContain("font-mono");
 });
 
 test("regular user avatars fall back when the image is missing", () => {
@@ -68,7 +70,8 @@ test("regular user avatars fall back when the image is missing", () => {
     <UserMenuAvatar image={null} isAnonymous={false} />
   );
 
-  expect(markup).toContain("lucide-user-round");
+  expect(markup).toContain('data-nucleo-icon="user"');
+  expect(markup).toContain('data-color="color-2"');
 });
 
 test("anonymous user menu identity uses the temporary-account fallback", () => {
@@ -79,9 +82,50 @@ test("anonymous user menu identity uses the temporary-account fallback", () => {
     </>
   );
 
-  expect(markup).toContain("lucide-hat-glasses");
+  expect(markup).toContain('data-nucleo-icon="incognito"');
+  expect(markup).toContain('data-color="color-2"');
   expect(markup).toContain("Temporary user");
   expect(markup).toContain("Anonymous session");
+  expect(markup).not.toContain("font-mono");
+});
+
+test("uses the licensed settings and sign-out action icons", () => {
+  const { container, root } = mountUserMenu(
+    async () => await Promise.resolve(null)
+  );
+  const menuTrigger = container.querySelector<HTMLButtonElement>(
+    '[data-slot="dropdown-menu-trigger"]'
+  );
+
+  if (menuTrigger === null) {
+    throw new Error("The sidebar account trigger should be mounted.");
+  }
+
+  act(() => {
+    menuTrigger.click();
+  });
+
+  expect(
+    document.body.querySelector('[data-nucleo-icon="user-settings"]')
+  ).not.toBeNull();
+  expect(
+    document.body.querySelector(
+      '[data-nucleo-icon="user-settings"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
+  expect(
+    document.body.querySelector('[data-nucleo-icon="person-door"]')
+  ).not.toBeNull();
+  expect(
+    document.body.querySelector(
+      '[data-nucleo-icon="person-door"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
 });
 
 test("signs out immediately from the account menu", async () => {
