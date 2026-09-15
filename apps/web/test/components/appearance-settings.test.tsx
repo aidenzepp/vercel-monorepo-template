@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { strict as assert } from "node:assert";
 
 import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import { act } from "react";
@@ -43,6 +44,13 @@ test("renders feature-owned chrome around button-backed theme radios", () => {
     'button[data-slot="button"][role="radio"]'
   );
   const nativeRadios = group?.querySelectorAll('input[type="radio"]');
+  const systemRadio = findThemeRadio(container, "System");
+  const lightRadio = findThemeRadio(container, "Light");
+  const darkRadio = findThemeRadio(container, "Dark");
+
+  assert.ok(systemRadio);
+  assert.ok(lightRadio);
+  assert.ok(darkRadio);
 
   expect(field?.dataset.orientation).toBe("horizontal");
   expect(control?.dataset.slot).toBe("theme-preference-control");
@@ -55,6 +63,26 @@ test("renders feature-owned chrome around button-backed theme radios", () => {
   expect(field?.lastElementChild).toBe(control ?? null);
   expect(buttonRadios).toHaveLength(3);
   expect(nativeRadios).toHaveLength(3);
+  expect(
+    systemRadio.querySelector('[data-nucleo-icon="monitor"]')
+  ).not.toBeNull();
+  expect(
+    systemRadio.querySelector(
+      '[data-nucleo-icon="monitor"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
+  expect(lightRadio.querySelector('[data-nucleo-icon="sun"]')).not.toBeNull();
+  expect(
+    lightRadio.querySelector('[data-nucleo-icon="sun"] [data-color="color-2"]')
+  ).not.toBeNull();
+  expect(
+    darkRadio.querySelector('[data-nucleo-icon="moon-stars"]')
+  ).not.toBeNull();
+  expect(
+    darkRadio.querySelector(
+      '[data-nucleo-icon="moon-stars"] [data-color="color-2"]'
+    )
+  ).not.toBeNull();
 
   act(() => {
     root.unmount();

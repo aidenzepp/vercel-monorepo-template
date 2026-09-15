@@ -19,9 +19,9 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
+import { SidebarLeftHide, SidebarLeftShow } from "@workspace/ui/icons";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import * as React from "react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
@@ -280,9 +280,9 @@ function SidebarTrigger({
             {...props}
           >
             {isOpen ? (
-              <PanelLeftClose aria-hidden="true" />
+              <SidebarLeftHide aria-hidden="true" />
             ) : (
-              <PanelLeftOpen aria-hidden="true" />
+              <SidebarLeftShow aria-hidden="true" />
             )}
           </Button>
         }

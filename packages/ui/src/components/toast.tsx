@@ -154,41 +154,23 @@ function ToastIcon({ type }: { type: string | undefined }) {
   switch (type) {
     case "success": {
       icon = (
-        <BadgeCheck
-          className="size-5"
-          primaryColor="var(--success-foreground)"
-          secondaryColor="var(--success)"
-        />
+        <BadgeCheck className="fill-success text-success-foreground size-5" />
       );
       break;
     }
     case "info": {
-      icon = (
-        <CircleInfo
-          className="size-5"
-          primaryColor="var(--info-foreground)"
-          secondaryColor="var(--info)"
-        />
-      );
+      icon = <CircleInfo className="fill-info text-info-foreground size-5" />;
       break;
     }
     case "warning": {
       icon = (
-        <TriangleWarning
-          className="size-5"
-          primaryColor="var(--warning-foreground)"
-          secondaryColor="var(--warning)"
-        />
+        <TriangleWarning className="fill-warning text-warning-foreground size-5" />
       );
       break;
     }
     case "error": {
       icon = (
-        <OctagonWarning
-          className="size-5"
-          primaryColor="var(--destructive-foreground)"
-          secondaryColor="var(--destructive)"
-        />
+        <OctagonWarning className="fill-destructive text-destructive-foreground size-5" />
       );
       break;
     }

@@ -17,9 +17,8 @@ import {
   RadioGroup,
   RadioGroupButton,
 } from "@workspace/ui/components/radio-group";
+import { Monitor, MoonStars, Sun } from "@workspace/ui/icons";
 import { useTheme } from "@workspace/ui/next/theme-provider";
-import type { LucideIcon } from "lucide-react";
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -32,7 +31,7 @@ type ThemePreference = "dark" | "light" | "system";
  */
 interface ThemeOption {
   description: string;
-  icon: LucideIcon;
+  icon: typeof Monitor;
   label: string;
   value: ThemePreference;
 }
@@ -61,7 +60,7 @@ const THEME_OPTIONS = [
   },
   {
     description: "Keep the interface dark.",
-    icon: Moon,
+    icon: MoonStars,
     label: "Dark",
     value: "dark",
   },
@@ -121,7 +120,7 @@ const ThemePreferenceButton = ({
     title={`${label}: ${description}`}
     value={value}
   >
-    <Icon aria-hidden="true" className="size-5" strokeWidth={2.25} />
+    <Icon aria-hidden="true" className="size-5" />
   </RadioGroupButton>
 );
 

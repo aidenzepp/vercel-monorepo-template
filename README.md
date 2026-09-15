@@ -111,7 +111,7 @@ https://nucleoapp.com/
 
 For more details: https://nucleoapp.com/license
 
-This product bundles four rendered glyphs from the Nucleo UI 1.8.0 Fill Duo asset family under a purchased Nucleo license: badge-check, circle-info, triangle-warning, and octagon-warning. These vectors are included only as part of this product and are not offered as a standalone icon library.
+This product bundles thirteen rendered glyphs from the Nucleo UI 1.8.0 Fill Duo asset family under a purchased Nucleo license: badge-check, circle-info, incognito, monitor, moon-stars, octagon-warning, person-door, sidebar-left-hide, sidebar-left-show, sun, triangle-warning, user, and user-settings. These vectors are included only as part of this product and are not offered as a standalone icon library.
 
 ## Agent notes
 

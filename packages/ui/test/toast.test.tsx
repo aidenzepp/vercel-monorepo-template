@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { strict as assert } from "node:assert";
 
 import { createToastManager, Toaster } from "@workspace/ui/components/toast";
 import { act } from "react";
@@ -19,30 +20,30 @@ interface MountedToaster {
  */
 const SEMANTIC_ICON_CASES = [
   {
+    fillClass: "fill-success",
     iconName: "badge-check",
-    primaryColor: "var(--success-foreground)",
-    secondaryColor: "var(--success)",
+    textClass: "text-success-foreground",
     title: "Changes saved",
     type: "success",
   },
   {
+    fillClass: "fill-info",
     iconName: "circle-info",
-    primaryColor: "var(--info-foreground)",
-    secondaryColor: "var(--info)",
+    textClass: "text-info-foreground",
     title: "Update available",
     type: "info",
   },
   {
+    fillClass: "fill-warning",
     iconName: "triangle-warning",
-    primaryColor: "var(--warning-foreground)",
-    secondaryColor: "var(--warning)",
+    textClass: "text-warning-foreground",
     title: "Connection unstable",
     type: "warning",
   },
   {
+    fillClass: "fill-destructive",
     iconName: "octagon-warning",
-    primaryColor: "var(--destructive-foreground)",
-    secondaryColor: "var(--destructive)",
+    textClass: "text-destructive-foreground",
     title: "Could not save",
     type: "error",
   },
@@ -93,13 +94,13 @@ const findToast = (title: string): HTMLElement | undefined =>
       title
   );
 
-test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
+test("status icons use Nucleo Fill Duo glyphs with semantic Tailwind palettes", () => {
   const mounted = mountToaster();
 
   for (const {
+    fillClass,
     iconName,
-    primaryColor,
-    secondaryColor,
+    textClass,
     title,
     type,
   } of SEMANTIC_ICON_CASES) {
@@ -108,38 +109,49 @@ test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
     });
 
     const toastItem = findToast(title);
-    const toastIcon = toastItem?.querySelector<HTMLElement>(
+    assert.ok(toastItem);
+
+    const toastIcon = toastItem.querySelector<HTMLElement>(
       '[data-slot="toast-icon"]'
     );
-    const icon = toastIcon?.querySelector<SVGElement>(
+    assert.ok(toastIcon);
+
+    const icon = toastIcon.querySelector<SVGElement>(
       `[data-nucleo-icon="${iconName}"]`
     );
-    const baseLayer = icon?.querySelector<SVGElement>('[data-color="color-2"]');
-    const foregroundLayers = icon?.querySelectorAll<SVGElement>(
+    assert.ok(icon);
+
+    const baseLayer = icon.querySelector<SVGElement>('[data-color="color-2"]');
+    assert.ok(baseLayer);
+
+    const foregroundLayers = icon.querySelectorAll<SVGElement>(
       '[data-color="color-1"]'
     );
 
-    expect(toastItem?.classList.contains("bg-popover")).toBeTrue();
-    expect(toastItem?.classList.contains("text-popover-foreground")).toBeTrue();
+    expect(toastItem.classList.contains("bg-popover")).toBeTrue();
+    expect(toastItem.classList.contains("text-popover-foreground")).toBeTrue();
     expect(
-      [...(toastItem?.classList ?? [])].some((className) =>
+      [...toastItem.classList].some((className) =>
         className.startsWith("data-[type=")
       )
     ).toBeFalse();
-    expect(toastIcon?.querySelectorAll("svg")).toHaveLength(1);
-    expect(icon?.getAttribute("viewBox")).toBe("0 0 18 18");
-    expect(icon?.classList.contains("size-5")).toBeTrue();
-    expect(baseLayer?.getAttribute("fill")).toBe(secondaryColor);
-    expect(baseLayer?.getAttribute("opacity")).toBe("0.4");
-    expect(foregroundLayers?.length).toBeGreaterThan(0);
+    expect(toastIcon.querySelectorAll("svg")).toHaveLength(1);
+    expect(icon.getAttribute("viewBox")).toBe("0 0 18 18");
+    expect(icon.classList.contains("size-5")).toBeTrue();
+    expect(icon.classList.contains(fillClass)).toBeTrue();
+    expect(icon.classList.contains(textClass)).toBeTrue();
+    expect(icon.getAttribute("fill")).toBe("currentColor");
+    expect(baseLayer.getAttribute("fill")).toBeNull();
+    expect(baseLayer.getAttribute("opacity")).toBe("0.4");
+    expect(foregroundLayers.length).toBeGreaterThan(0);
 
-    for (const layer of foregroundLayers ?? []) {
-      expect(layer.getAttribute("fill")).toBe(primaryColor);
+    for (const layer of foregroundLayers) {
+      expect(layer.getAttribute("fill")).toBe("currentColor");
     }
 
-    expect(icon?.querySelector("[stroke]")).toBeNull();
+    expect(icon.querySelector("[stroke]")).toBeNull();
     expect(
-      icon?.querySelector('[fill="#000"], [fill="black"], [stroke="black"]')
+      icon.querySelector('[fill="#000"], [fill="black"], [stroke="black"]')
     ).toBeNull();
   }
 
