@@ -1,29 +1,48 @@
-import { createToastManager, toast } from "@workspace/ui/components/toast";
+import type { Toast as ToastPrimitive } from "@base-ui/react/toast";
+import type * as ToastModule from "@workspace/ui/components/toast";
+import {
+  createToastManager,
+  toast,
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastContent,
+  ToastDescription,
+  Toaster,
+  ToastPortal,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+  useToastManager,
+} from "@workspace/ui/components/toast";
 
 /**
- * An isolated manager used to verify the public toast type contract.
+ * The complete value API exposed by the application toast module.
  */
-const manager = createToastManager<Record<string, never>>();
+const publicToastApi = {
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastContent,
+  ToastDescription,
+  ToastPortal,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+  Toaster,
+  createToastManager,
+  toast,
+  useToastManager,
+} satisfies typeof ToastModule;
 
-manager.add({ title: "Saved", type: "success" });
-manager.add({ title: "Heads up", type: "warning" });
-toast.add({ title: "Loading", type: "loading" });
+void publicToastApi;
 
-// @ts-expect-error -- Application toast managers reject unsupported types.
-manager.add({ title: "Unknown", type: "custom" });
+/**
+ * The isolated manager retains Base UI's native manager contract.
+ */
+const manager: ReturnType<typeof ToastPrimitive.createToastManager> =
+  createToastManager();
 
-// @ts-expect-error -- The shared toast manager exposes the same closed type.
-toast.update("toast-id", { type: "custom" });
+manager.add({ title: "Custom", type: "custom" });
 
-void manager.promise(Promise.resolve("saved"), {
-  error: { title: "Failed", type: "error" },
-  loading: { title: "Saving", type: "loading" },
-  success: { title: "Saved", type: "success" },
-});
-
-void manager.promise(Promise.resolve("saved"), {
-  error: "Failed",
-  // @ts-expect-error -- Promise phases cannot introduce unsupported types.
-  loading: { title: "Saving", type: "custom" },
-  success: "Saved",
-});
+void manager;

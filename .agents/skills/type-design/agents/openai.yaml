@@ -1,0 +1,4 @@
+interface:
+  display_name: "Type Design"
+  short_description: "Build narrow, derived, domain-owned TypeScript models"
+  default_prompt: "Use $type-design to review these TypeScript data models and boundaries. Reuse or derive from the semantic owner, constrain invalid values at the highest trustworthy input, and preserve identity, state, error, and absence semantics through the stack."
