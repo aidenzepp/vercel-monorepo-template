@@ -1,6 +1,7 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
 
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
+import { createToastManager, Toaster } from "@workspace/ui/components/toast";
 import { ThemeProvider } from "@workspace/ui/next/theme-provider";
 import * as cuelume from "cuelume";
 import { act, useEffect } from "react";
@@ -347,6 +348,76 @@ test("plays press cues only for the named sidebar account actions", () => {
 
   act(() => {
     signOutItem.click();
+  });
+
+  expect(playSound.mock.calls.map(([sound]) => sound)).toEqual([
+    "press",
+    "press",
+  ]);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+  playSound.mockRestore();
+});
+
+test("plays press cues for toast actions and dismissals", () => {
+  window.localStorage.setItem("sound-effects-enabled", "true");
+  const playSound = spyOn(cuelume, "play").mockImplementation(
+    ignoreAudioPlayback
+  );
+  const manager = createToastManager<Record<string, never>>();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <SoundEffectsProvider>
+        <Toaster toastManager={manager} />
+      </SoundEffectsProvider>
+    );
+  });
+
+  act(() => {
+    manager.add({
+      actionProps: { children: "Undo", onClick: () => {} },
+      title: "Message archived",
+    });
+    manager.add({ title: "Dismiss me" });
+  });
+
+  const toasts = [
+    ...document.querySelectorAll<HTMLElement>('[data-slot="toast"]'),
+  ];
+  const actionToast = toasts.find((toastItem) =>
+    toastItem.textContent?.includes("Message archived")
+  );
+  const dismissibleToast = toasts.find((toastItem) =>
+    toastItem.textContent?.includes("Dismiss me")
+  );
+  const action = actionToast?.querySelector<HTMLButtonElement>(
+    '[data-slot="toast-action"]'
+  );
+  const close = dismissibleToast?.querySelector<HTMLButtonElement>(
+    '[data-slot="toast-close"]'
+  );
+
+  if (
+    action === undefined ||
+    action === null ||
+    close === undefined ||
+    close === null
+  ) {
+    throw new Error(
+      "The mounted toasts should expose action and close buttons."
+    );
+  }
+
+  act(() => {
+    action.click();
+    close.click();
   });
 
   expect(playSound.mock.calls.map(([sound]) => sound)).toEqual([
