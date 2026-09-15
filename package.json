@@ -26,7 +26,7 @@
     "oxlint-tsgolint": "^7.0.2001",
     "turbo": "^2.9.18",
     "typescript": "^7.0.2",
-    "ultracite": "^7.10.4",
+    "ultracite": "^7.12.0",
     "zod": "^4.4.3"
   },
   "engines": {

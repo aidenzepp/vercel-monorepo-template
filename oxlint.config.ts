@@ -1,6 +1,7 @@
 import { defineConfig } from "oxlint";
 import antiSlop from "ultracite/oxlint/anti-slop";
 import core from "ultracite/oxlint/core";
+import shadcn from "ultracite/oxlint/shadcn";
 
 /**
  * The upstream exclusions preserved while adding workspace-specific lint
@@ -14,12 +15,18 @@ const ultraciteIgnorePatterns = core.ignorePatterns ?? [];
 const ultracitePlugins = core.plugins ?? [];
 
 /**
+ * The Shadcn plugin registrations that dependency analyzers must see on the
+ * root config.
+ */
+const shadcnPlugins = shadcn.jsPlugins ?? [];
+
+/**
  * Sources excluded because they are upstream-generated or intentional rule
  * fixtures.
  */
 const ignorePatterns = [
   ...ultraciteIgnorePatterns,
-  // The ShadCN registry currently emits package components directly under src/components.
+  // Shadcn registry components remain generated source; lint their consumers instead.
   "packages/ui/src/components/**/*.{ts,tsx}",
   // ShadCN's generated hook is vendored source and retains upstream behavior/style.
   "packages/ui/src/hooks/use-mobile*",
@@ -37,18 +44,15 @@ export default defineConfig({
     correctness: "error",
   },
   // Anti-slop uses a JavaScript plugin and can make linting roughly 60% slower.
-  extends: [core, antiSlop],
+  extends: [core, antiSlop, shadcn],
   ignorePatterns,
-  jsPlugins: [workspaceOxlintPlugin, "@shadcn/lint"],
+  jsPlugins: [workspaceOxlintPlugin, ...shadcnPlugins],
   options: {
     typeAware: true,
   },
   overrides: [
     {
-      files: [
-        "packages/ui/src/components/ui/**/*.{ts,tsx}",
-        "packages/ui/src/hooks/use-mobile*",
-      ],
+      files: ["packages/ui/src/hooks/use-mobile*"],
       rules: {
         "func-style": "off",
         "no-use-before-define": "off",
@@ -58,6 +62,20 @@ export default defineConfig({
       files: ["packages/ui/src/lib/utils.ts"],
       rules: {
         "func-style": "off",
+      },
+    },
+    {
+      // Google's provider mark owns its fixed brand palette rather than using product theme colors.
+      files: ["packages/ui/src/logos/google.tsx"],
+      rules: {
+        "shadcn/no-raw-colors": "off",
+      },
+    },
+    {
+      // The sign-in artwork uses one token-colored grid that Tailwind's scale cannot express.
+      files: ["apps/web/app/sign-in/page.tsx"],
+      rules: {
+        "shadcn/no-arbitrary-values": "off",
       },
     },
     {
