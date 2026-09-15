@@ -233,6 +233,62 @@ test("profile avatar changes move through preview, reset, and saved states", asy
   });
 });
 
+test("profile reset preserves the current identity against native defaults", () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const currentProfile = {
+    ...profile,
+    name: "Current Name",
+    username: "current.user",
+  };
+
+  act(() => {
+    root.render(
+      <ProfileSettingsForm
+        canEditProfile
+        onSave={async () => {
+          await Promise.resolve();
+          throw new Error("Resetting the form must not save profile data.");
+        }}
+        user={currentProfile}
+      />
+    );
+  });
+
+  const name = container.querySelector<HTMLInputElement>("#settings-name");
+  const username =
+    container.querySelector<HTMLInputElement>("#settings-username");
+  const form = container.querySelector<HTMLFormElement>("form");
+
+  if (form === null || name === null || username === null) {
+    throw new Error(
+      "The mounted profile form should expose identity controls."
+    );
+  }
+
+  name.value = "Draft Name";
+  username.value = "draft.user";
+
+  expect(name.value).toBe("Draft Name");
+  expect(username.value).toBe("draft.user");
+
+  const resetEvent = new Event("reset", { bubbles: true, cancelable: true });
+
+  act(() => {
+    form.dispatchEvent(resetEvent);
+  });
+
+  expect(resetEvent.defaultPrevented).toBe(true);
+  expect(name.value).toBe(currentProfile.name);
+  expect(username.value).toBe(currentProfile.username);
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+});
+
 test("profile avatar selection does not depend on File constructor identity", async () => {
   const createObjectURL = spyOn(URL, "createObjectURL").mockReturnValue(
     "blob:https://templ8.test/cross-realm-preview"

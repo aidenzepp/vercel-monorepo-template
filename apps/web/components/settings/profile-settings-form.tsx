@@ -432,11 +432,17 @@ const ProfileSettingsForm = ({
   };
 
   /**
-   * Restores session-backed values and clears the native file control.
+   * Cancels the native reset before restoring session-backed profile values.
+   *
+   * React Hook Form writes the current values into uncontrolled inputs during
+   * this event. The browser reset algorithm runs afterward unless canceled and
+   * would replace those values with the inputs' empty markup defaults.
    *
    * @param event - The reset event carrying the form's native controls.
+   * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#resetting-a-form
    */
   const resetProfile = (event: SyntheticEvent<HTMLFormElement>): void => {
+    event.preventDefault();
     clearProfileAvatarInput(event.currentTarget);
     form.reset(form.formState.defaultValues, { keepDirtyValues: false });
     onReset?.();
