@@ -20,7 +20,7 @@ import {
   ToastInfoIcon,
   ToastSuccessIcon,
   ToastWarningIcon,
-} from "../internal/toast-icons.js";
+} from "#toast-icons";
 
 /**
  * The closed toast types supported by the application presentation.
