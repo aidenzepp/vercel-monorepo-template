@@ -15,30 +15,34 @@ interface MountedToaster {
 }
 
 /**
- * The semantic stroke color expected from each outlined status glyph.
+ * The Nucleo glyph and semantic Fill Duo palette expected for each status.
  */
 const SEMANTIC_ICON_CASES = [
   {
-    colorClass: "text-success",
-    iconClass: "lucide-circle-check",
+    baseColorClass: "fill-success",
+    foregroundColorClass: "fill-success-foreground",
+    iconName: "badge-check",
     title: "Changes saved",
     type: "success",
   },
   {
-    colorClass: "text-[oklch(62.04%_0.1950_253.83)]",
-    iconClass: "lucide-info",
+    baseColorClass: "fill-[oklch(62.04%_0.1950_253.83)]",
+    foregroundColorClass: "fill-[oklch(62.04%_0.1950_253.83)]",
+    iconName: "circle-info",
     title: "Update available",
     type: "info",
   },
   {
-    colorClass: "text-warning",
-    iconClass: "lucide-triangle-alert",
+    baseColorClass: "fill-warning",
+    foregroundColorClass: "fill-warning-foreground",
+    iconName: "triangle-warning",
     title: "Connection unstable",
     type: "warning",
   },
   {
-    colorClass: "text-destructive",
-    iconClass: "lucide-octagon-x",
+    baseColorClass: "fill-destructive",
+    foregroundColorClass: "fill-destructive-foreground",
+    iconName: "octagon-warning",
     title: "Could not save",
     type: "error",
   },
@@ -89,10 +93,16 @@ const findToast = (title: string): HTMLElement | undefined =>
       title
   );
 
-test("status colors stay on outlined icons instead of the toast surface", () => {
+test("status icons use Nucleo Fill Duo glyphs and semantic palettes", () => {
   const mounted = mountToaster();
 
-  for (const { colorClass, iconClass, title, type } of SEMANTIC_ICON_CASES) {
+  for (const {
+    baseColorClass,
+    foregroundColorClass,
+    iconName,
+    title,
+    type,
+  } of SEMANTIC_ICON_CASES) {
     act(() => {
       mounted.manager.add({ title, type });
     });
@@ -101,7 +111,13 @@ test("status colors stay on outlined icons instead of the toast surface", () => 
     const toastIcon = toastItem?.querySelector<HTMLElement>(
       '[data-slot="toast-icon"]'
     );
-    const icon = toastIcon?.querySelector<SVGElement>(`.${iconClass}`);
+    const icon = toastIcon?.querySelector<SVGElement>(
+      `[data-nucleo-icon="${iconName}"]`
+    );
+    const baseLayer = icon?.querySelector<SVGElement>('[data-color="color-2"]');
+    const foregroundLayers = icon?.querySelectorAll<SVGElement>(
+      '[data-color="color-1"]'
+    );
 
     expect(toastItem?.classList.contains("bg-popover")).toBeTrue();
     expect(toastItem?.classList.contains("text-popover-foreground")).toBeTrue();
@@ -111,9 +127,20 @@ test("status colors stay on outlined icons instead of the toast surface", () => 
       )
     ).toBeFalse();
     expect(toastIcon?.querySelectorAll("svg")).toHaveLength(1);
-    expect(icon?.classList.contains(colorClass)).toBeTrue();
-    expect(icon?.getAttribute("fill")).toBe("none");
+    expect(icon?.getAttribute("viewBox")).toBe("0 0 18 18");
     expect(icon?.classList.contains("size-5")).toBeTrue();
+    expect(baseLayer?.classList.contains(baseColorClass)).toBeTrue();
+    expect(baseLayer?.getAttribute("opacity")).toBe("0.4");
+    expect(foregroundLayers?.length).toBeGreaterThan(0);
+
+    for (const layer of foregroundLayers ?? []) {
+      expect(layer.classList.contains(foregroundColorClass)).toBeTrue();
+    }
+
+    expect(icon?.querySelector("[stroke]")).toBeNull();
+    expect(
+      icon?.querySelector('[fill="#000"], [fill="black"], [stroke="black"]')
+    ).toBeNull();
   }
 
   unmountToaster(mounted);

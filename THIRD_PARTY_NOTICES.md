@@ -15,4 +15,4 @@ https://nucleoapp.com/
 
 For more details: https://nucleoapp.com/license
 
-This product bundles four rendered glyphs based on five Nucleo UI 1.8.0 assets under a purchased Nucleo license: circle-check, circle-info, triangle-warning, octagon-warning, and circle-xmark. The error glyph combines the octagon-warning and circle-xmark geometry. These vectors are included only as part of this product and are not offered as a standalone icon library.
+This product bundles four rendered glyphs from the Nucleo UI 1.8.0 Fill Duo asset family under a purchased Nucleo license: badge-check, circle-info, triangle-warning, and octagon-warning. These vectors are included only as part of this product and are not offered as a standalone icon library.
