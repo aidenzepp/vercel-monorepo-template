@@ -2,17 +2,14 @@
 
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import { Button } from "@workspace/ui/components/button";
+import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  XIcon,
-  CircleCheckIcon,
-  InfoIcon,
-  TriangleAlertIcon,
-  OctagonXIcon,
-  Loader2Icon,
-} from "lucide-react";
+import { CircleCheck, Info, OctagonX, TriangleAlert, X } from "lucide-react";
 import * as React from "react";
 
+/**
+ * The shared application toast manager.
+ */
 const toast = ToastPrimitive.createToastManager();
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {
@@ -28,7 +25,7 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
+        "pointer-events-none fixed inset-x-4 top-4 z-50 mx-auto w-auto max-w-sm outline-none sm:w-full",
         className
       )}
       {...props}
@@ -41,23 +38,13 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
     <ToastPrimitive.Root
       data-slot="toast"
       className={cn(
-        "group/toast bg-popover text-popover-foreground focus-visible:border-ring focus-visible:ring-ring/50 pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl! border shadow-lg will-change-transform outline-none select-none focus-visible:ring-[3px]",
-        // Mirrors Sonner v2.0.7's rich-colors status palette:
-        // https://github.com/emilkowalski/sonner/blob/v2.0.7/src/styles.css
-        "data-[type=success]:border-[hsl(145_92%_87%)] data-[type=success]:bg-[hsl(143_85%_96%)] data-[type=success]:text-[hsl(140_100%_27%)]",
-        "data-[type=info]:border-[hsl(221_91%_93%)] data-[type=info]:bg-[hsl(208_100%_97%)] data-[type=info]:text-[hsl(210_92%_45%)]",
-        "data-[type=warning]:border-[hsl(49_91%_84%)] data-[type=warning]:bg-[hsl(49_100%_97%)] data-[type=warning]:text-[hsl(31_92%_45%)]",
-        "data-[type=error]:border-[hsl(359_100%_94%)] data-[type=error]:bg-[hsl(359_100%_97%)] data-[type=error]:text-[hsl(360_100%_45%)]",
-        "dark:data-[type=success]:border-[hsl(147_100%_12%)] dark:data-[type=success]:bg-[hsl(150_100%_6%)] dark:data-[type=success]:text-[hsl(150_86%_65%)]",
-        "dark:data-[type=info]:border-[hsl(223_43%_17%)] dark:data-[type=info]:bg-[hsl(215_100%_6%)] dark:data-[type=info]:text-[hsl(216_87%_65%)]",
-        "dark:data-[type=warning]:border-[hsl(60_100%_9%)] dark:data-[type=warning]:bg-[hsl(64_100%_6%)] dark:data-[type=warning]:text-[hsl(46_87%_65%)]",
-        "dark:data-[type=error]:border-[hsl(357_89%_16%)] dark:data-[type=error]:bg-[hsl(358_76%_10%)] dark:data-[type=error]:text-[hsl(358_100%_81%)]",
-        "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
-        "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
+        "group/toast bg-popover text-popover-foreground focus-visible:border-ring focus-visible:ring-ring/50 pointer-events-auto absolute inset-x-0 top-0 z-[calc(1000-var(--toast-index))] w-full origin-top rounded-2xl! border shadow-lg will-change-transform outline-none select-none focus-visible:ring-[3px]",
+        "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)+calc(var(--toast-index)*var(--gap))+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
+        "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)+(var(--toast-index)*var(--peek))+(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
         "after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
         "data-expanded:h-(--toast-height) data-expanded:[transform:translateX(var(--toast-swipe-movement-x))_translateY(var(--offset-y))]",
-        "data-limited:opacity-0 data-starting-style:[transform:translateY(150%)]",
-        "[&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(150%)]",
+        "data-limited:opacity-0 data-starting-style:[transform:translateY(-150%)]",
+        "[&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(-150%)]",
         "data-ending-style:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))]",
         "data-ending-style:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))]",
         "data-ending-style:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))]",
@@ -78,7 +65,7 @@ function ToastContent({ className, ...props }: ToastPrimitive.Content.Props) {
     <ToastPrimitive.Content
       data-slot="toast-content"
       className={cn(
-        "flex h-full items-center gap-3 overflow-hidden p-4 transition-opacity duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] data-behind:opacity-0 data-expanded:opacity-100",
+        "flex h-full flex-col gap-3 overflow-hidden p-4 transition-opacity duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] data-behind:opacity-0 data-expanded:opacity-100",
         className
       )}
       {...props}
@@ -103,10 +90,7 @@ function ToastDescription({
   return (
     <ToastPrimitive.Description
       data-slot="toast-description"
-      className={cn(
-        "text-muted-foreground text-sm group-data-[type=error]/toast:text-inherit group-data-[type=info]/toast:text-inherit group-data-[type=success]/toast:text-inherit group-data-[type=warning]/toast:text-inherit",
-        className
-      )}
+      className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />
   );
@@ -114,11 +98,12 @@ function ToastDescription({
 
 function ToastAction({
   className,
-  render = <Button color="neutral" variant="outline" size="sm" />,
+  render = <Button color="neutral" variant="secondary" size="sm" />,
   ...props
 }: ToastPrimitive.Action.Props) {
   return (
     <ToastPrimitive.Action
+      data-cuelume-toggle="press"
       data-slot="toast-action"
       render={render}
       className={cn("shrink-0", className)}
@@ -130,78 +115,137 @@ function ToastAction({
 function ToastClose({
   className,
   children,
-  render = <Button color="neutral" variant="ghost" size="icon-sm" />,
+  render = <Button color="neutral" variant="secondary" size="icon-sm" />,
   ...props
 }: ToastPrimitive.Close.Props) {
   return (
     <ToastPrimitive.Close
       data-slot="toast-close"
+      data-cuelume-toggle="press"
       aria-label="Close toast"
       render={render}
       className={cn(
-        "text-muted-foreground hover:text-foreground relative shrink-0 after:absolute after:-inset-2 after:content-['']",
+        "relative shrink-0 after:absolute after:-inset-2 after:content-['']",
         className
       )}
       {...props}
     >
-      {children ?? <XIcon aria-hidden="true" />}
+      {children ?? <X aria-hidden="true" />}
     </ToastPrimitive.Close>
   );
 }
 
+/**
+ * Displays the semantic status mark selected by a toast type.
+ *
+ * @param props - The toast state used to select an icon and palette.
+ * @param props.type - The application toast type selecting an icon and palette.
+ * @returns The outlined status icon for the supplied type.
+ */
 function ToastIcon({ type }: { type: string | undefined }) {
-  let icon: React.ReactNode = null;
+  let icon: React.ReactNode;
 
-  if (type === "success") {
-    icon = <CircleCheckIcon aria-hidden="true" />;
-  }
-
-  if (type === "info") {
-    icon = <InfoIcon aria-hidden="true" />;
-  }
-
-  if (type === "warning") {
-    icon = <TriangleAlertIcon aria-hidden="true" />;
-  }
-
-  if (type === "error") {
-    icon = <OctagonXIcon aria-hidden="true" />;
-  }
-
-  if (type === "loading") {
-    icon = <Loader2Icon className="animate-spin" aria-hidden="true" />;
-  }
-
-  if (!icon) {
-    return null;
+  switch (type) {
+    case "success": {
+      icon = <CircleCheck className="text-success size-5" />;
+      break;
+    }
+    case "info": {
+      icon = <Info className="size-5 text-[oklch(62.04%_0.1950_253.83)]" />;
+      break;
+    }
+    case "warning": {
+      icon = <TriangleAlert className="text-warning size-5" />;
+      break;
+    }
+    case "error": {
+      icon = <OctagonX className="text-destructive size-5" />;
+      break;
+    }
+    case "loading": {
+      icon = (
+        <Spinner aria-label={undefined} className="size-5" role={undefined} />
+      );
+      break;
+    }
+    default: {
+      return null;
+    }
   }
 
   return (
     <span
+      aria-hidden="true"
       data-slot="toast-icon"
-      className="shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
+      className="flex size-7 shrink-0 items-center justify-center [&_svg]:pointer-events-none"
     >
       {icon}
     </span>
   );
 }
 
+/**
+ * Displays a toast's title and optional supporting description.
+ *
+ * @returns The flexible message column used by the toast header.
+ */
+function ToastMessage() {
+  return (
+    <div
+      data-slot="toast-message"
+      className="flex min-w-0 flex-1 flex-col gap-1 pt-1"
+    >
+      <ToastTitle />
+      <ToastDescription />
+    </div>
+  );
+}
+
+/**
+ * Displays the top-aligned status, message, and dismissal columns.
+ *
+ * @param props - The toast state needed by the status column.
+ * @param props.type - The optional application toast type shown by the header.
+ * @returns The primary content row of a toast.
+ */
+function ToastHeader({ type }: { type: string | undefined }) {
+  return (
+    <div data-slot="toast-header" className="flex items-start gap-3">
+      <ToastIcon type={type} />
+      <ToastMessage />
+      <ToastClose />
+    </div>
+  );
+}
+
+/**
+ * Displays a toast's optional action in its own trailing row.
+ *
+ * @returns The right-aligned action row beneath the toast header.
+ */
+function ToastFooter() {
+  return (
+    <div data-slot="toast-footer" className="flex justify-end">
+      <ToastAction />
+    </div>
+  );
+}
+
 function ToastList() {
   const { toasts } = ToastPrimitive.useToastManager();
 
-  return toasts.map((toastItem) => (
-    <Toast key={toastItem.id} toast={toastItem}>
-      <ToastContent>
-        <ToastIcon type={toastItem.type} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <ToastTitle />
-          <ToastDescription />
-        </div>
-        <ToastAction />
-        <ToastClose />
-      </ToastContent>
-    </Toast>
-  ));
+  return toasts.map((toastItem) => {
+    const hasAction = toastItem.actionProps !== undefined;
+
+    return (
+      <Toast key={toastItem.id} toast={toastItem}>
+        <ToastContent>
+          <ToastHeader type={toastItem.type} />
+          {hasAction ? <ToastFooter /> : null}
+        </ToastContent>
+      </Toast>
+    );
+  });
 }
 
 function Toaster({
